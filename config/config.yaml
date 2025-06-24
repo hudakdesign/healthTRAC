@@ -1,0 +1,15 @@
+chair:
+  port: "/dev/cu.usbserial-10"
+  baud: 115200
+  idle_rate_hz: 2
+  active_rate_hz: 50
+  threshold: 500
+
+toothbrush:
+  rate_hz: 50
+  use_simulated_data: true
+  data_file: "data/toothbrush/Simulated_Toothbrush_Data_10s.csv"
+
+logging:
+  time_format: "iso"
+  log_dir: "data/logs"

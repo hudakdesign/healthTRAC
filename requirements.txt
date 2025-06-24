@@ -5,3 +5,5 @@ plotly
 matplotlib
 pyqtgraph
 pyqt5
+pyyaml
+numpy
