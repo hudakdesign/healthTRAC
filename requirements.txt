@@ -1,0 +1,7 @@
+pyserial
+pandas
+dash
+plotly
+matplotlib
+pyqtgraph
+pyqt5
