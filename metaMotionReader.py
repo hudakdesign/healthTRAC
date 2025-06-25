@@ -69,8 +69,10 @@ class MetaMotionReader:
             print(f"Connection failed: {e}")
             return False
 
+    # Replace the startStreaming method in your metaMotionReader.py with this:
+
     async def startStreaming(self):
-        """Start accelerometer streaming"""
+        """Start accelerometer streaming - FIXED VERSION"""
         if not self.connected:
             print("Not connected!")
             return
@@ -83,13 +85,18 @@ class MetaMotionReader:
             await self.client.start_notify(self.NOTIFY_UUID, self._handleData)
             await asyncio.sleep(0.5)
 
-            # Simple initialization for updated firmware
-            # Configure accelerometer (100Hz, ±2g)
-            print("Configuring accelerometer (100Hz, ±2g)...")
-            await self.client.write_gatt_char(self.COMMAND_UUID, bytes([0x02, 0x03, 0x28, 0x03]))
+            # Use EXACT sequence from working testMetaMotionUbuntu.py
+            print("Configuring accelerometer (100Hz, ±4g)...")
+
+            # Step 1: Enable accelerometer (this was missing!)
+            await self.client.write_gatt_char(self.COMMAND_UUID, bytes([0x02, 0x02, 0x01, 0x00]))
             await asyncio.sleep(0.1)
 
-            # Start streaming
+            # Step 2: Configure settings (FIXED: 0x0C instead of 0x03)
+            await self.client.write_gatt_char(self.COMMAND_UUID, bytes([0x02, 0x03, 0x28, 0x0C]))
+            await asyncio.sleep(0.1)
+
+            # Step 3: Start streaming
             print("Starting data stream...")
             await self.client.write_gatt_char(self.COMMAND_UUID, bytes([0x02, 0x01, 0x01]))
 
