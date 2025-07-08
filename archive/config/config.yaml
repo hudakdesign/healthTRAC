@@ -1,0 +1,23 @@
+# Simple configuration for HealthTRAC prototype
+
+fsr:
+  port: null  # Auto-detect
+  baudrate: 115200
+
+metamotion:
+  mac_address: null  # Auto-detect
+
+dashboard:
+  refresh_rate: 20  # Hz
+  window_seconds: 10  # Show last N seconds
+
+# ------------------------------------------------------------------
+# Network-related settings
+# ------------------------------------------------------------------
+ubuntu_vm:
+  # IP address of the Ubuntu VM that provides the sensor stream.
+  # Replace the placeholder with the real address of your VM.
+  ip: "192.168.0.100"
+
+  # TCP port used by the VM’s sensor-streaming service.
+  port: 5000

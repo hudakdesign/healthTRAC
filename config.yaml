@@ -1,0 +1,110 @@
+# HealthTRAC TCP/NTP Configuration Template
+# Copy this to config.yaml and update with your settings
+
+# Hub Server Configuration (Ubuntu VM or Raspberry Pi)
+hub_server:
+# IP address to bind to (0.0.0.0 for all interfaces)
+bind_address: "0.0.0.0"
+
+# TCP port for sensor connections
+port: 5555
+
+# NTP server for time synchronization
+ntp_server: "pool.ntp.org"
+
+# How often to sync with NTP (seconds)
+ntp_sync_interval: 3600
+
+# Data storage directory
+data_directory: "./data"
+
+# Session rotation (start new session after X hours)
+session_duration_hours: 24
+
+# FSR Sensor Configuration
+fsr_sensor:
+# Hub connection
+hub_host: "192.168.1.100"  # UPDATE: Your Ubuntu VM IP
+hub_port: 5555
+
+# Serial port settings
+serial_port: null  # null for auto-detect, or specify like "/dev/ttyUSB0"
+baudrate: 115200
+
+# Calibration
+force_threshold: 100  # Minimum ADC value to register force
+force_scale: 0.01  # ADC to Newtons conversion factor
+
+# MetaMotion Accelerometer Configuration
+accelerometer:
+# Hub connection
+hub_host: "192.168.1.100"  # UPDATE: Your Ubuntu VM IP
+hub_port: 5555
+
+# BLE settings
+mac_address: null  # null for auto-detect, or "XX:XX:XX:XX:XX:XX"
+
+# Sensor settings
+sampling_rate: 100  # Hz
+range: 4  # ±4g
+
+# Microphone Configuration
+microphone:
+# Hub connection
+hub_host: "192.168.1.100"  # UPDATE: Your Ubuntu VM IP
+hub_port: 5555
+
+# Audio settings
+sample_rate: 48000
+chunk_size: 4800  # 100ms chunks
+
+# Device selection (when implemented)
+left_device_index: null  # null for default
+right_device_index: null  # null for default
+
+# Dashboard Configuration
+dashboard:
+# Hub connection
+hub_host: "192.168.1.100"  # UPDATE: Your Ubuntu VM IP
+hub_port: 5555
+
+# Display settings
+update_interval: 1.0  # seconds
+clear_screen: true  # clear terminal between updates
+
+# Alert Configuration (future implementation)
+alerts:
+# Email settings
+enabled: false
+smtp_server: "smtp.gmail.com"
+smtp_port: 587
+from_email: "healthtrac@example.com"
+to_emails:
+- "researcher@example.com"
+
+# Alert thresholds
+sensor_timeout_seconds: 300  # Alert if no data for 5 minutes
+disk_space_warning_gb: 10  # Warn when less than 10GB free
+
+# Network Configuration
+network:
+# Reconnection settings
+reconnect_delay: 5  # seconds between reconnection attempts
+max_reconnect_attempts: 0  # 0 for unlimited
+
+# Buffer sizes
+tcp_buffer_size: 4096
+data_queue_size: 1000
+
+# Logging Configuration
+logging:
+# Log level: DEBUG, INFO, WARNING, ERROR
+level: "INFO"
+
+# Log to file (in addition to console)
+log_to_file: false
+log_directory: "./logs"
+
+# Rotate logs
+max_log_size_mb: 100
+backup_count: 5
