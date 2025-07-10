@@ -112,26 +112,113 @@ def test_serial_ports():
 
     try:
         import serial.tools.list_ports
+        import os
+        import grp
+        import pwd
+
+        # First check for /dev/ttyUSB* and /dev/ttyACM* devices directly
+        usb_devices = []
+        for pattern in ['/dev/ttyUSB*', '/dev/ttyACM*']:
+            import glob
+            usb_devices.extend(glob.glob(pattern))
+
+        # Also use serial.tools.list_ports
         ports = list(serial.tools.list_ports.comports())
 
-        if not ports:
-            test_result("Serial ports found", False, "No serial ports detected")
+        # Separate USB serial from built-in ports
+        usb_ports = []
+        system_ports = []
+
+        for port in ports:
+            # Check if it's a USB device
+            if port.vid is not None or 'USB' in port.device.upper() or 'ACM' in port.device.upper():
+                usb_ports.append(port)
+            else:
+                system_ports.append(port)
+
+        # Check if we found USB devices directly
+        if usb_devices:
+            test_result("USB Serial devices found", True, f"Found {len(usb_devices)} USB serial device(s)")
+
+            for device in usb_devices:
+                print(f"\n  {GREEN}✓ USB Serial Device: {device}{RESET}")
+
+                # Check device details
+                try:
+                    # Get device info
+                    stat_info = os.stat(device)
+                    mode = stat_info.st_mode
+                    uid = stat_info.st_uid
+                    gid = stat_info.st_gid
+
+                    # Get owner and group names
+                    owner = pwd.getpwuid(uid).pw_name
+                    group = grp.getgrgid(gid).gr_name
+
+                    # Check permissions
+                    readable = os.access(device, os.R_OK)
+                    writable = os.access(device, os.W_OK)
+
+                    print(f"    Owner: {owner}, Group: {group}")
+                    print(
+                        f"    Permissions: {'Read' if readable else 'No read'}, {'Write' if writable else 'No write'}")
+
+                    if not (readable and writable):
+                        print(f"    {YELLOW}Permission issue! Try:{RESET}")
+                        print(f"      sudo chmod 666 {device}")
+                        print(f"      or: sudo usermod -a -G dialout $USER (then logout/login)")
+
+                    # Try to identify the chip
+                    if os.path.exists(device):
+                        # Check dmesg for chip info
+                        try:
+                            import subprocess
+                            dmesg_out = subprocess.run(['sudo', 'dmesg'], capture_output=True, text=True)
+                            if 'ch34' in dmesg_out.stdout.lower():
+                                print(f"    Chip: CH340/CH341 USB-Serial")
+                            elif 'cp210' in dmesg_out.stdout.lower():
+                                print(f"    Chip: CP2102/CP2104 USB-Serial")
+                            elif 'ftdi' in dmesg_out.stdout.lower():
+                                print(f"    Chip: FTDI USB-Serial")
+                        except:
+                            pass
+
+                except Exception as e:
+                    print(f"    Could not check device details: {e}")
+
+            # Check if user is in dialout group
+            current_user = os.getlogin()
+            user_groups = [g.gr_name for g in grp.getgrall() if current_user in g.gr_mem]
+            if 'dialout' not in user_groups:
+                print(f"\n  {YELLOW}Note: User '{current_user}' is not in 'dialout' group{RESET}")
+                print(f"  Run: sudo usermod -a -G dialout {current_user}")
+                print(f"  Then logout and login again")
+
+            return True
+
+        elif usb_ports:
+            # Found ports through serial.tools but not as /dev/ttyUSB*
+            test_result("Serial ports found", True, f"Found {len(ports)} port(s)")
+            print(f"\n  {YELLOW}Found serial ports but no /dev/ttyUSB* devices{RESET}")
+            for port in usb_ports:
+                print(f"  - {port.device}: {port.description}")
+            return True
+
+        else:
+            # No USB serial devices found
+            test_result("USB Serial devices found", False, "No USB serial devices detected")
+
+            if system_ports:
+                print(f"\n  System serial ports: {len(system_ports)} (ttyS0-ttyS{len(system_ports) - 1})")
+
+            print(f"\n  {RED}Troubleshooting:{RESET}")
+            print("  1. Check USB passthrough in VirtualBox:")
+            print("     Devices → USB → Select your ESP32")
+            print("  2. Check dmesg for USB events:")
+            print("     sudo dmesg | grep -i usb | tail")
+            print("  3. Verify ESP32 is connected to host")
+
             return False
-
-        test_result("Serial ports found", True, f"Found {len(ports)} port(s)")
-
-        for port in ports:
-            print(f"  - {port.device}: {port.description}")
-
-        # Look for likely ESP32 ports
-        esp32_found = False
-        for port in ports:
-            if any(x in (port.description or "").lower()
-                   for x in ['esp32', 'cp210', 'ch340', 'ftdi', 'usbserial']):
-                print(f"  {GREEN}Likely ESP32 port: {port.device}{RESET}")
-                esp32_found = True
-
-        return esp32_found
 
     except Exception as e:
         test_result("Serial ports found", False, f"Error: {e}")
@@ -205,6 +292,84 @@ def test_data_directory():
         return False
 
 
+def test_network_info():
+    """Display network information for hub connectivity"""
+    print_header("Network Information")
+
+    try:
+        import socket
+        import subprocess
+
+        # Get hostname
+        hostname = socket.gethostname()
+        print(f"Hostname: {hostname}")
+
+        # Method 1: Using hostname -I (most reliable on Linux)
+        try:
+            result = subprocess.run(['hostname', '-I'], capture_output=True, text=True)
+            if result.returncode == 0:
+                ips = result.stdout.strip().split()
+                if ips:
+                    print(f"\n{GREEN}IP Address(es):{RESET}")
+                    for ip in ips:
+                        print(f"  • {ip}")
+                        # Check if it's a private IP
+                        parts = ip.split('.')
+                        if len(parts) == 4:
+                            first_octet = int(parts[0])
+                            if first_octet == 10 or (first_octet == 172 and 16 <= int(parts[1]) <= 31) or (
+                                    first_octet == 192 and int(parts[1]) == 168):
+                                print(f"    → Private/Local network")
+                            else:
+                                print(f"    → Public/University network")
+        except:
+            pass
+
+        # Method 2: Parse ip addr output for more details
+        try:
+            result = subprocess.run(['ip', 'addr', 'show'], capture_output=True, text=True)
+            if result.returncode == 0:
+                print(f"\n{YELLOW}Network Interfaces:{RESET}")
+                lines = result.stdout.split('\n')
+                current_iface = None
+                for line in lines:
+                    # Interface name
+                    if ': ' in line and not line.startswith(' '):
+                        parts = line.split(': ')
+                        if len(parts) >= 2:
+                            current_iface = parts[1].split('@')[0]
+                            if current_iface not in ['lo', 'docker0']:
+                                print(f"\n  Interface: {current_iface}")
+                    # IPv4 address
+                    elif 'inet ' in line and current_iface and current_iface != 'lo':
+                        parts = line.strip().split()
+                        ip_cidr = parts[1]
+                        ip = ip_cidr.split('/')[0]
+                        print(f"    IPv4: {ip}")
+        except:
+            pass
+
+        # Show connection test commands
+        print(f"\n{GREEN}For other machines to connect:{RESET}")
+        print("1. Use one of the IP addresses above (usually the 192.168.x.x or 10.x.x.x)")
+        print("2. Make sure firewall allows port 5555:")
+        print("   sudo ufw allow 5555/tcp")
+        print("3. Test from another machine:")
+        print("   ping <IP_ADDRESS>")
+        print("   telnet <IP_ADDRESS> 5555")
+
+        print(f"\n{YELLOW}University Network Note:{RESET}")
+        print("• Your VM might be behind NAT - use the private IP shown above")
+        print("• Ensure all machines are on the same network/subnet")
+        print("• Some university networks block certain ports")
+
+        return True
+
+    except Exception as e:
+        test_result("Network info", False, f"Error: {e}")
+        return False
+
+
 def test_network_connectivity(host='localhost', port=5555):
     """Test network connectivity to hub"""
     print_header(f"Testing Network to {host}:{port}")
@@ -253,6 +418,7 @@ def main():
         ("Serial ports", test_serial_ports()),
         ("Bluetooth", test_bluetooth()),
         ("Data directory", test_data_directory()),
+        ("Network info", test_network_info()),
     ]
 
     # Network test only if not localhost
@@ -278,6 +444,7 @@ def main():
         print("- Install missing modules: pip install -r requirements.txt")
         print("- Connect ESP32 via USB")
         print("- Enable Bluetooth")
+        print("- Check USB passthrough in VM settings")
         print("- Start hub_server.py if testing network connectivity")
 
 
