@@ -1,390 +1,448 @@
 #!/usr/bin/env python3
 """
-HealthTRAC Hub Server
-Central data collection point with NTP time synchronization
-Runs on Ubuntu VM (development) or Raspberry Pi (production)
+Health TRAC Hub Server (Version 3.0)
+-----------------------------------
+TCP server that receives sensor data, timestamps it with NTP-synchronized time,
+stores it to CSV files, and broadcasts it via WebSocket for real-time visualization.
+
+Features:
+- TCP listener on port 5555
+- NTP time synchronization
+- CSV data storage by session
+- WebSocket server for real-time data
+- Modular sensor support
 """
 
 import socket
 import threading
-import time
 import json
-import csv
+import time
 import os
-from datetime import datetime
-from collections import defaultdict
+import datetime
 import logging
+import signal
+import sys
 import ntplib
+from flask import Flask, render_template
+from flask_socketio import SocketIO
+import csv
+import queue
+from typing import Dict, List, Any, Optional
+
+# Configuration
+TCP_PORT = 5555
+WEBSOCKET_PORT = 5000
+DATA_DIR = "./data/sessions"
+LOG_DIR = "./logs"
+NTP_SERVER = "pool.ntp.org"
+NTP_UPDATE_INTERVAL = 3600  # seconds
+SENSOR_TIMEOUT = 10  # seconds to consider a sensor disconnected
+MAX_CONNECTIONS = 20
+BUFFER_SIZE = 1024
+
+# Global variables
+active_sensors = {}  # Track connected sensors
+sensor_last_seen = {}  # Last time we heard from each sensor
+ntp_offset = 0.0  # Time difference between local and NTP
+session_id = ""  # Current session identifier
+data_files = {}  # Open file handles for each sensor
+data_queues = {}  # Queues for each sensor type
+stop_event = threading.Event()  # For clean shutdown
+lock = threading.Lock()  # Thread synchronization
+
+# Setup Flask and SocketIO for web interface
+app = Flask(__name__)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+    ]
 )
-logger = logging.getLogger('HubServer')
+logger = logging.getLogger("hub_server")
 
 
-class NTPManager:
-    """Manages NTP time synchronization for accurate timestamps"""
+def setup_directories():
+    """Create necessary directories if they don't exist."""
+    os.makedirs(DATA_DIR, exist_ok=True)
+    os.makedirs(LOG_DIR, exist_ok=True)
 
-    def __init__(self, ntp_server='pool.ntp.org'):
-        self.ntp_server = ntp_server
-        self.ntp_client = ntplib.NTPClient()
-        self.time_offset = 0.0  # Offset between system time and NTP time
-        self.last_sync = 0
-        self.sync_interval = 3600  # Re-sync every hour
+    # Add file handler for logging
+    file_handler = logging.FileHandler(
+        os.path.join(LOG_DIR, f"hub_server_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.log"))
+    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    logger.addHandler(file_handler)
 
-        # Do initial sync
-        self.sync_time()
 
-    def sync_time(self):
-        """Synchronize with NTP server and calculate offset"""
+def create_new_session():
+    """Create a new data collection session with unique ID."""
+    global session_id
+    session_id = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+    session_dir = os.path.join(DATA_DIR, f"session_{session_id}")
+    os.makedirs(session_dir, exist_ok=True)
+    logger.info(f"Created new session: {session_id}")
+    return session_dir
+
+
+def get_ntp_time():
+    """Synchronize with NTP server and calculate offset."""
+    global ntp_offset
+    try:
+        ntp_client = ntplib.NTPClient()
+        response = ntp_client.request(NTP_SERVER, timeout=5)
+        # Calculate the offset between system time and NTP time
+        ntp_offset = response.offset
+        logger.info(f"NTP sync successful. Offset: {ntp_offset:.6f} seconds")
+        return True
+    except Exception as e:
+        logger.error(f"NTP sync failed: {e}")
+        return False
+
+
+def get_current_time():
+    """Get current time adjusted by NTP offset."""
+    return time.time() + ntp_offset
+
+
+def update_ntp_periodically():
+    """Update NTP offset periodically in the background."""
+    while not stop_event.is_set():
+        get_ntp_time()
+        # Sleep until next update, but check stop_event every second
+        for _ in range(NTP_UPDATE_INTERVAL):
+            if stop_event.is_set():
+                break
+            time.sleep(1)
+
+
+def monitor_connections():
+    """Monitor sensor connections and detect timeouts."""
+    while not stop_event.is_set():
+        current_time = get_current_time()
+        with lock:
+            for sensor_id, last_seen in list(sensor_last_seen.items()):
+                if current_time - last_seen > SENSOR_TIMEOUT:
+                    logger.info(f"Sensor {sensor_id} timed out (no data for {SENSOR_TIMEOUT}s)")
+                    # Don't remove from active_sensors yet, just mark as disconnected
+                    socketio.emit('sensor_status', {'sensor': sensor_id, 'status': 'disconnected'})
+        time.sleep(1)
+
+
+def open_data_file(sensor_type, session_dir):
+    """Open a CSV file for the specified sensor type."""
+    filename = os.path.join(session_dir, f"{sensor_type}_data.csv")
+
+    # Define headers based on sensor type
+    headers = {
+        'fsr': ['timestamp', 'force', 'raw'],
+        'imu': ['timestamp', 'x', 'y', 'z', 'activity'],
+        'mic': ['timestamp', 'rms', 'zcr', 'centroid'],
+    }
+
+    # Use default headers if sensor type is unknown
+    file_headers = headers.get(sensor_type, ['timestamp', 'data'])
+
+    # Create file and write header
+    file = open(filename, 'w', newline='')
+    writer = csv.writer(file)
+    writer.writerow(file_headers)
+
+    return file, writer
+
+
+def data_writer_thread(sensor_type, q):
+    """Thread that writes data from queue to CSV file."""
+    while not stop_event.is_set():
         try:
-            logger.info(f"Syncing with NTP server {self.ntp_server}...")
-            response = self.ntp_client.request(self.ntp_server, version=3)
+            data = q.get(timeout=1.0)
+            if data is None:  # None is our signal to exit
+                break
 
-            # Calculate offset between local time and NTP time
-            self.time_offset = response.offset
-            self.last_sync = time.time()
+            # Check if we have an open file for this sensor
+            if sensor_type not in data_files or data_files[sensor_type] is None:
+                with lock:
+                    session_dir = os.path.join(DATA_DIR, f"session_{session_id}")
+                    file, writer = open_data_file(sensor_type, session_dir)
+                    data_files[sensor_type] = (file, writer)
 
-            logger.info(f"NTP sync successful. Offset: {self.time_offset:.3f} seconds")
-            return True
+            # Write data to CSV
+            file, writer = data_files[sensor_type]
 
-        except Exception as e:
-            logger.error(f"NTP sync failed: {e}")
-            return False
-
-    def get_ntp_time(self):
-        """Get current NTP-adjusted timestamp"""
-        # Re-sync if needed
-        if time.time() - self.last_sync > self.sync_interval:
-            self.sync_time()
-
-        # Return system time adjusted by NTP offset
-        return time.time() + self.time_offset
-
-    def format_timestamp(self, timestamp=None):
-        """Format timestamp for logging"""
-        if timestamp is None:
-            timestamp = self.get_ntp_time()
-        dt = datetime.fromtimestamp(timestamp)
-        return dt.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]  # Millisecond precision
-
-
-class SensorConnection:
-    """Represents a connected sensor client"""
-
-    def __init__(self, client_socket, address, sensor_type):
-        self.socket = client_socket
-        self.address = address
-        self.sensor_type = sensor_type
-        self.connected_at = time.time()
-        self.last_data = time.time()
-        self.sample_count = 0
-        self.error_count = 0
-
-    def __str__(self):
-        return f"{self.sensor_type}@{self.address[0]}:{self.address[1]}"
-
-
-class DataWriter:
-    """Handles writing sensor data to CSV files"""
-
-    def __init__(self, data_dir='./data'):
-        self.data_dir = data_dir
-        self.session_dir = None
-        self.files = {}
-        self.writers = {}
-
-        # Create data directory
-        os.makedirs(data_dir, exist_ok=True)
-
-        # Start new session
-        self.start_session()
-
-    def start_session(self):
-        """Start a new data collection session"""
-        # Create session directory with timestamp
-        session_name = datetime.now().strftime('%Y%m%d_%H%M%S')
-        self.session_dir = os.path.join(self.data_dir, session_name)
-        os.makedirs(self.session_dir, exist_ok=True)
-
-        logger.info(f"Started new session: {session_name}")
-
-        # Create metadata file
-        metadata_path = os.path.join(self.session_dir, 'session_metadata.json')
-        with open(metadata_path, 'w') as f:
-            json.dump({
-                'start_time': time.time(),
-                'start_time_formatted': datetime.now().isoformat(),
-                'sensors': []
-            }, f, indent=2)
-
-    def get_writer(self, sensor_type):
-        """Get CSV writer for a sensor type"""
-        if sensor_type not in self.writers:
-            # Create new CSV file for this sensor
-            filename = f"{sensor_type.lower()}_data.csv"
-            filepath = os.path.join(self.session_dir, filename)
-
-            self.files[sensor_type] = open(filepath, 'w', newline='')
-            self.writers[sensor_type] = csv.writer(self.files[sensor_type])
-
-            # Write header based on sensor type
-            if sensor_type == 'FSR':
-                self.writers[sensor_type].writerow(['timestamp', 'force', 'raw_value'])
-            elif sensor_type == 'ACCELEROMETER':
-                self.writers[sensor_type].writerow(['timestamp', 'x', 'y', 'z', 'magnitude'])
-            elif sensor_type == 'MICROPHONE':
-                self.writers[sensor_type].writerow(['timestamp', 'rms_left', 'rms_right'])
+            # Extract fields based on sensor type
+            if sensor_type == 'fsr':
+                row = [data.get('timestamp', 0), data.get('force', 0), data.get('raw', 0)]
+            elif sensor_type == 'imu':
+                row = [data.get('timestamp', 0), data.get('x', 0), data.get('y', 0),
+                       data.get('z', 0), data.get('activity', '')]
+            elif sensor_type == 'mic':
+                row = [data.get('timestamp', 0), data.get('rms', 0),
+                       data.get('zcr', 0), data.get('centroid', 0)]
             else:
-                self.writers[sensor_type].writerow(['timestamp', 'value'])
+                # Generic fallback
+                row = [data.get('timestamp', 0), str(data)]
 
-            logger.info(f"Created CSV file for {sensor_type}")
+            writer.writerow(row)
+            file.flush()  # Ensure data is written to disk
 
-        return self.writers[sensor_type]
-
-    def write_data(self, sensor_type, timestamp, values):
-        """Write sensor data to CSV"""
-        writer = self.get_writer(sensor_type)
-        row = [timestamp] + values
-        writer.writerow(row)
-
-        # Flush periodically for safety
-        if time.time() % 10 < 0.1:  # Every ~10 seconds
-            self.files[sensor_type].flush()
-
-    def close(self):
-        """Close all files"""
-        for f in self.files.values():
-            f.close()
+            q.task_done()
+        except queue.Empty:
+            continue
+        except Exception as e:
+            logger.error(f"Error in data writer thread for {sensor_type}: {e}")
 
 
-class HubServer:
-    """Main TCP server that collects data from all sensors"""
+def handle_client(client_socket, client_address):
+    """Handle an individual client connection."""
+    logger.info(f"New connection from {client_address}")
 
-    def __init__(self, port=5555):
-        self.port = port
-        self.running = False
-        self.server_socket = None
+    try:
+        # Wait for handshake
+        data = client_socket.recv(BUFFER_SIZE).decode('utf-8').strip()
+        if not data.startswith("SENSOR:"):
+            logger.warning(f"Invalid handshake from {client_address}: {data}")
+            client_socket.close()
+            return
 
-        # Connected clients
-        self.clients = {}  # {client_id: SensorConnection}
-        self.clients_lock = threading.Lock()
+        # Extract sensor type
+        sensor_type = data[7:].lower()  # Remove "SENSOR:" prefix
+        sensor_id = f"{sensor_type}_{client_address[0]}_{client_address[1]}"
 
-        # Components
-        self.ntp_manager = NTPManager()
-        self.data_writer = DataWriter()
+        logger.info(f"Sensor {sensor_id} ({sensor_type}) connected")
 
-        # Statistics
-        self.stats = defaultdict(lambda: {
-            'total_samples': 0,
-            'error_count': 0,
-            'last_sample_time': 0
+        # Send ready signal
+        client_socket.send(b"READY\n")
+
+        # Create data queue if it doesn't exist
+        if sensor_type not in data_queues:
+            data_queues[sensor_type] = queue.Queue()
+            # Start a writer thread for this sensor type
+            threading.Thread(
+                target=data_writer_thread,
+                args=(sensor_type, data_queues[sensor_type]),
+                daemon=True
+            ).start()
+
+        # Add to active sensors
+        with lock:
+            active_sensors[sensor_id] = {
+                'type': sensor_type,
+                'address': client_address,
+                'connected_at': get_current_time(),
+                'samples_received': 0
+            }
+            sensor_last_seen[sensor_id] = get_current_time()
+
+        # Notify web clients
+        socketio.emit('sensor_status', {
+            'sensor': sensor_id,
+            'type': sensor_type,
+            'status': 'connected'
         })
 
-    def start(self):
-        """Start the hub server"""
-        self.running = True
-
-        # Create server socket
-        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.server_socket.bind(('0.0.0.0', self.port))
-        self.server_socket.listen(5)
-
-        logger.info(f"Hub server listening on port {self.port}")
-
-        # Start accept thread
-        accept_thread = threading.Thread(target=self._accept_clients)
-        accept_thread.daemon = True
-        accept_thread.start()
-
-        # Start status thread
-        status_thread = threading.Thread(target=self._status_loop)
-        status_thread.daemon = True
-        status_thread.start()
-
-        logger.info("Hub server started successfully")
-
-    def _accept_clients(self):
-        """Accept new client connections"""
-        while self.running:
+        # Process incoming data
+        buffer = ""
+        while not stop_event.is_set():
             try:
-                self.server_socket.settimeout(1.0)
-                client_socket, address = self.server_socket.accept()
+                chunk = client_socket.recv(BUFFER_SIZE).decode('utf-8')
+                if not chunk:
+                    break  # Connection closed
 
-                # Start handler thread for this client
-                handler_thread = threading.Thread(
-                    target=self._handle_client,
-                    args=(client_socket, address)
-                )
-                handler_thread.daemon = True
-                handler_thread.start()
-
-            except socket.timeout:
-                continue
-            except Exception as e:
-                logger.error(f"Accept error: {e}")
-
-    def _handle_client(self, client_socket, address):
-        """Handle a connected sensor client"""
-        client_id = f"{address[0]}:{address[1]}"
-        sensor_conn = None
-
-        try:
-            # Set socket timeout
-            client_socket.settimeout(30.0)
-
-            # Wait for identification message
-            data = client_socket.recv(1024).decode('utf-8').strip()
-            if not data.startswith('SENSOR:'):
-                logger.warning(f"Invalid identification from {client_id}: {data}")
-                client_socket.close()
-                return
-
-            # Parse sensor type
-            sensor_type = data.split(':')[1]
-            sensor_conn = SensorConnection(client_socket, address, sensor_type)
-
-            # Register client
-            with self.clients_lock:
-                self.clients[client_id] = sensor_conn
-
-            logger.info(f"New sensor connected: {sensor_conn}")
-
-            # Send acknowledgment with NTP time
-            ack_msg = json.dumps({
-                'status': 'connected',
-                'ntp_time': self.ntp_manager.get_ntp_time(),
-                'server_time': time.time()
-            }) + '\n'
-            client_socket.send(ack_msg.encode())
-
-            # Handle data from this client
-            buffer = ""
-            while self.running:
-                data = client_socket.recv(4096).decode('utf-8')
-                if not data:
-                    break
-
-                buffer += data
+                buffer += chunk
 
                 # Process complete lines
                 while '\n' in buffer:
                     line, buffer = buffer.split('\n', 1)
-                    if line.strip():
-                        self._process_data(sensor_conn, line.strip())
 
-        except socket.timeout:
-            logger.warning(f"Client {sensor_conn or client_id} timed out")
-        except Exception as e:
-            logger.error(f"Client {sensor_conn or client_id} error: {e}")
-        finally:
-            # Clean up
-            with self.clients_lock:
-                if client_id in self.clients:
-                    del self.clients[client_id]
-            client_socket.close()
-            logger.info(f"Client {sensor_conn or client_id} disconnected")
+                    try:
+                        # Parse JSON data
+                        data = json.loads(line)
 
-    def _process_data(self, sensor_conn, data_line):
-        """Process a line of sensor data"""
-        try:
-            # Parse JSON data
-            data = json.loads(data_line)
+                        # Add accurate timestamp if not present
+                        if 'timestamp' not in data or data['timestamp'] == 0:
+                            data['timestamp'] = round(get_current_time(), 3)  # ms precision
 
-            # Get NTP timestamp (or use provided timestamp)
-            if 'timestamp' in data:
-                timestamp = float(data['timestamp'])
-            else:
-                timestamp = self.ntp_manager.get_ntp_time()
+                        # Add sequence number if not present
+                        if 'sequence' not in data:
+                            with lock:
+                                data['sequence'] = active_sensors[sensor_id]['samples_received']
 
-            # Extract values based on sensor type
-            values = []
-            if sensor_conn.sensor_type == 'FSR':
-                values = [data.get('force', 0), data.get('raw', 0)]
-            elif sensor_conn.sensor_type == 'ACCELEROMETER':
-                x, y, z = data.get('x', 0), data.get('y', 0), data.get('z', 0)
-                magnitude = (x ** 2 + y ** 2 + z ** 2) ** 0.5
-                values = [x, y, z, magnitude]
-            elif sensor_conn.sensor_type == 'MICROPHONE':
-                values = [data.get('rms_left', 0), data.get('rms_right', 0)]
+                        # Update last seen time and count
+                        with lock:
+                            sensor_last_seen[sensor_id] = get_current_time()
+                            active_sensors[sensor_id]['samples_received'] += 1
 
-            # Write to CSV
-            self.data_writer.write_data(sensor_conn.sensor_type, timestamp, values)
+                        # Add to processing queue
+                        data_queues[sensor_type].put(data)
 
-            # Update statistics
-            sensor_conn.sample_count += 1
-            sensor_conn.last_data = time.time()
-            self.stats[sensor_conn.sensor_type]['total_samples'] += 1
-            self.stats[sensor_conn.sensor_type]['last_sample_time'] = timestamp
+                        # Forward to websocket clients
+                        socketio.emit('sensor_data', data)
 
-        except json.JSONDecodeError:
-            logger.warning(f"Invalid JSON from {sensor_conn}: {data_line}")
-            sensor_conn.error_count += 1
-            self.stats[sensor_conn.sensor_type]['error_count'] += 1
-        except Exception as e:
-            logger.error(f"Data processing error from {sensor_conn}: {e}")
-            sensor_conn.error_count += 1
+                    except json.JSONDecodeError:
+                        logger.warning(f"Invalid JSON from {sensor_id}: {line}")
 
-    def _status_loop(self):
-        """Print status updates periodically"""
-        while self.running:
-            time.sleep(30)  # Every 30 seconds
+            except socket.timeout:
+                # Socket timeout, check if we should exit
+                if stop_event.is_set():
+                    break
+            except Exception as e:
+                logger.error(f"Error handling {sensor_id}: {e}")
+                break
 
-            logger.info("=== Hub Status ===")
-            logger.info(f"NTP time: {self.ntp_manager.format_timestamp()}")
+        # Cleanup on disconnect
+        logger.info(f"Sensor {sensor_id} disconnected")
+        socketio.emit('sensor_status', {'sensor': sensor_id, 'status': 'disconnected'})
 
-            with self.clients_lock:
-                logger.info(f"Connected clients: {len(self.clients)}")
-                for client_id, conn in self.clients.items():
-                    age = time.time() - conn.last_data
-                    logger.info(f"  {conn}: {conn.sample_count} samples, "
-                                f"last data {age:.1f}s ago")
-
-            logger.info("Sensor statistics:")
-            for sensor_type, stats in self.stats.items():
-                logger.info(f"  {sensor_type}: {stats['total_samples']} total samples, "
-                            f"{stats['error_count']} errors")
-
-    def stop(self):
-        """Stop the hub server"""
-        logger.info("Stopping hub server...")
-        self.running = False
-
-        # Close all client connections
-        with self.clients_lock:
-            for conn in self.clients.values():
-                conn.socket.close()
-
-        # Close server socket
-        if self.server_socket:
-            self.server_socket.close()
-
-        # Close data files
-        self.data_writer.close()
-
-        logger.info("Hub server stopped")
+    except Exception as e:
+        logger.error(f"Error handling connection from {client_address}: {e}")
+    finally:
+        client_socket.close()
 
 
-def main():
-    """Main entry point"""
-    # Create and start hub server
-    hub = HubServer(port=5555)
+def tcp_server():
+    """Main TCP server thread."""
+    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
     try:
-        hub.start()
+        server.bind(('0.0.0.0', TCP_PORT))
+        server.listen(MAX_CONNECTIONS)
+        server.settimeout(1.0)  # Allow checking stop_event periodically
 
-        # Keep running until interrupted
-        while True:
-            time.sleep(1)
+        logger.info(f"Hub server listening on port {TCP_PORT}")
 
-    except KeyboardInterrupt:
-        logger.info("Received shutdown signal")
+        while not stop_event.is_set():
+            try:
+                client_socket, client_address = server.accept()
+                client_thread = threading.Thread(
+                    target=handle_client,
+                    args=(client_socket, client_address),
+                    daemon=True
+                )
+                client_thread.start()
+            except socket.timeout:
+                continue  # This allows us to check stop_event periodically
+            except Exception as e:
+                logger.error(f"Error accepting connection: {e}")
+                if stop_event.is_set():
+                    break
+                time.sleep(1)  # Avoid tight loop on repeated errors
+
+    except Exception as e:
+        logger.error(f"Server error: {e}")
     finally:
-        hub.stop()
+        server.close()
+        logger.info("TCP server stopped")
+
+
+def close_data_files():
+    """Close all open data files."""
+    for sensor_type, (file, _) in list(data_files.items()):
+        try:
+            file.flush()
+            file.close()
+            logger.info(f"Closed data file for {sensor_type}")
+        except Exception as e:
+            logger.error(f"Error closing data file for {sensor_type}: {e}")
+        data_files[sensor_type] = None
+
+
+def shutdown_handler(sig, frame):
+    """Handle shutdown signals gracefully."""
+    logger.info("Shutdown signal received")
+    stop_event.set()
+
+    # Close data files
+    close_data_files()
+
+    # Signal data writer threads to exit
+    for q in data_queues.values():
+        q.put(None)
+
+    logger.info("Shutdown complete")
+    sys.exit(0)
+
+
+@app.route('/')
+def index():
+    """Serve the status page."""
+    return render_template('status.html')
+
+
+@socketio.on('connect')
+def handle_connect():
+    """Handle new WebSocket connections."""
+    logger.info("Web client connected")
+    # Send current sensor status
+    with lock:
+        for sensor_id, info in active_sensors.items():
+            status = 'connected'
+            if get_current_time() - sensor_last_seen.get(sensor_id, 0) > SENSOR_TIMEOUT:
+                status = 'disconnected'
+
+            socketio.emit('sensor_status', {
+                'sensor': sensor_id,
+                'type': info['type'],
+                'status': status,
+                'samples': info['samples_received']
+            })
+
+
+@socketio.on('start_session')
+def start_new_session():
+    """Start a new data collection session."""
+    with lock:
+        # Close existing files
+        close_data_files()
+        # Create new session
+        session_dir = create_new_session()
+        logger.info(f"Starting new session: {session_id}")
+        socketio.emit('session_update', {'session': session_id, 'status': 'started'})
+        return {'status': 'success', 'session': session_id}
+
+
+@socketio.on('stop_session')
+def stop_current_session():
+    """Stop the current data collection session."""
+    with lock:
+        # Close existing files
+        close_data_files()
+        logger.info(f"Stopping session: {session_id}")
+        socketio.emit('session_update', {'session': session_id, 'status': 'stopped'})
+        return {'status': 'success', 'session': session_id}
+
+
+def start_server():
+    """Start the hub server."""
+    # Set up directories
+    setup_directories()
+
+    # Register signal handlers
+    signal.signal(signal.SIGINT, shutdown_handler)
+    signal.signal(signal.SIGTERM, shutdown_handler)
+
+    # Create initial session
+    create_new_session()
+
+    # Start NTP synchronization
+    get_ntp_time()  # Initial sync
+    ntp_thread = threading.Thread(target=update_ntp_periodically, daemon=True)
+    ntp_thread.start()
+
+    # Start connection monitor
+    monitor_thread = threading.Thread(target=monitor_connections, daemon=True)
+    monitor_thread.start()
+
+    # Start TCP server in a thread
+    tcp_thread = threading.Thread(target=tcp_server, daemon=True)
+    tcp_thread.start()
+
+    # Start Flask-SocketIO server
+    logger.info(f"Web dashboard available at http://localhost:{WEBSOCKET_PORT}")
+    socketio.run(app, host='0.0.0.0', port=WEBSOCKET_PORT, debug=False, use_reloader=False)
 
 
 if __name__ == "__main__":
-    main()
+    start_server()

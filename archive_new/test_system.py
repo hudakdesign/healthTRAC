@@ -269,7 +269,7 @@ def test_data_directory():
     """Test data directory creation"""
     print_header("Testing Data Storage")
 
-    data_dir = "./data"
+    data_dir = "data"
     test_file = os.path.join(data_dir, "test.txt")
 
     try:

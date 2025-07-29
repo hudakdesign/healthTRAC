@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health TRAC Hub Status</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        .card {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .sensor-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        .sensor-card {
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .sensor-connected {
+            background-color: #d4edda;
+            border-left: 5px solid #28a745;
+        }
+        .sensor-disconnected {
+            background-color: #f8d7da;
+            border-left: 5px solid #dc3545;
+        }
+        .charts-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .chart-card {
+            height: 300px;
+        }
+        .status-bar {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .session-controls {
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            font-weight: bold;
+        }
+        button:hover {
+            background-color: #0069d9;
+        }
+        button.stop {
+            background-color: #dc3545;
+        }
+        button.stop:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Health TRAC Hub Status</h1>
+            <div class="session-controls">
+                <button id="startSession">Start New Session</button>
+                <button id="stopSession" class="stop">Stop Session</button>
+            </div>
+        </div>
+
+        <div class="status-bar">
+            <div>Current Session: <span id="sessionId">None</span></div>
+            <div>Status: <span id="sessionStatus">Idle</span></div>
+            <div>Connected Sensors: <span id="sensorCount">0</span></div>
+        </div>
+
+        <div class="card">
+            <h2>Sensors</h2>
+            <div id="sensorList" class="sensor-list">
+                <!-- Sensors will be added here dynamically -->
+            </div>
+        </div>
+
+        <div class="charts-container">
+            <div class="card chart-card">
+                <h2>FSR Data</h2>
+                <canvas id="fsrChart"></canvas>
+            </div>
+            <div class="card chart-card">
+                <h2>IMU Data</h2>
+                <canvas id="imuChart"></canvas>
+            </div>
+            <div class="card chart-card">
+                <h2>Microphone Data</h2>
+                <canvas id="micChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Connect to WebSocket server
+        const socket = io();
+
+        // Keep track of sensors
+        const sensors = {};
+        let connectedCount = 0;
+
+        // Setup charts
+        const maxDataPoints = 100;
+
+        // FSR Chart
+        const fsrCtx = document.getElementById('fsrChart').getContext('2d');
+        const fsrChart = new Chart(fsrCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Force (N)',
+                    data: [],
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Force (N)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Time'
+                        }
+                    }
+                }
+            }
+        });
+
+        // IMU Chart
+        const imuCtx = document.getElementById('imuChart').getContext('2d');
+        const imuChart = new Chart(imuCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'X',
+                        data: [],
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.1
+                    },
+                    {
+                        label: 'Y',
+                        data: [],
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.1
+                    },
+                    {
+                        label: 'Z',
+                        data: [],
+                        borderColor: 'rgba(255, 206, 86, 1)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Acceleration (g)'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Time'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Microphone Chart
+        const micCtx = document.getElementById('micChart').getContext('2d');
+        const micChart = new Chart(micCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    {
+                        label: 'RMS',
+                        data: [],
+                        borderColor: 'rgba(153, 102, 255, 1)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.1
+                    },
+                    {
+                        label: 'ZCR',
+                        data: [],
+                        borderColor: 'rgba(255, 159, 64, 1)',
+                        borderWidth: 2,
+                        fill: false,
+                        tension: 0.1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Audio Features'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Time'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Update time labels
+        function updateTimeLabel() {
+            const now = new Date();
+            return now.getHours().toString().padStart(2, '0') + ':' +
+                   now.getMinutes().toString().padStart(2, '0') + ':' +
+                   now.getSeconds().toString().padStart(2, '0');
+        }
+
+        // Socket event handlers
+        socket.on('connect', () => {
+            console.log('Connected to hub server');
+        });
+
+        socket.on('disconnect', () => {
+            console.log('Disconnected from hub server');
+        });
+
+        socket.on('sensor_status', (data) => {
+            console.log('Sensor status:', data);
+
+            const sensorId = data.sensor;
+            const status = data.status;
+
+            // Update sensor count
+            if (status === 'connected' && (!sensors[sensorId] || sensors[sensorId].status !== 'connected')) {
+                connectedCount++;
+            } else if (status === 'disconnected' && sensors[sensorId] && sensors[sensorId].status === 'connected') {
+                connectedCount--;
+            }
+
+            document.getElementById('sensorCount').textContent = connectedCount;
+
+            // Update or create sensor card
+            sensors[sensorId] = {
+                type: data.type || (sensors[sensorId] ? sensors[sensorId].type : 'unknown'),
+                status: status,
+                samples: data.samples || (sensors[sensorId] ? sensors[sensorId].samples : 0)
+            };
+
+            updateSensorList();
+        });
+
+        socket.on('sensor_data', (data) => {
+            // Update charts based on sensor type
+            const timeLabel = updateTimeLabel();
+
+            if (data.sensor === 'fsr') {
+                // Update FSR chart
+                fsrChart.data.labels.push(timeLabel);
+                fsrChart.data.datasets[0].data.push(data.force);
+
+                // Limit data points
+                if (fsrChart.data.labels.length > maxDataPoints) {
+                    fsrChart.data.labels.shift();
+                    fsrChart.data.datasets[0].data.shift();
+                }
+
+                fsrChart.update();
+            }
+            else if (data.sensor === 'imu') {
+                // Update IMU chart
+                imuChart.data.labels.push(timeLabel);
+                imuChart.data.datasets[0].data.push(data.x);
+                imuChart.data.datasets[1].data.push(data.y);
+                imuChart.data.datasets[2].data.push(data.z);
+
+                // Limit data points
+                if (imuChart.data.labels.length > maxDataPoints) {
+                    imuChart.data.labels.shift();
+                    imuChart.data.datasets.forEach(dataset => dataset.data.shift());
+                }
+
+                imuChart.update();
+            }
+            else if (data.sensor === 'mic') {
+                // Update Microphone chart
+                micChart.data.labels.push(timeLabel);
+                micChart.data.datasets[0].data.push(data.rms);
+                micChart.data.datasets[1].data.push(data.zcr);
+
+                // Limit data points
+                if (micChart.data.labels.length > maxDataPoints) {
+                    micChart.data.labels.shift();
+                    micChart.data.datasets.forEach(dataset => dataset.data.shift());
+                }
+
+                micChart.update();
+            }
+
+            // Update sample count for sensor
+            const sensorId = `${data.sensor}_${data.source || 'unknown'}`;
+            if (sensors[sensorId]) {
+                sensors[sensorId].samples = (sensors[sensorId].samples || 0) + 1;
+                updateSensorList();
+            }
+        });
+
+        socket.on('session_update', (data) => {
+            document.getElementById('sessionId').textContent = data.session;
+            document.getElementById('sessionStatus').textContent =
+                data.status === 'started' ? 'Recording' : 'Stopped';
+
+            if (data.status === 'started') {
+                // Clear charts for new session
+                clearCharts();
+            }
+        });
+
+        // Update sensor list display
+        function updateSensorList() {
+            const sensorListElement = document.getElementById('sensorList');
+            sensorListElement.innerHTML = '';
+
+            for (const [id, info] of Object.entries(sensors)) {
+                const sensorElement = document.createElement('div');
+                sensorElement.className = `sensor-card sensor-${info.status}`;
+
+                sensorElement.innerHTML = `
+                    <h3>${info.type.toUpperCase()}</h3>
+                    <p>ID: ${id}</p>
+                    <p>Status: ${info.status}</p>
+                    <p>Samples received: ${info.samples || 0}</p>
+                `;
+
+                sensorListElement.appendChild(sensorElement);
+            }
+        }
+
+        // Clear all charts
+        function clearCharts() {
+            // FSR Chart
+            fsrChart.data.labels = [];
+            fsrChart.data.datasets[0].data = [];
+            fsrChart.update();
+
+            // IMU Chart
+            imuChart.data.labels = [];
+            imuChart.data.datasets.forEach(dataset => dataset.data = []);
+            imuChart.update();
+
+            // Mic Chart
+            micChart.data.labels = [];
+            micChart.data.datasets.forEach(dataset => dataset.data = []);
+            micChart.update();
+        }
+
+        // Button event handlers
+        document.getElementById('startSession').addEventListener('click', () => {
+            socket.emit('start_session', {}, (response) => {
+                console.log('Start session response:', response);
+            });
+        });
+
+        document.getElementById('stopSession').addEventListener('click', () => {
+            socket.emit('stop_session', {}, (response) => {
+                console.log('Stop session response:', response);
+            });
+        });
+    </script>
+</body>
+</html>
