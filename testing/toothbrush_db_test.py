@@ -46,7 +46,9 @@ def read_csv_data(csv_path):
         with data_lock:
             # Clear existing data
             print(toothbrush_data)
-            
+            # for _, row in df.tail(MAX_POINTS).iterrows():
+            #     pass
+
             toothbrush_data['timestamps'].clear()
             toothbrush_data['accel_x'].clear()
             toothbrush_data['accel_y'].clear()
