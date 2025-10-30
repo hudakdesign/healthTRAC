@@ -11,6 +11,26 @@ import csv
 import os
 from pathlib import Path
 
+import sqlite3
+
+# CONSTANTS
+DB_PATH = './test_data/test_database.db'
+
+# DB Setup
+# Initialize DB
+conn = sqlite3.connect(DB_PATH)
+cur = conn.cursor()
+
+# table for toothbrush accelerometer data
+cur.execute('''CREATE TABLE IF NOT EXISTS toothbrush
+                (timestamp FLOAT, x_accel FLOAT, y_accel FLOAT, z_accel FLOAT)''')
+
+#inserts toothbrush data into database (defaults to current time and random accel values)
+def insert_toothbrush_data(timestamp, x_accel, y_accel, z_accel):
+    cur.execute('INSERT INTO toothbrush (timestamp, x_accel, y_accel, z_accel) VALUES (?, ?, ?, ?)',
+                (timestamp, x_accel, y_accel, z_accel))
+    conn.commit()
+
 
 class MockTimeServer(http.server.SimpleHTTPRequestHandler):
     """Simulates the Hub's time synchronization API endpoint"""
@@ -137,6 +157,9 @@ class MockHubServer:
                     accel_y = data.get('accel_y')
                     accel_z = data.get('accel_z')
 
+                    # Write to database
+                    insert_toothbrush_data(timestamp_hub, accel_x, accel_y, accel_z)
+
                     # Write to CSV
                     file_exists = self.csv_file.exists()
                     with open(self.csv_file, 'a', newline='') as f:
@@ -144,10 +167,10 @@ class MockHubServer:
                         if not file_exists:
                             writer.writeheader()
                         writer.writerow({
-                            'timestamp_hub': data.get('timestamp_hub'),
-                            'accel_x': data.get('accel_x'),
-                            'accel_y': data.get('accel_y'),
-                            'accel_z': data.get('accel_z')
+                            'timestamp_hub': timestamp_hub,
+                            'accel_x': accel_x,
+                            'accel_y': accel_y,
+                            'accel_z': accel_z
                         })
                     # Add debug statement to show when data would be sent to dashbaord
                     print(f"[→] Sending data to dashboard: sensor={data.get('sensor')} time={data.get('timestamp_hub')}")
