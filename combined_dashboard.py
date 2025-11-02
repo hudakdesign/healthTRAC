@@ -1,0 +1,246 @@
+#!/usr/bin/env python3
+import argparse
+from flask import Flask, render_template_string
+
+# --- HTML Template ---
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Combined Sensor Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background-color: #f0f2f5; color: #1c1e21; }
+        .header { background-color: #fff; padding: 10px 20px; border-bottom: 1px solid #dddfe2; display: flex; align-items: center; justify-content: space-between; }
+        .header h1 { font-size: 24px; margin: 0; }
+        .container { display: flex; flex-wrap: wrap; padding: 20px; gap: 20px; }
+        .card { background-color: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex: 1; min-width: 400px; display: flex; flex-direction: column; }
+        .card-header { padding: 16px; border-bottom: 1px solid #dddfe2; }
+        .card-header h2 { font-size: 20px; margin: 0; }
+        .card-content { padding: 16px; font-size: 14px; color: #333; flex-grow: 1; }
+        .controls { display: flex; gap: 10px; align-items: center; }
+        .button { padding: 8px 16px; font-size: 14px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .button-start { background-color: #42b72a; color: white; }
+        .button-stop { background-color: #f02849; color: white; }
+        .button:disabled { background-color: #e4e6eb; color: #bcc0c4; cursor: not-allowed; }
+        .status { display: flex; align-items: center; gap: 8px; font-weight: bold; }
+        .status-indicator { width: 12px; height: 12px; border-radius: 50%; }
+        .status-recording { background-color: #f02849; }
+        .status-stopped { background-color: #606770; }
+        .error-bar { background-color: #f02849; color: white; padding: 10px; text-align: center; display: none; position: fixed; top: 0; width: 100%; z-index: 1000; }
+        .device-list { list-style: none; padding: 0; margin: 0; }
+        .device-list li { padding: 8px 0; border-bottom: 1px solid #eee; }
+        .device-list li:last-child { border-bottom: none; }
+    </style>
+</head>
+<body>
+    <div id="error-bar" class="error-bar"></div>
+    <div class="header">
+        <h1>Health Trac Hub</h1>
+        <div class="controls">
+            <div id="status" class="status">
+                <div id="status-indicator" class="status-indicator status-stopped"></div>
+                <span id="status-text">NOT RECORDING</span>
+            </div>
+            <button id="startBtn" class="button button-start" onclick="startRecording()">Start Recording</button>
+            <button id="stopBtn" class="button button-stop" onclick="stopRecording()" disabled>Stop Recording</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <div class="card-header"><h2>Audio Activity (RMS)</h2></div>
+            <div class="card-content">
+                <canvas id="audioChart"></canvas>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header"><h2>Connected Devices</h2></div>
+            <div class="card-content">
+                <h3>Audio Devices</h3>
+                <ul id="audio-devices" class="device-list"><li>Waiting for data...</li></ul>
+                <h3>Toothbrush Devices</h3>
+                <ul id="toothbrush-devices" class="device-list"><li>Waiting for data...</li></ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:8080';
+        const MAX_CHART_POINTS = 100; // Keep the last 100 data points
+        let audioChart;
+        let isRecording = false;
+
+        function showError(message) {
+            const errorBar = document.getElementById('error-bar');
+            errorBar.textContent = message;
+            errorBar.style.display = 'block';
+            setTimeout(() => { errorBar.style.display = 'none'; }, 5000);
+        }
+
+        function startRecording() {
+            fetch(`${API_BASE_URL}/api/start_recording`, { method: 'POST' })
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to start recording.');
+                    updateRecordingStatus(true);
+                })
+                .catch(err => showError(`Error: Could not start recording. Is the hub server running on ${API_BASE_URL}?`));
+        }
+
+        function stopRecording() {
+            fetch(`${API_BASE_URL}/api/stop_recording`, { method: 'POST' })
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to stop recording.');
+                    updateRecordingStatus(false);
+                })
+                .catch(err => showError('Error: Could not stop recording.'));
+        }
+
+        function updateRecordingStatus(recording) {
+            isRecording = recording;
+            const startBtn = document.getElementById('startBtn');
+            const stopBtn = document.getElementById('stopBtn');
+            const statusIndicator = document.getElementById('status-indicator');
+            const statusText = document.getElementById('status-text');
+
+            startBtn.disabled = isRecording;
+            stopBtn.disabled = !isRecording;
+            statusIndicator.className = `status-indicator ${isRecording ? 'status-recording' : 'status-stopped'}`;
+            statusText.textContent = isRecording ? 'RECORDING' : 'NOT RECORDING';
+        }
+
+        function updateAudioDevices() {
+            fetch(`${API_BASE_URL}/api/audio_devices`)
+                .then(response => response.json())
+                .then(data => {
+                    const list = document.getElementById('audio-devices');
+                    list.innerHTML = '';
+                    if (Object.keys(data).length === 0) {
+                        list.innerHTML = '<li>Waiting for data...</li>';
+                        return;
+                    }
+
+                    for (const [deviceId, info] of Object.entries(data)) {
+                        const features = info.features;
+                        const timestamp = new Date(info.timestamp);
+
+                        // Update text display
+                        const vadText = features.vad === 1 ? 'Speech Detected' : 'No Speech';
+                        list.innerHTML += `<li><b>${deviceId}</b> - RMS: ${features.rms.toFixed(2)}, VAD: ${vadText}</li>`;
+
+                        // Add data to chart
+                        const chart = audioChart;
+                        const isSpeech = features.vad === 1;
+
+                        chart.data.labels.push(timestamp);
+                        chart.data.datasets[0].data.push(features.rms);
+
+                        // Point color depends on recording state
+                        const pointColor = isRecording ? 'rgba(240, 40, 73, 0.8)' : 'rgba(54, 162, 235, 0.8)';
+                        chart.data.datasets[0].pointBackgroundColor.push(pointColor);
+
+                        // Point radius is larger if speech is detected
+                        chart.data.datasets[0].pointRadius.push(isSpeech ? 6 : 3);
+
+                        // Limit data points
+                        if (chart.data.labels.length > MAX_CHART_POINTS) {
+                            chart.data.labels.shift();
+                            chart.data.datasets[0].data.shift();
+                            chart.data.datasets[0].pointBackgroundColor.shift();
+                            chart.data.datasets[0].pointRadius.shift();
+                        }
+                        chart.update('none'); // Use 'none' for smoother updates
+                    }
+                })
+                .catch(err => console.error('Failed to fetch audio devices:', err));
+        }
+
+        function updateToothbrushDevices() {
+            fetch(`${API_BASE_URL}/api/toothbrush_devices`)
+                .then(response => response.json())
+                .then(data => {
+                    const list = document.getElementById('toothbrush-devices');
+                    list.innerHTML = '';
+                    if (Object.keys(data).length === 0) {
+                        list.innerHTML = '<li>Waiting for data...</li>';
+                        return;
+                    }
+                    for (const [deviceId, info] of Object.entries(data)) {
+                        const lastUpdate = new Date(info.timestamp * 1000).toLocaleTimeString();
+                        list.innerHTML += `<li><b>${deviceId}</b> - Last update: ${lastUpdate}</li>`;
+                    }
+                })
+                .catch(err => console.error('Failed to fetch toothbrush devices:', err));
+        }
+
+        function initializeDashboard() {
+            // Initialize Chart
+            const ctx = document.getElementById('audioChart').getContext('2d');
+            audioChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'RMS Level',
+                        data: [],
+                        borderColor: 'rgba(54, 162, 235, 0.5)',
+                        tension: 0.1,
+                        pointBackgroundColor: [], // Dynamic color
+                        pointRadius: [], // Dynamic radius
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: { unit: 'second' },
+                            ticks: { source: 'auto' },
+                            title: { display: true, text: 'Time' }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'RMS Amplitude' }
+                        }
+                    },
+                    animation: { duration: 200 },
+                    maintainAspectRatio: false
+                }
+            });
+
+            // Fetch initial recording state
+            fetch(`${API_BASE_URL}/api/recording_state`)
+                .then(res => res.json())
+                .then(data => updateRecordingStatus(data.is_recording))
+                .catch(() => updateRecordingStatus(false));
+
+            // Set up periodic updates
+            setInterval(updateAudioDevices, 500); // Faster updates for the chart
+            setInterval(updateToothbrushDevices, 2000);
+        }
+
+        window.onload = initializeDashboard;
+    </script>
+</body>
+</html>
+"""
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Combined Sensor Dashboard')
+    parser.add_argument('--port', type=int, default=8000, help='Port to run the dashboard on')
+    args = parser.parse_args()
+
+    app = Flask(__name__)
+
+    @app.route('/')
+    def dashboard():
+        return render_template_string(HTML_TEMPLATE)
+
+    print(f"Starting dashboard at http://localhost:{args.port}")
+    app.run(host='0.0.0.0', port=args.port, debug=False)
+
+
+if __name__ == "__main__":
+    main()
