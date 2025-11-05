@@ -2,7 +2,7 @@
 import argparse
 from flask import Flask, render_template
 
-# importing the html template
+
 
 def main():
     parser = argparse.ArgumentParser(description='Combined Sensor Dashboard')
@@ -11,9 +11,18 @@ def main():
 
     app = Flask(__name__)
 
+    # Routes
     @app.route('/')
+    def index():
+        return render_template('index.html')
+
+    @app.route('/audio')
     def dashboard():
-        return render_template('dashboard.html')
+        return render_template('audio_dashboard.html')
+    
+    @app.route('/imu')
+    def imu_dashboard():
+        return render_template('imu_dashboard.html')
 
     print(f"Starting dashboard at http://localhost:{args.port}")
     app.run(host='0.0.0.0', port=args.port, debug=False)
