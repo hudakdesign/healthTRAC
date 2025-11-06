@@ -11,6 +11,7 @@ import io
 import base64
 import time
 import eventlet
+from pathlib import Path
 
 eventlet.monkey_patch()
 
@@ -138,7 +139,25 @@ def main():
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description='Combined Sensor Dashboard')
     parser.add_argument('--port', type=int, default=8000, help='Port to run the dashboard on')
+    parser.add_argument('--csv-file', type=str, default='data/toothbrush.csv',
+                        help='Path to CSV file (default: data/toothbrush.csv)')
+    parser.add_argument('--web-port', type=int, default=8080,
+                        help='Web dashboard port (default: 8080)')
     args = parser.parse_args()
+
+
+    csv_path = Path(args.csv_file)
+    if not csv_path.exists():
+        print(f"Error: CSV file not found: {csv_path}")
+        return
+    
+    # Initial load
+    read_csv_data(csv_path)
+
+    # Start dashboard update thread
+    update_thread = threading.Thread(target=update_dashboard_loop, args=(csv_path,))
+    update_thread.daemon = True
+    update_thread.start()
 
     # Routes
     @app.route('/')
