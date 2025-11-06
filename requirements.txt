@@ -1,12 +1,4 @@
-pyserial
-pandas
-dash
-plotly
-matplotlib
-pyqtgraph
-pyqt5
-eventlet
-matplotlib
 pandas
 flask
 flask_socketio
+matplotlib

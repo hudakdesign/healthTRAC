@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import argparse
-from socket import SocketIO
+from flask_socketio import SocketIO
 from flask import Flask, render_template
 import pandas as pd
 from collections import deque
@@ -10,6 +10,9 @@ import matplotlib.pyplot as plt
 import io
 import base64
 import time
+import eventlet
+
+eventlet.monkey_patch()
 
 # Max data points to display
 MAX_POINTS = 500
