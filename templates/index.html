@@ -5,6 +5,7 @@
     <title>Combined Sensor Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script> <!-- Script for js socket implementation -->
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background-color: #f0f2f5; color: #1c1e21; }
         .header { background-color: #fff; padding: 10px 20px; border-bottom: 1px solid #dddfe2; display: flex; align-items: center; justify-content: space-between; }
@@ -70,12 +71,49 @@
     <!-- Toothbrush cards -->
     <div class="container">
         <div id="toothbrush-status" class="card">
-            <h3>Toothbrush</h3>
-            <p>Status: <span id="toothbrush-connection">Unknown</span></p>
-            <p>Battery: <span id="toothbrush-battery">Unknown</span></p>
-            <p>Last seen: <span id="toothbrush-last-seen">Never</span></p>
+            <div class="card-header"><h2>Toothbrush</h2></div>
+            <div class="card-content">
+                <p>Status: <span id="toothbrush-connection">Unknown</span></p>
+                <p>Battery: <span id="toothbrush-battery">Unknown</span></p>
+                <p>Last seen: <span id="toothbrush-last-seen">Never</span></p>
+            </div>
         </div>
+
         <div id="fsr-status" class="card">
+            <div class="card-header"><h2>FSR Bridge</h2></div>
+            <div class="card-content">
+                <p>Status: <span id="fsr-connection">Unknown</span></p>
+                <p>Last seen: <span id="fsr-last-seen">Never</span></p>
+            </div>
+        </div>
+
+        <div id="audio-status" class="card">
+            <div class="card-header"><h2>Audio</h2></div>
+            <div class="card-content">
+                <p>Status: <span id="audio-connection">Unknown</span></p>
+                <p>Last seen: <span id="audio-last-seen">Never</span></p>
+            </div>
+        </div>
+
+        <div id="hub-status" class="card">
+            <div class="card-header"><h2>Hub Server</h2></div>
+            <div class="card-content">
+                <p>Status: <span id="hub-connection">Online</span></p>
+                <p>Uptime: <span id="hub-uptime">0h 0m</span></p>
+            </div>
+        </div>
+
+        <!-- <div id="placeholder" class="card">
+            <div class="card-header"><h2>placeholder</h2></div>
+            <div class="card-content">
+                <p>Content goes here</p>
+            </div>
+        </div> -->
+
+
+
+
+        <!-- <div id="fsr-status" class="card">
             <h3>FSR Bridge</h3>
             <p>Status: <span id="fsr-connection">Unknown</span></p>
             <p>Last seen: <span id="fsr-last-seen">Never</span></p>
@@ -89,7 +127,7 @@
             <h3>Hub Server</h3>
             <p>Status: <span id="hub-connection">Online</span></p>
             <p>Uptime: <span id="hub-uptime">0h 0m</span></p>
-        </div>
+        </div> -->
     </div>
 
     <!-- Plot containers -->
@@ -99,6 +137,66 @@
             <img id="toothbrush-plot" src="" alt="Toothbrush IMU Data">
         </div>
     </div>
+
+
+    <!-- Javascript for running everything -->
+
+    <script>
+        // Connect to WebSocket
+        const socket = io();
+
+        // Update plots when new data arrives
+        socket.on('update_plots', function(data) {
+            document.getElementById('toothbrush-plot').src = 'data:image/png;base64,' + data.toothbrush;
+            document.getElementById('fsr-plot').src = 'data:image/png;base64,' + data.fsr;
+            document.getElementById('audio-plot').src = 'data:image/png;base64,' + data.audio;
+
+            // Update status
+            updateStatus('toothbrush', data.status.toothbrush);
+            updateStatus('fsr-bridge', data.status.fsr_bridge);
+            updateStatus('audio', data.status.audio);
+            updateStatus('hub', data.status.hub);
+        });
+
+        function updateStatus(device, data) {
+            if (device === 'toothbrush') {
+                document.getElementById('toothbrush-connection').textContent = data.status;
+                document.getElementById('toothbrush-battery').textContent = data.battery;
+                document.getElementById('toothbrush-last-seen').textContent = data.last_seen;
+
+                const statusElem = document.getElementById('toothbrush-status');
+                statusElem.className = 'status-item ' + 
+                    (data.status === 'Connected' ? 'status-connected' : 
+                     data.status === 'Disconnected' ? 'status-disconnected' : 'status-unknown');
+            }
+            else if (device === 'fsr-bridge') {
+                document.getElementById('fsr-connection').textContent = data.status;
+                document.getElementById('fsr-last-seen').textContent = data.last_seen;
+
+                const statusElem = document.getElementById('fsr-status');
+                statusElem.className = 'status-item ' + 
+                    (data.status === 'Connected' ? 'status-connected' : 
+                     data.status === 'Disconnected' ? 'status-disconnected' : 'status-unknown');
+            }
+            else if (device === 'audio') {
+                document.getElementById('audio-connection').textContent = data.status;
+                document.getElementById('audio-last-seen').textContent = data.last_seen;
+
+                const statusElem = document.getElementById('audio-status');
+                statusElem.className = 'status-item ' + 
+                    (data.status === 'Connected' ? 'status-connected' : 
+                     data.status === 'Disconnected' ? 'status-disconnected' : 'status-unknown');
+            }
+            else if (device === 'hub') {
+                document.getElementById('hub-connection').textContent = data.status;
+                document.getElementById('hub-uptime').textContent = data.uptime;
+
+                const statusElem = document.getElementById('hub-status');
+                statusElem.className = 'status-item ' + 
+                    (data.status === 'Online' ? 'status-connected' : 'status-disconnected');
+            }
+        }
+    </script>
 
     <script>
         const API_BASE_URL = 'http://localhost:8080';
