@@ -10,14 +10,10 @@ import matplotlib.pyplot as plt
 import io
 import base64
 import time
-# import eventlet
 from pathlib import Path
 
-# import lib.combined_hub_server as hub_server
+import lib.combined_hub_server as hub_server
 # import lib.record_imu_data as imu_recorder
-
-
-# eventlet.monkey_patch()
 
 # Max data points to display
 MAX_POINTS = 500
@@ -163,9 +159,10 @@ def main():
     update_thread.daemon = True
     update_thread.start()
 
-    # TODO: Start audio hub server thread
-
-    # TODO: Start imu hub server thread
+    # TODO: Start combined server thread (Unfinished)
+    hub_server_thread = threading.Thread(target=hub_server.main)
+    hub_server_thread.daemon = True
+    hub_server_thread.start()
 
     # Routes
     @app.route('/')

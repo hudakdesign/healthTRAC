@@ -265,7 +265,7 @@ def main():
     parser = argparse.ArgumentParser(description='Combined Hub Server')
     parser.add_argument('--tcp-port', type=int, default=5555)
     parser.add_argument('--http-port', type=int, default=5000)
-    parser.add_argument('--flask-port', type=int, default=8080)
+    parser.add_argument('--flask-port', type=int, default=8081) # defaults 8081 to avoid dashboard conflict
     args = parser.parse_args()
 
     print("\n========== COMBINED HUB SERVER ==========")
