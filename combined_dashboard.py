@@ -10,10 +10,14 @@ import matplotlib.pyplot as plt
 import io
 import base64
 import time
-import eventlet
+# import eventlet
 from pathlib import Path
 
-eventlet.monkey_patch()
+# import lib.combined_hub_server as hub_server
+# import lib.record_imu_data as imu_recorder
+
+
+# eventlet.monkey_patch()
 
 # Max data points to display
 MAX_POINTS = 500
