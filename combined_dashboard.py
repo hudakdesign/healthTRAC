@@ -1,242 +1,181 @@
 #!/usr/bin/env python3
 import argparse
-from flask import Flask, render_template_string
+from flask_socketio import SocketIO
+from flask import Flask, render_template
+import pandas as pd
+from collections import deque
+import threading
+from datetime import datetime
+import matplotlib.pyplot as plt
+import io
+import base64
+import time
+from pathlib import Path
 
-# --- HTML Template ---
-HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Combined Sensor Dashboard</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-    <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background-color: #f0f2f5; color: #1c1e21; }
-        .header { background-color: #fff; padding: 10px 20px; border-bottom: 1px solid #dddfe2; display: flex; align-items: center; justify-content: space-between; }
-        .header h1 { font-size: 24px; margin: 0; }
-        .container { display: flex; flex-wrap: wrap; padding: 20px; gap: 20px; }
-        .card { background-color: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex: 1; min-width: 400px; display: flex; flex-direction: column; }
-        .card-header { padding: 16px; border-bottom: 1px solid #dddfe2; }
-        .card-header h2 { font-size: 20px; margin: 0; }
-        .card-content { padding: 16px; font-size: 14px; color: #333; flex-grow: 1; }
-        .controls { display: flex; gap: 10px; align-items: center; }
-        .button { padding: 8px 16px; font-size: 14px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        .button-start { background-color: #42b72a; color: white; }
-        .button-stop { background-color: #f02849; color: white; }
-        .button:disabled { background-color: #e4e6eb; color: #bcc0c4; cursor: not-allowed; }
-        .status { display: flex; align-items: center; gap: 8px; font-weight: bold; }
-        .status-indicator { width: 12px; height: 12px; border-radius: 50%; }
-        .status-recording { background-color: #f02849; }
-        .status-stopped { background-color: #606770; }
-        .error-bar { background-color: #f02849; color: white; padding: 10px; text-align: center; display: none; position: fixed; top: 0; width: 100%; z-index: 1000; }
-        .device-list { list-style: none; padding: 0; margin: 0; }
-        .device-list li { padding: 8px 0; border-bottom: 1px solid #eee; }
-        .device-list li:last-child { border-bottom: none; }
-    </style>
-</head>
-<body>
-    <div id="error-bar" class="error-bar"></div>
-    <div class="header">
-        <h1>Health Trac Hub</h1>
-        <div class="controls">
-            <div id="status" class="status">
-                <div id="status-indicator" class="status-indicator status-stopped"></div>
-                <span id="status-text">NOT RECORDING</span>
-            </div>
-            <button id="startBtn" class="button button-start" onclick="startRecording()">Start Recording</button>
-            <button id="stopBtn" class="button button-stop" onclick="stopRecording()" disabled>Stop Recording</button>
-        </div>
-    </div>
+import lib.audio_server as audio_server
+import lib.imu_server as imu_server
 
-    <div class="container">
-        <div class="card">
-            <div class="card-header"><h2>Audio Activity (RMS)</h2></div>
-            <div class="card-content">
-                <canvas id="audioChart"></canvas>
-            </div>
-        </div>
-        <div class="card">
-            <div class="card-header"><h2>Connected Devices</h2></div>
-            <div class="card-content">
-                <h3>Audio Devices</h3>
-                <ul id="audio-devices" class="device-list"><li>Waiting for data...</li></ul>
-                <h3>Toothbrush Devices</h3>
-                <ul id="toothbrush-devices" class="device-list"><li>Waiting for data...</li></ul>
-            </div>
-        </div>
-    </div>
+# Max data points to display
+MAX_POINTS = 500
 
-    <script>
-        const API_BASE_URL = 'http://localhost:8080';
-        const MAX_CHART_POINTS = 100; // Keep the last 100 data points
-        let audioChart;
-        let isRecording = false;
+# Temporary data storage
+toothbrush_data = {
+    'timestamps': deque(maxlen=MAX_POINTS),
+    'accel_x': deque(maxlen=MAX_POINTS),
+    'accel_y': deque(maxlen=MAX_POINTS),
+    'accel_z': deque(maxlen=MAX_POINTS),
+    'last_update': None
+}
 
-        function showError(message) {
-            const errorBar = document.getElementById('error-bar');
-            errorBar.textContent = message;
-            errorBar.style.display = 'block';
-            setTimeout(() => { errorBar.style.display = 'none'; }, 5000);
+
+# Initialize Flask
+app = Flask(__name__)
+app.config['SECRET_KEY'] = 'health-trac-dashboard'
+socketio = SocketIO(app, cors_allowed_origins='*')
+
+# Create threading lock
+data_lock = threading.Lock()
+
+
+def read_csv_data(csv_path):
+        """Read data from CSV file"""
+        try:
+            df = pd.read_csv(csv_path)
+
+            with data_lock:
+                # Clear existing data
+                toothbrush_data['timestamps'].clear()
+                toothbrush_data['accel_x'].clear()
+                toothbrush_data['accel_y'].clear()
+                toothbrush_data['accel_z'].clear()
+
+                # Load new data (last MAX_POINTS rows)
+                for _, row in df.tail(MAX_POINTS).iterrows():
+                    toothbrush_data['timestamps'].append(row['timestamp_hub'])
+                    toothbrush_data['accel_x'].append(row['accel_x'])
+                    toothbrush_data['accel_y'].append(row['accel_y'])
+                    toothbrush_data['accel_z'].append(row['accel_z'])
+
+                toothbrush_data['last_update'] = datetime.now()
+
+            print(f"[CSV] Loaded {len(toothbrush_data['timestamps'])} data points")
+            return True
+        except Exception as e:
+            print(f"[CSV] Error reading file: {e}")
+            return False
+        
+def generate_toothbrush_plot():
+    """Generate toothbrush accelerometer plot"""
+    print(f"[PLOT] Generating plot with {len(toothbrush_data['timestamps'])} data points")
+
+    if len(toothbrush_data['timestamps']) == 0:
+        # Return empty plot
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.text(0.5, 0.5, 'No data available', ha='center', va='center', fontsize=14)
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+    else:
+        timestamps = list(toothbrush_data['timestamps'])
+        accel_x = list(toothbrush_data['accel_x'])
+        accel_y = list(toothbrush_data['accel_y'])
+        accel_z = list(toothbrush_data['accel_z'])
+
+        # Convert timestamps to relative time (seconds from start)
+        t0 = timestamps[0]
+        times = [(t - t0) for t in timestamps]
+
+        fig, ax = plt.subplots(figsize=(10, 6))
+        ax.plot(times, accel_x, label='X', alpha=0.7)
+        ax.plot(times, accel_y, label='Y', alpha=0.7)
+        ax.plot(times, accel_z, label='Z', alpha=0.7)
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel('Acceleration (g)')
+        ax.set_title('Toothbrush IMU Data')
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+
+    # Convert to base64 image
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', dpi=80, bbox_inches='tight')
+    buf.seek(0)
+    img_base64 = base64.b64encode(buf.read()).decode('utf-8')
+    plt.close(fig)
+
+    return img_base64
+
+def update_dashboard():
+    """Generate and return all plots"""
+    plots = {
+        'toothbrush': generate_toothbrush_plot(),
+        'fsr': '',  # Empty for now
+        'audio': '',  # Empty for now
+        'status': {
+            'toothbrush': {
+                'status': 'Reading from CSV',
+                'battery': 'N/A',
+                'last_seen': toothbrush_data['last_update'].strftime('%H:%M:%S') if toothbrush_data[
+                    'last_update'] else 'Never'
+            },
+            'fsr_bridge': {'status': 'N/A', 'last_seen': 'N/A'},
+            'audio': {'status': 'N/A', 'last_seen': 'N/A'},
+            'hub': {'status': 'Online', 'uptime': 'N/A'}
         }
+    }
+    return plots
 
-        function startRecording() {
-            fetch(`${API_BASE_URL}/api/start_recording`, { method: 'POST' })
-                .then(response => {
-                    if (!response.ok) throw new Error('Failed to start recording.');
-                    updateRecordingStatus(true);
-                })
-                .catch(err => showError(`Error: Could not start recording. Is the hub server running on ${API_BASE_URL}?`));
-        }
+def update_dashboard_loop(csv_path):
+    """Periodically update dashboard plots from CSV"""
+    while True:
+        time.sleep(5)  # Update every 5 seconds
 
-        function stopRecording() {
-            fetch(`${API_BASE_URL}/api/stop_recording`, { method: 'POST' })
-                .then(response => {
-                    if (!response.ok) throw new Error('Failed to stop recording.');
-                    updateRecordingStatus(false);
-                })
-                .catch(err => showError('Error: Could not stop recording.'));
-        }
+        print("[DASHBOARD] Reading CSV and updating plots")
+        read_csv_data(csv_path)
 
-        function updateRecordingStatus(recording) {
-            isRecording = recording;
-            const startBtn = document.getElementById('startBtn');
-            const stopBtn = document.getElementById('stopBtn');
-            const statusIndicator = document.getElementById('status-indicator');
-            const statusText = document.getElementById('status-text');
-
-            startBtn.disabled = isRecording;
-            stopBtn.disabled = !isRecording;
-            statusIndicator.className = `status-indicator ${isRecording ? 'status-recording' : 'status-stopped'}`;
-            statusText.textContent = isRecording ? 'RECORDING' : 'NOT RECORDING';
-        }
-
-        function updateAudioDevices() {
-            fetch(`${API_BASE_URL}/api/audio_devices`)
-                .then(response => response.json())
-                .then(data => {
-                    const list = document.getElementById('audio-devices');
-                    list.innerHTML = '';
-                    if (Object.keys(data).length === 0) {
-                        list.innerHTML = '<li>Waiting for data...</li>';
-                        return;
-                    }
-
-                    for (const [deviceId, info] of Object.entries(data)) {
-                        const features = info.features;
-                        const timestamp = new Date(info.timestamp);
-
-                        // Update text display
-                        const vadText = features.vad === 1 ? 'Speech Detected' : 'No Speech';
-                        list.innerHTML += `<li><b>${deviceId}</b> - RMS: ${features.rms.toFixed(2)}, VAD: ${vadText}</li>`;
-
-                        // Add data to chart
-                        const chart = audioChart;
-                        const isSpeech = features.vad === 1;
-
-                        chart.data.labels.push(timestamp);
-                        chart.data.datasets[0].data.push(features.rms);
-
-                        // Point color depends on recording state
-                        const pointColor = isRecording ? 'rgba(240, 40, 73, 0.8)' : 'rgba(54, 162, 235, 0.8)';
-                        chart.data.datasets[0].pointBackgroundColor.push(pointColor);
-
-                        // Point radius is larger if speech is detected
-                        chart.data.datasets[0].pointRadius.push(isSpeech ? 6 : 3);
-
-                        // Limit data points
-                        if (chart.data.labels.length > MAX_CHART_POINTS) {
-                            chart.data.labels.shift();
-                            chart.data.datasets[0].data.shift();
-                            chart.data.datasets[0].pointBackgroundColor.shift();
-                            chart.data.datasets[0].pointRadius.shift();
-                        }
-                        chart.update('none'); // Use 'none' for smoother updates
-                    }
-                })
-                .catch(err => console.error('Failed to fetch audio devices:', err));
-        }
-
-        function updateToothbrushDevices() {
-            fetch(`${API_BASE_URL}/api/toothbrush_devices`)
-                .then(response => response.json())
-                .then(data => {
-                    const list = document.getElementById('toothbrush-devices');
-                    list.innerHTML = '';
-                    if (Object.keys(data).length === 0) {
-                        list.innerHTML = '<li>Waiting for data...</li>';
-                        return;
-                    }
-                    for (const [deviceId, info] of Object.entries(data)) {
-                        const lastUpdate = new Date(info.timestamp * 1000).toLocaleTimeString();
-                        list.innerHTML += `<li><b>${deviceId}</b> - Last update: ${lastUpdate}</li>`;
-                    }
-                })
-                .catch(err => console.error('Failed to fetch toothbrush devices:', err));
-        }
-
-        function initializeDashboard() {
-            // Initialize Chart
-            const ctx = document.getElementById('audioChart').getContext('2d');
-            audioChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'RMS Level',
-                        data: [],
-                        borderColor: 'rgba(54, 162, 235, 0.5)',
-                        tension: 0.1,
-                        pointBackgroundColor: [], // Dynamic color
-                        pointRadius: [], // Dynamic radius
-                    }]
-                },
-                options: {
-                    scales: {
-                        x: {
-                            type: 'time',
-                            time: { unit: 'second' },
-                            ticks: { source: 'auto' },
-                            title: { display: true, text: 'Time' }
-                        },
-                        y: {
-                            beginAtZero: true,
-                            title: { display: true, text: 'RMS Amplitude' }
-                        }
-                    },
-                    animation: { duration: 200 },
-                    maintainAspectRatio: false
-                }
-            });
-
-            // Fetch initial recording state
-            fetch(`${API_BASE_URL}/api/recording_state`)
-                .then(res => res.json())
-                .then(data => updateRecordingStatus(data.is_recording))
-                .catch(() => updateRecordingStatus(false));
-
-            // Set up periodic updates
-            setInterval(updateAudioDevices, 500); // Faster updates for the chart
-            setInterval(updateToothbrushDevices, 2000);
-        }
-
-        window.onload = initializeDashboard;
-    </script>
-</body>
-</html>
-"""
-
+        plots = update_dashboard()
+        socketio.emit('update_plots', plots)
+        print("[DASHBOARD] Dashboard plots updated")
 
 def main():
+    # Parse command-line arguments
     parser = argparse.ArgumentParser(description='Combined Sensor Dashboard')
-    parser.add_argument('--port', type=int, default=8000, help='Port to run the dashboard on')
+    parser.add_argument('--port', type=int, default=8080, help='Port to run the dashboard on')
+    parser.add_argument('--csv-file', type=str, default='data/toothbrush.csv',
+                        help='Path to CSV file (default: data/toothbrush.csv)')
+    # parser.add_argument('--web-port', type=int, default=8080,
+    #                     help='Web dashboard port (default: 8080)')
     args = parser.parse_args()
 
-    app = Flask(__name__)
 
+    csv_path = Path(args.csv_file)
+    if not csv_path.exists():
+        print(f"Error: CSV file not found: {csv_path}")
+        return
+    
+    # Initial load
+    read_csv_data(csv_path)
+
+    # Start dashboard update thread
+    update_thread = threading.Thread(target=update_dashboard_loop, args=(csv_path,))
+    update_thread.daemon = True
+    update_thread.start()
+
+    # TODO: Start combined server thread (Unfinished)
+    hub_server_thread = threading.Thread(target=audio_server.main)
+    hub_server_thread.daemon = True
+    hub_server_thread.start()
+
+    # Routes
     @app.route('/')
+    def index():
+        return render_template('index.html')
+
+    @app.route('/audio')
     def dashboard():
-        return render_template_string(HTML_TEMPLATE)
+        return render_template('audio_dashboard.html')
+    
+    @app.route('/imu')
+    def imu_dashboard():
+        return render_template('imu_dashboard.html')
 
     print(f"Starting dashboard at http://localhost:{args.port}")
     app.run(host='0.0.0.0', port=args.port, debug=False)
