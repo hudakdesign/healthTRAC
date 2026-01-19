@@ -4,6 +4,7 @@ import wave
 import threading
 import sys
 import os
+import time
 
 # Parameters
 sample_rate = 44100  # 44.1 kHz
@@ -24,30 +25,40 @@ def is_recording():
     global recording
     # Check if the recording flag is set
     while True:
-        recording_check = os.popen("cat recording").read()
-        if recording_check == "True":
-            recording = True
-        else:
-            recording = False
-            break
+        with open("recording", 'r') as infile:
+            line = infile.readline()
+            line = line.strip()
+            print(line)
+            if line == "True":
+                print("Is true")
+                recording = True
+            else:
+                print("Is false")
+                recording = False
+                break
+        time.sleep(1)
 
-# Start is_recording thread
-stop_thread = threading.Thread(target=is_recording)
-stop_thread.start()
+def main():
+    # Start is_recording thread
+    stop_thread = threading.Thread(target=is_recording)
+    stop_thread.start()
 
-# Start recording stream
-with sd.InputStream(samplerate=sample_rate, 
-                    channels=channels, 
-                    dtype=dtype, 
-                    callback=callback):
-    while recording:
-        sd.sleep(100)
+    # Start recording stream
+    with sd.InputStream(samplerate=sample_rate, 
+                        channels=channels, 
+                        dtype=dtype, 
+                        callback=callback):
+        while recording:
+            sd.sleep(100)
 
-# Combine and save to file
-audio_data = np.concatenate(recorded_frames)
+    # Combine and save to file
+    audio_data = np.concatenate(recorded_frames)
 
-with wave.open(file_name, 'wb') as wf:
-    wf.setnchannels(channels)
-    wf.setsampwidth(np.dtype(dtype).itemsize)
-    wf.setframerate(sample_rate)
-    wf.writeframes(audio_data.tobytes())
+    with wave.open(file_name, 'wb') as wf:
+        wf.setnchannels(channels)
+        wf.setsampwidth(np.dtype(dtype).itemsize)
+        wf.setframerate(sample_rate)
+        wf.writeframes(audio_data.tobytes())
+
+if __name__ == "__main__":
+    main()
