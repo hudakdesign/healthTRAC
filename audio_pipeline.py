@@ -25,18 +25,35 @@ def is_recording():
     global recording
     # Check if the recording flag is set
     while True:
-        with open("recording", 'r') as infile:
-            line = infile.readline()
-            line = line.strip()
-            print(line)
-            if line == "True":
-                print("Is true")
-                recording = True
-            else:
-                print("Is false")
-                recording = False
-                break
+        if check_recording_status():
+            print("Is true")
+            recording = True
+        else:
+            print("Is false")
+            recording = False
+            break
         time.sleep(1)
+
+def check_recording_status():
+    with open("recording", 'r') as infile:
+        line = infile.readline()
+        line = line.strip()
+        print(line)
+        if line == "True":
+            print("Is True")
+            return True
+        else:
+            print("Is False")
+            return False
+
+def toggle_recording():
+    rec = check_recording_status()
+
+    with open("recording", 'w') as outfile:
+        if rec:
+            outfile.write("False")
+        else:
+            outfile.write("True")
 
 def main():
     # Start is_recording thread
