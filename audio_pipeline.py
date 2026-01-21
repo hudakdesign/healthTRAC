@@ -74,34 +74,23 @@ def start_recording():
         wf.setframerate(sample_rate)
         wf.writeframes(audio_data.tobytes())
 
-# def main():
-#     # Start is_recording thread
-#     stop_thread = threading.Thread(target=is_recording)
-#     stop_thread.start()
-
-#     # Start recording stream
-#     with sd.InputStream(samplerate=sample_rate, 
-#                         channels=channels, 
-#                         dtype=dtype, 
-#                         callback=callback):
-#         while recording:
-#             sd.sleep(100)
-
-#     # Combine and save to file
-#     audio_data = np.concatenate(recorded_frames)
-
-#     with wave.open(file_name, 'wb') as wf:
-#         wf.setnchannels(channels)
-#         wf.setsampwidth(np.dtype(dtype).itemsize)
-#         wf.setframerate(sample_rate)
-#         wf.writeframes(audio_data.tobytes())
-
 def main():
-    def input_toggle_recording():
+    def tui_toggle_recording():
         while True:
             if check_recording_status():
-                print()
+                os.system("clear")
+                print("RECORDING RUNNING")
+                print("Press [ENTER] to pause")
+            else:
+                os.system("clear")
+                print("RECORDING PAUSED")
+                print("Press [ENTER] to resume")
+            input()
+            toggle_recording()
 
+    # Start thread for toggling recording status
+    toggle_recording_thread = threading.Thread(target=tui_toggle_recording)
+    toggle_recording_thread.start()
     # Start thread to check for recording flag
     is_recording_thread = threading.Thread(target=is_recording)
     is_recording_thread.start()
