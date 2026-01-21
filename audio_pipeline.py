@@ -9,7 +9,8 @@ import time
 # Parameters
 sample_rate = 44100  # 44.1 kHz
 channels = 1  # 1 = Mono, 2 = Stereo
-file_name = "recording.wav"
+save_path = "recordings/"
+file_name = "audio_recording"
 dtype = 'int16'
 
 # Buffer to hold recorded data
@@ -55,11 +56,7 @@ def toggle_recording():
         else:
             outfile.write("True")
 
-def main():
-    # Start is_recording thread
-    stop_thread = threading.Thread(target=is_recording)
-    stop_thread.start()
-
+def start_recording():
     # Start recording stream
     with sd.InputStream(samplerate=sample_rate, 
                         channels=channels, 
@@ -71,11 +68,49 @@ def main():
     # Combine and save to file
     audio_data = np.concatenate(recorded_frames)
 
-    with wave.open(file_name, 'wb') as wf:
+    with wave.open(f'{save_path}{file_name}_{time.time_ns()}', 'wb') as wf:
         wf.setnchannels(channels)
         wf.setsampwidth(np.dtype(dtype).itemsize)
         wf.setframerate(sample_rate)
         wf.writeframes(audio_data.tobytes())
+
+# def main():
+#     # Start is_recording thread
+#     stop_thread = threading.Thread(target=is_recording)
+#     stop_thread.start()
+
+#     # Start recording stream
+#     with sd.InputStream(samplerate=sample_rate, 
+#                         channels=channels, 
+#                         dtype=dtype, 
+#                         callback=callback):
+#         while recording:
+#             sd.sleep(100)
+
+#     # Combine and save to file
+#     audio_data = np.concatenate(recorded_frames)
+
+#     with wave.open(file_name, 'wb') as wf:
+#         wf.setnchannels(channels)
+#         wf.setsampwidth(np.dtype(dtype).itemsize)
+#         wf.setframerate(sample_rate)
+#         wf.writeframes(audio_data.tobytes())
+
+def main():
+    def input_toggle_recording():
+        while True:
+            if check_recording_status():
+                print()
+
+    # Start thread to check for recording flag
+    is_recording_thread = threading.Thread(target=is_recording)
+    is_recording_thread.start()
+    # Restarts recording if flag is set again
+    while True:
+        if recording:
+            start_recording()
+        else:
+            time.sleep(1/10)
 
 if __name__ == "__main__":
     main()
