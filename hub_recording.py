@@ -3,6 +3,7 @@ import threading
 import os
 
 RECORDING_FILE = "recording_timestamp"
+UPDATE_FREQUENCY = 1/2
 is_recording = True
 
 # Writes the passed in value to RECORDING_FILE 
@@ -22,6 +23,8 @@ def pause_recording():
 
 # Gets user input to toggle if the satellites should be recording or not
 def user_input_loop():
+    global is_recording
+
     while True:
         os.system("clear")
         input(f"is_recording: {is_recording}\nTo toggle [PRESS ENTER]")
@@ -33,11 +36,14 @@ def user_input_loop():
 # Repeatedly checks if it should be recording and either sets the timestamp
 # to the time or to zero
 def recording_update_loop():
+    global is_recording
+
     while True:
         if is_recording:
             set_recording_timestamp()
         else:
             pause_recording()
+        time.sleep(UPDATE_FREQUENCY)
 
 def main():
     input_loop_thread = threading.Thread(target=user_input_loop)
