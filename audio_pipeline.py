@@ -13,6 +13,8 @@ save_path = "recordings/"
 file_name = "audio_recording"
 dtype = 'int16'
 
+curr_recording_file = f"{save_path}{file_name}{time.time_ns()}.wav"
+
 # Buffer to hold recorded data
 recorded_frames = []
 recording = True
@@ -22,29 +24,14 @@ def callback(indata, frames, time, status):
         print(status, file=sys.stderr)
     recorded_frames.append(indata.copy())
 
-def is_recording():
-    global recording
-    # Check if the recording flag is set
-    while True:
-        if check_recording_status():
-            print("Is true")
-            recording = True
-        else:
-            print("Is false")
-            recording = False
-            break
-        time.sleep(1)
-
 def check_recording_status():
     with open("recording", 'r') as infile:
         line = infile.readline()
         line = line.strip()
         print(line)
         if line == "True":
-            print("Is True")
             return True
         else:
-            print("Is False")
             return False
 
 def toggle_recording():
@@ -56,19 +43,23 @@ def toggle_recording():
         else:
             outfile.write("True")
 
+def update_recording_file():
+    global curr_recording_file
+    curr_recording_file = f"{save_path}{file_name}{time.time_ns()}.wav"
+
 def start_recording():
     # Start recording stream
     with sd.InputStream(samplerate=sample_rate, 
                         channels=channels, 
                         dtype=dtype, 
                         callback=callback):
-        while recording:
+        while check_recording_status():
             sd.sleep(100)
 
     # Combine and save to file
     audio_data = np.concatenate(recorded_frames)
 
-    with wave.open(f'{save_path}{file_name}_{time.time_ns()}', 'wb') as wf:
+    with wave.open(curr_recording_file, 'wb') as wf:
         wf.setnchannels(channels)
         wf.setsampwidth(np.dtype(dtype).itemsize)
         wf.setframerate(sample_rate)
@@ -91,12 +82,10 @@ def main():
     # Start thread for toggling recording status
     toggle_recording_thread = threading.Thread(target=tui_toggle_recording)
     toggle_recording_thread.start()
-    # Start thread to check for recording flag
-    is_recording_thread = threading.Thread(target=is_recording)
-    is_recording_thread.start()
     # Restarts recording if flag is set again
     while True:
         if recording:
+            update_recording_file()
             start_recording()
         else:
             time.sleep(1/10)
