@@ -13,6 +13,7 @@ running = True
 
 # Check the recording flag value on the hub
 # Set global recording timestamp value
+# TODO: currently checks own file system
 def set_recording_timestamp():
     global recording_timestamp
     recording_timestamp = int(os.popen(check_recording_command).read())
