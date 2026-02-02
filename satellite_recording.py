@@ -34,8 +34,8 @@ def test():
 def main():
     server_threads = []
     if DEBUG:
-        server_threads.append(threading.Thread(test))
-    server_threads.append(threading.Thread(set_recording_timestamp_loop))
+        server_threads.append(threading.Thread(target=test))
+    server_threads.append(threading.Thread(target=set_recording_timestamp_loop))
     
     for thread in server_threads:
         thread.start()
