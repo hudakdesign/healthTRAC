@@ -9,7 +9,7 @@ UPDATE_FREQUENCY = 1/60
 check_recording_command = f"cat {RECORDING_FILE}"
 recording_timestamp = 0
 
-running = True
+running = True 
 
 # Check the recording flag value on the hub
 # Set global recording timestamp value
@@ -49,7 +49,9 @@ def main():
             thread.start()
 
     except KeyboardInterrupt:
-        for thread in server_threads:
-            thread.stop()
+        global running
+        running = False
+        # for thread in server_threads:
+        #     thread.stop()
 if __name__ == "__main__":
     main()
