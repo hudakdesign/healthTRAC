@@ -5,6 +5,7 @@ import os
 DEBUG = True
 RECORDING_FILE = "recording_timestamp"
 THRESHOLD = 10e9 # In nanoseconds
+UPDATE_FREQUENCY = 1/60
 check_recording_command = f"cat {RECORDING_FILE}"
 recording_timestamp = 0
 
@@ -27,14 +28,14 @@ def check_if_in_threshold():
 def set_recording_timestamp_loop():
     while running:
         set_recording_timestamp()
-        time.sleep(1/60)
+        time.sleep(UPDATE_FREQUENCY)
 
 # Displays debug info
 def test():
     while running:
         os.system("clear")
         print(f"Current timestamp: {time.time_ns()}\nHub timestamp: {recording_timestamp}\nIn threshold: {check_if_in_threshold()}")
-        time.sleep(1/60)
+        time.sleep(UPDATE_FREQUENCY)
 
 def main():
     try:
