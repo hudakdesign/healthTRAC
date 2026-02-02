@@ -18,27 +18,36 @@ def set_recording_timestamp():
         
 # Check if stored recording flag value is within the threshold
 def check_if_in_threshold():
-    curr_time = time.time_ns
+    curr_time = time.time_ns()
     if (curr_time < (recording_timestamp + THRESHOLD )):
         return True
     return False
 
+# Repeatedly updates recording timestamp
 def set_recording_timestamp_loop():
     while running:
         set_recording_timestamp()
+        time.sleep(1/60)
 
+# Displays debug info
 def test():
     while running:
+        os.system("clear")
         print(f"Current timestamp: {time.time_ns()}\nHub timestamp: {recording_timestamp}\nIn threshold: {check_if_in_threshold()}")
+        time.sleep(1/60)
 
 def main():
-    server_threads = []
-    if DEBUG:
-        server_threads.append(threading.Thread(target=test))
-    server_threads.append(threading.Thread(target=set_recording_timestamp_loop))
-    
-    for thread in server_threads:
-        thread.start()
+    try:
+        server_threads = []
+        if DEBUG:
+            server_threads.append(threading.Thread(target=test))
+        server_threads.append(threading.Thread(target=set_recording_timestamp_loop))
+        
+        for thread in server_threads:
+            thread.start()
 
+    except KeyboardInterrupt:
+        for thread in server_threads:
+            thread.stop()
 if __name__ == "__main__":
     main()
