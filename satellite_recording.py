@@ -18,12 +18,6 @@ ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 ssh.load_system_host_keys()
 ssh.connect(hostname="health-trac-pi", username="healthtrac")
 # Check the recording flag value on the hub
-# Set global recording timestamp value
-# TODO: currently checks own file system
-# def set_recording_timestamp():
-#     global recording_timestamp
-
-#     # recording_timestamp = int(os.popen(check_recording_command).read())
         
 # Check if stored recording flag value is within the threshold
 def check_if_in_threshold():
