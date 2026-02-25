@@ -31,6 +31,5 @@ The Satellite records audio data from its attached microphone and stores it loca
 
 ## Libraries:
 - sounddevice
-- wavio
-- scipy
 - paramiko
+- numpy
