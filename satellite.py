@@ -6,6 +6,9 @@ import threading
 import time
 import wave
 
+# Debug
+TUI = False
+
 # Defaults
 sleep_time = 1/10
 channels = 2
@@ -21,13 +24,15 @@ recording = True
 hub_timestamp = 0
 timeout = 5e9 # 5 seconds in nanoseconds
 
+running = True
+
 
 def callback(indata, frames, time, status):
     if status:
         print(status, file=sys.stderr)
     audio_frames.append(indata.copy())
 
-def start_recording():
+def create_recording():
     # Log start time
     start_time = time.time_ns()
 
@@ -54,7 +59,7 @@ def check_recording_status():
     global recording
     global hub_timestamp
 
-    while True:
+    while running:
         # TODO: Implement paramiko ssh connection
         # for now call hub.py locally
         # this is very similar, just isn't networked yet
@@ -69,7 +74,7 @@ def check_recording_status():
 def toggle_recording():
     global recording
 
-    while True:
+    while running:
         # Current timestamp on the satellite
         satellite_timestamp = time.time_ns()
 
@@ -82,6 +87,15 @@ def toggle_recording():
 
         # Sleep for a bit
         time.sleep(sleep_time)
+    
+# Thread for terminating the program
+def terminate_threads():
+    global recording
+    global running
+
+    input(f"Currently running: {running}\nTerminate with [Enter]")
+    recording = False
+    running = False
 
 
 
@@ -89,20 +103,27 @@ if __name__ == "__main__":
     def tui_toggle_recording():
         global recording
 
-        while True:
+        while running:
             subprocess.run('clear')
-            input(f"Recording running {recording}\nToggle with [Enter]")
+            input(f"Recording running: {recording}\nToggle with [Enter]")
             recording = not recording
     
-    toggle_recording_thread = threading.Thread(target=tui_toggle_recording)
-    toggle_recording_thread.start()
+    if TUI:
+        toggle_recording_thread = threading.Thread(target=tui_toggle_recording)
+        toggle_recording_thread.start()
+    else:
+        toggle_recording_thread = threading.Thread(target=toggle_recording)
+        toggle_recording_thread.start()
+
+        terminate_program_thread = threading.Thread(target=terminate_threads)
+        terminate_program_thread.start()
 
     check_recording_status_thread = threading.Thread(target=check_recording_status)
     check_recording_status_thread.start()
 
-    while True:
+    while running:
         # If recording is toggled on, retoggle it
         if recording:
-            start_recording()
+            create_recording()
         # Otherwise, sleep for a sec
         time.sleep(sleep_time)
