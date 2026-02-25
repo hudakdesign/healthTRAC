@@ -1,7 +1,11 @@
 import sounddevice as sd
 from scipy.io.wavfile import write
 import wavio as wv
+import wave
 import sys
+import numpy as np
+import subprocess
+import threading
 
 # Defaults
 channels = 2
@@ -9,7 +13,7 @@ duration = 5
 dtype = 'int16'
 sample_rate = 44100
 file_name = "recording.wav"
-file_directory = "data/"
+file_directory = "recordings/"
 file_path = f"{file_directory}{file_name}"
 
 
@@ -31,13 +35,25 @@ def start_recording():
         global recording
         while recording:
             sd.sleep(100)
+        
+    audio_data = np.concatenate(audio_frames)
+
+    with wave.open(file_path, 'wb') as wav_file:
+        wav_file.setnchannels(channels)
+        wav_file.setsampwidth(np.dtype(dtype).itemsize)
+        wav_file.setframerate(sample_rate)
+        wav_file.writeframes(audio_data.tobytes())
 
 if __name__ == "__main__":
-    # sample recording
-    recording = sd.rec(int(duration * freq),
-                       samplerate=freq, channels=2)
+    def tui_toggle_recording():
+        global recording
 
-    sd.wait()
+        while True:
+            subprocess.run('clear')
+            input(f"Recording running {recording}\nToggle with [Enter]")
+            recording = not recording
+    
+    toggle_recording_thread = threading.Thread(target=tui_toggle_recording)
+    toggle_recording_thread.start()
 
-    wv.write(file_path, recording, freq, sampwidth=2)
-
+    start_recording()
