@@ -47,6 +47,19 @@ def start_recording():
         wav_file.setframerate(sample_rate)
         wav_file.writeframes(audio_data.tobytes())
 
+# Thread for polling the hub using paramiko
+def check_recording_status():
+    global recording
+
+    while True:
+        # TODO: Implement paramiko ssh connection
+        # for now call hub.py locally
+        hub_timestamp = subprocess.run(['python3', 'hub.py'], capture_output=True, text=True)
+
+        # Sleep for a bit
+        time.sleep(sleep_time)
+
+
 if __name__ == "__main__":
     def tui_toggle_recording():
         global recording
