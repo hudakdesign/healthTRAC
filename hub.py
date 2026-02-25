@@ -12,7 +12,6 @@ if __name__ == "__main__":
     # cat the recording flag
     flag = subprocess.run(['cat', flag_path], capture_output=True, text=True).stdout.strip()
 
-    print(flag)
     # Checks if the flag is 1
     if flag == "1":
         print(time.time_ns())

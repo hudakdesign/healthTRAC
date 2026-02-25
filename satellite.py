@@ -18,6 +18,8 @@ file_path = f"{file_directory}{file_name}"
 
 audio_frames = []
 recording = True
+hub_timestamp = 0
+timeout = 5e9 # 5 seconds in nanoseconds
 
 
 def callback(indata, frames, time, status):
@@ -50,14 +52,37 @@ def start_recording():
 # Thread for polling the hub using paramiko
 def check_recording_status():
     global recording
+    global hub_timestamp
 
     while True:
         # TODO: Implement paramiko ssh connection
         # for now call hub.py locally
-        hub_timestamp = subprocess.run(['python3', 'hub.py'], capture_output=True, text=True)
+        # this is very similar, just isn't networked yet
+        str_hub_timestamp = subprocess.run(['python3', 'hub.py'], capture_output=True, text=True).stdout.strip()
+        hub_timestamp = int(str_hub_timestamp)
+        print(f"hub_timestamp: {hub_timestamp}")
 
         # Sleep for a bit
         time.sleep(sleep_time)
+
+# Thread for toggling recording on and off based on timestamp from the hub
+def toggle_recording():
+    global recording
+
+    while True:
+        # Current timestamp on the satellite
+        satellite_timestamp = time.time_ns()
+
+        # If the satellite timestamp is within the timeout, then the hub wants it to be recording
+        if satellite_timestamp < hub_timestamp + timeout:
+            recording = True
+        # Otherwise, the hub is down, or doesnt want it to be recording
+        else:
+            recording = False
+
+        # Sleep for a bit
+        time.sleep(sleep_time)
+
 
 
 if __name__ == "__main__":
@@ -72,10 +97,12 @@ if __name__ == "__main__":
     toggle_recording_thread = threading.Thread(target=tui_toggle_recording)
     toggle_recording_thread.start()
 
+    check_recording_status_thread = threading.Thread(target=check_recording_status)
+    check_recording_status_thread.start()
+
     while True:
         # If recording is toggled on, retoggle it
         if recording:
             start_recording()
         # Otherwise, sleep for a sec
-        else:
-            time.sleep(sleep_time)
+        time.sleep(sleep_time)
