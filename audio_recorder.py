@@ -3,14 +3,15 @@ import sounddevice as sd
 import subprocess
 import sys
 import threading
+import time
 import wave
 
 # Defaults
+sleep_time = 1/10
 channels = 2
-duration = 5
 dtype = 'int16'
 sample_rate = 44100
-file_name = "recording.wav"
+file_name = "recording"
 file_directory = "recordings/"
 file_path = f"{file_directory}{file_name}"
 
@@ -25,6 +26,9 @@ def callback(indata, frames, time, status):
     audio_frames.append(indata.copy())
 
 def start_recording():
+    # Log start time
+    start_time = time.time_ns()
+
     # Start recording stream
     with sd.InputStream(samplerate=sample_rate,
                         channels=channels,
@@ -36,7 +40,8 @@ def start_recording():
         
     audio_data = np.concatenate(audio_frames)
 
-    with wave.open(file_path, 'wb') as wav_file:
+    # Writes data to file timestamped with the start time
+    with wave.open(f"{file_path}_{start_time}.wav", 'wb') as wav_file:
         wav_file.setnchannels(channels)
         wav_file.setsampwidth(np.dtype(dtype).itemsize)
         wav_file.setframerate(sample_rate)
@@ -54,4 +59,10 @@ if __name__ == "__main__":
     toggle_recording_thread = threading.Thread(target=tui_toggle_recording)
     toggle_recording_thread.start()
 
-    start_recording()
+    while True:
+        # If recording is toggled on, retoggle it
+        if recording:
+            start_recording()
+        # Otherwise, sleep for a sec
+        else:
+            time.sleep(sleep_time)
