@@ -8,6 +8,14 @@ flag_directory = "data/"
 flag_file = "recording_flag"
 flag_path = f"{flag_directory}{flag_file}"
 
+# TODO: Poll gpio pin looking for high or low
+# If the button is toggled, then it shouldn't
+# Be recording.
+# If anything fails, then it shouldnt be recording
+def poll_mute_button():
+
+    pass
+
 if __name__ == "__main__":
     # cat the recording flag
     flag = subprocess.run(['cat', flag_path], capture_output=True, text=True).stdout.strip()
