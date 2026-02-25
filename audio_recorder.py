@@ -1,11 +1,9 @@
-import sounddevice as sd
-from scipy.io.wavfile import write
-import wavio as wv
-import wave
-import sys
 import numpy as np
+import sounddevice as sd
 import subprocess
+import sys
 import threading
+import wave
 
 # Defaults
 channels = 2
