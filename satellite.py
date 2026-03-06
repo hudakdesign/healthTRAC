@@ -100,6 +100,9 @@ def terminate_threads():
 
 
 if __name__ == "__main__":
+    # create recordings directory if it doesnt exist
+    subprocess.run(['mkdir', '-p', file_directory])
+
     def tui_toggle_recording():
         global recording
 
