@@ -13,11 +13,13 @@ TUI = False
 sleep_time = 1/10
 channels = 2
 dtype = 'int16'
-sample_rate = 44100
+
 file_name = "recording"
 file_directory = "recordings/"
 file_path = f"{file_directory}{file_name}"
 
+# Sets sample rate to default of default device
+sample_rate = sd.query_devices(0)['default_samplerate']
 
 audio_frames = []
 recording = True
