@@ -3,6 +3,10 @@
 
 import time
 import subprocess
+# import RPi.GPIO as GPIO
+
+# # Setting gpio pinout to board
+# GPIO.setmode(GPIO.BOARD)
 
 flag_directory = "data/"
 flag_file = "recording_flag"

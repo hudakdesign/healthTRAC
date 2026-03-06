@@ -33,6 +33,7 @@ The Satellite records audio data from its attached microphone and stores it loca
 - sounddevice
 - paramiko
 - numpy
+- RPi.GPIO
 
 ## Packages:
 - portaudio19-dev
