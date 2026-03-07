@@ -2,3 +2,5 @@ sounddevice
 paramiko
 numpy
 gpiozero
+requests
+flask
