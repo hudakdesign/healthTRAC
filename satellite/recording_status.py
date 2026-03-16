@@ -3,11 +3,14 @@ import time
 import json
 from flask import Flask
 
+POLL_RATE = 1.0
+
 app = Flask(__name__)
 
 @app.route("/")
 def index():
     recording_data = get_recording_data()
+    time.sleep(POLL_RATE)
     return json.dumps(recording_data)
 
 # returns dictionary of recording debug info
