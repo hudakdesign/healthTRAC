@@ -105,10 +105,12 @@ def recording_control():
         else:
             status_message += "Recording: NOT RECORDING\n"
 
+        status_message += "[Enter] to terminate\n"
+        status_message += "\n---DEBUG INFO---\n"
+
         status_message += f"Satellite Timestamp: {satellite_timestamp}\n"
         status_message += f"Hub Timestamp      : {current_hub_timestamp}\n"
-        status_message += f"Timeout            : {(satellite_timestamp - current_hub_timestamp)/1e9:.2f}/{timeout/1e9:.2f}s\n"
-        status_message += "[Enter] to terminate"
+        status_message += f"Timeout            : {(satellite_timestamp - current_hub_timestamp)/1e9:.2f}/{timeout/1e9:.2f}s"
 
         subprocess.run(["clear"])
         print(status_message)
