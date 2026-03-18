@@ -30,10 +30,11 @@ The Satellite records audio data from its attached microphone and stores it loca
 - Continuously record to file in recordings directory
 
 ## Libraries:
-- sounddevice
-- paramiko
+- flask
+- gpiozero
 - numpy
-- RPi.GPIO
+- requests
+- sounddevice
 
 ## Packages:
 - portaudio19-dev
