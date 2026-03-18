@@ -1,32 +1,46 @@
-# Just checks if the recording flag is set to true or false
-# Returns the current timestamp if true, otherwise returns 0
-
-import time
+from flask import Flask
+import json
 import subprocess
-# import RPi.GPIO as GPIO
-
-# # Setting gpio pinout to board
-# GPIO.setmode(GPIO.BOARD)
+import time
 
 flag_directory = "data/"
 flag_file = "recording_flag"
 flag_path = f"{flag_directory}{flag_file}"
 
-# TODO: Poll gpio pin looking for high or low
-# If the button is toggled, then it shouldn't
-# Be recording.
-# If anything fails, then it shouldnt be recording
-def poll_mute_button():
+app = Flask(__name__)
 
-    pass
+
+@app.route("/")
+def index():
+    if check_recording_flag():
+        return create_json(True)
+    else:
+        return create_json(False)
+
+
+# Placeholder function prior to button implementation
+def check_recording_flag():
+    flag = subprocess.run(
+        ["cat", flag_path], capture_output=True, text=True
+    ).stdout.strip()
+
+    print(flag)
+
+    if flag == "1":
+        return True
+    else:
+        return False
+
+
+# TODO: check button via gpio
+def check_button():
+    return True
+
+
+def create_json(recording):
+    data = {"time_ns": time.time_ns(), "recording": recording}
+    return json.dumps(data)
+
 
 if __name__ == "__main__":
-    # cat the recording flag
-    flag = subprocess.run(['cat', flag_path], capture_output=True, text=True).stdout.strip()
-
-    # Checks if the flag is 1
-    if flag == "1":
-        print(time.time_ns())
-    # otherwise, print 0
-    else:
-        print(0)
+    app.run(host="0.0.0.0", port=5000, debug=True)
