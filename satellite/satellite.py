@@ -5,26 +5,30 @@ import sys
 import threading
 import time
 import wave
+import requests
 
 # Debug
 TUI = False
 
+# Hub info
+HUB_ADDRESS = "romeo-papa"
+
 # Defaults
-sleep_time = 1/10
+sleep_time = 1 / 10
 channels = 2
-dtype = 'int16'
+dtype = "int16"
 
 file_name = "recording"
 file_directory = "recordings/"
 file_path = f"{file_directory}{file_name}"
 
 # Sets sample rate to default of default device
-sample_rate = sd.query_devices(0)['default_samplerate']
+sample_rate = sd.query_devices(0)["default_samplerate"]
 
 audio_frames = []
-recording = True
+recording = False
 hub_timestamp = 0
-timeout = 5e9 # 5 seconds in nanoseconds
+timeout = 5e9  # 5 seconds in nanoseconds
 
 running = True
 
@@ -34,62 +38,83 @@ def callback(indata, frames, time, status):
         print(status, file=sys.stderr)
     audio_frames.append(indata.copy())
 
+
 def create_recording():
     # Log start time
     start_time = time.time_ns()
 
     # Start recording stream
-    with sd.InputStream(samplerate=sample_rate,
-                        channels=channels,
-                        dtype=dtype,
-                        callback=callback):
+    with sd.InputStream(
+        samplerate=sample_rate, channels=channels, dtype=dtype, callback=callback
+    ):
         global recording
         while recording:
             sd.sleep(100)
-        
+
     audio_data = np.concatenate(audio_frames)
 
     # Writes data to file timestamped with the start time
-    with wave.open(f"{file_path}_{start_time}.wav", 'wb') as wav_file:
+    with wave.open(f"{file_path}_{start_time}.wav", "wb") as wav_file:
         wav_file.setnchannels(channels)
         wav_file.setsampwidth(np.dtype(dtype).itemsize)
         wav_file.setframerate(sample_rate)
         wav_file.writeframes(audio_data.tobytes())
 
-# Thread for polling the hub using paramiko
-def check_recording_status():
-    global recording
-    global hub_timestamp
 
-    while running:
-        # TODO: Implement paramiko ssh connection
-        # for now call hub.py locally
-        # this is very similar, just isn't networked yet
-        str_hub_timestamp = subprocess.run(['python3', 'hub.py'], capture_output=True, text=True).stdout.strip()
-        hub_timestamp = int(str_hub_timestamp)
-        print(f"hub_timestamp: {hub_timestamp}")
-
-        # Sleep for a bit
-        time.sleep(sleep_time)
-
-# Thread for toggling recording on and off based on timestamp from the hub
-def toggle_recording():
+# Recording control thread
+def recording_control():
     global recording
 
-    while running:
-        # Current timestamp on the satellite
-        satellite_timestamp = time.time_ns()
+    def query_recording_status(address):
+        url = f"http://{address}:5000/"
+        response = requests.get(url)
 
-        # If the satellite timestamp is within the timeout, then the hub wants it to be recording
-        if satellite_timestamp < hub_timestamp + timeout:
-            recording = True
-        # Otherwise, the hub is down, or doesnt want it to be recording
+        if response.status_code == 200:
+            return response.json()
         else:
-            recording = False
+            return None
 
-        # Sleep for a bit
+    current_hub_timestamp = 0
+    while running:
+        satellite_timestamp = time.time_ns()
+        status_message = "Recording Control Dashboard\n"
+
+        # Attempt to call the API,
+        # Otherwise: we have the most recent timestamp
+
+        try:
+            # if recording is true and
+            # the satellite timestamp is withing the hub timestamp + timeout
+            # then: recording is true
+            recording_status = query_recording_status(HUB_ADDRESS)
+            current_hub_timestamp = recording_status["time_ns"]
+
+            status_message += "API: connected\n"
+        except:
+            status_message += "API: DISCONNECTED\n"
+
+        if recording_status["recording"] == False:
+            recording = False
+        elif satellite_timestamp > current_hub_timestamp + timeout:
+            recording = False
+        else:
+            recording = True
+
+        if recording:
+            status_message += "Recording: recording\n"
+        else:
+            status_message += "Recording: NOT RECORDING\n"
+
+        status_message += f"Satellite Timestamp: {satellite_timestamp}\n"
+        status_message += f"Hub Timestamp      : {current_hub_timestamp}\n"
+        status_message += f"Timeout            : {(satellite_timestamp - current_hub_timestamp)/1e9:.2f}/{timeout/1e9:.2f}s\n"
+        status_message += "[Enter] to terminate"
+
+        subprocess.run(["clear"])
+        print(status_message)
         time.sleep(sleep_time)
-    
+
+
 # Thread for terminating the program
 def terminate_threads():
     global recording
@@ -100,31 +125,15 @@ def terminate_threads():
     running = False
 
 
-
 if __name__ == "__main__":
     # create recordings directory if it doesnt exist
-    subprocess.run(['mkdir', '-p', file_directory])
+    subprocess.run(["mkdir", "-p", file_directory])
 
-    def tui_toggle_recording():
-        global recording
+    recording_control_thread = threading.Thread(target=recording_control)
+    recording_control_thread.start()
 
-        while running:
-            subprocess.run('clear')
-            input(f"Recording running: {recording}\nToggle with [Enter]")
-            recording = not recording
-    
-    if TUI:
-        toggle_recording_thread = threading.Thread(target=tui_toggle_recording)
-        toggle_recording_thread.start()
-    else:
-        toggle_recording_thread = threading.Thread(target=toggle_recording)
-        toggle_recording_thread.start()
-
-        terminate_program_thread = threading.Thread(target=terminate_threads)
-        terminate_program_thread.start()
-
-    check_recording_status_thread = threading.Thread(target=check_recording_status)
-    check_recording_status_thread.start()
+    termination_thread = threading.Thread(target=terminate_threads)
+    termination_thread.start()
 
     while running:
         # If recording is toggled on, retoggle it
