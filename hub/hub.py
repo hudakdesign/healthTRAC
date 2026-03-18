@@ -17,6 +17,12 @@ def index():
     else:
         return create_json(False)
 
+# Creates json file to return via the api
+# takes in if the satellites should record or not
+def create_json(recording):
+    data = {"time_ns": time.time_ns(), "recording": recording}
+    return json.dumps(data)
+
 
 # Placeholder function prior to button implementation
 def check_recording_flag():
@@ -37,10 +43,6 @@ def check_button():
     return True
 
 
-def create_json(recording):
-    data = {"time_ns": time.time_ns(), "recording": recording}
-    return json.dumps(data)
-
-
 if __name__ == "__main__":
+    # Runs api server on all interfaces on port 5000
     app.run(host="0.0.0.0", port=5000, debug=True)

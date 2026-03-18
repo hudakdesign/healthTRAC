@@ -65,6 +65,8 @@ def create_recording():
 def recording_control():
     global recording
 
+    # Function for checking with hub if it should be recording
+    # takes in hub address
     def query_recording_status(address):
         url = f"http://{address}:5000/"
         response = requests.get(url)
@@ -74,9 +76,12 @@ def recording_control():
         else:
             return None
 
+    # stores most recent hub timestamp just in case connection is lost
     current_hub_timestamp = 0
     while running:
+        # current timestamp on the satellite
         satellite_timestamp = time.time_ns()
+        # status message for debugging
         status_message = "Recording Control Dashboard\n"
 
         # Attempt to call the API,
@@ -114,15 +119,18 @@ def recording_control():
 
         subprocess.run(["clear"])
         print(status_message)
+        # waits sleep_time seconds to avoid busy waiting
         time.sleep(sleep_time)
 
 
 # Thread for terminating the program
+# tells recording to stop when enter is pressed
+# then sets running to false to end all loops
 def terminate_threads():
     global recording
     global running
 
-    input(f"Currently running: {running}\nTerminate with [Enter]")
+    input()
     recording = False
     running = False
 
@@ -141,5 +149,5 @@ if __name__ == "__main__":
         # If recording is toggled on, retoggle it
         if recording:
             create_recording()
-        # Otherwise, sleep for a sec
+        # Otherwise, sleep for a sleep_time
         time.sleep(sleep_time)
