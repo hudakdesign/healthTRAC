@@ -1,0 +1,6 @@
+pandas
+flask
+flask_socketio
+matplotlib
+flask_cors
+pyserial
