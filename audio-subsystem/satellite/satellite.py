@@ -6,21 +6,10 @@ import threading
 import time
 import wave
 import requests
-
-# Debug
-TUI = False
-
-# Hub info
-HUB_ADDRESS = "romeo-papa"
+import constants as c
 
 # Defaults
-sleep_time = 1 / 10
-channels = 2
-dtype = "int16"
-
-file_name = "recording"
-file_directory = "recordings/"
-file_path = f"{file_directory}{file_name}"
+file_path = f"{c.file_directory}{c.file_name}"
 
 # Sets sample rate to default of default device
 sample_rate = sd.query_devices(0)["default_samplerate"]
@@ -28,7 +17,6 @@ sample_rate = sd.query_devices(0)["default_samplerate"]
 audio_frames = []
 recording = False
 hub_timestamp = 0
-timeout = 5e9  # 5 seconds in nanoseconds
 
 running = True
 
@@ -45,7 +33,7 @@ def create_recording():
 
     # Start recording stream
     with sd.InputStream(
-        samplerate=sample_rate, channels=channels, dtype=dtype, callback=callback
+        samplerate=sample_rate, channels=c.channels, dtype=c.dtype, callback=callback
     ):
         global recording
         while recording:
@@ -55,8 +43,8 @@ def create_recording():
 
     # Writes data to file timestamped with the start time
     with wave.open(f"{file_path}_{start_time}.wav", "wb") as wav_file:
-        wav_file.setnchannels(channels)
-        wav_file.setsampwidth(np.dtype(dtype).itemsize)
+        wav_file.setnchannels(c.channels)
+        wav_file.setsampwidth(np.dtype(c.dtype).itemsize)
         wav_file.setframerate(sample_rate)
         wav_file.writeframes(audio_data.tobytes())
 
@@ -92,8 +80,7 @@ def recording_control():
             # if recording is true and
             # the satellite timestamp is withing the hub timestamp + timeout
             # then: recording is true
-            most_recent_recording_status = query_recording_status(HUB_ADDRESS)
-
+            most_recent_recording_status = query_recording_status(c.HUB_ADDRESS)
 
             status_message += "API: connected\n"
         except:
@@ -101,7 +88,7 @@ def recording_control():
 
         if most_recent_recording_status["recording"] == False:
             recording = False
-        elif satellite_timestamp > most_recent_recording_status["time_ns"] + timeout:
+        elif satellite_timestamp > most_recent_recording_status["time_ns"] + c.timeout:
             recording = False
         else:
             recording = True
@@ -115,13 +102,15 @@ def recording_control():
         status_message += "\n---DEBUG INFO---\n"
 
         status_message += f"Satellite Timestamp: {satellite_timestamp}\n"
-        status_message += f"Hub Timestamp      : {most_recent_recording_status['time_ns']}\n"
-        status_message += f"Timeout            : {(satellite_timestamp - most_recent_recording_status['time_ns'])/1e9:.2f}/{timeout/1e9:.2f}s"
+        status_message += (
+            f"Hub Timestamp      : {most_recent_recording_status['time_ns']}\n"
+        )
+        status_message += f"Timeout            : {(satellite_timestamp - most_recent_recording_status['time_ns'])/1e9:.2f}/{c.timeout/1e9:.2f}s"
 
         subprocess.run(["clear"])
         print(status_message)
         # waits sleep_time seconds to avoid busy waiting
-        time.sleep(sleep_time)
+        time.sleep(c.sleep_time)
 
 
 # Thread for terminating the program
@@ -138,7 +127,7 @@ def terminate_threads():
 
 if __name__ == "__main__":
     # create recordings directory if it doesnt exist
-    subprocess.run(["mkdir", "-p", file_directory])
+    subprocess.run(["mkdir", "-p", c.file_directory])
 
     recording_control_thread = threading.Thread(target=recording_control)
     recording_control_thread.start()
@@ -151,4 +140,4 @@ if __name__ == "__main__":
         if recording:
             create_recording()
         # Otherwise, sleep for a sleep_time
-        time.sleep(sleep_time)
+        time.sleep(c.sleep_time)
