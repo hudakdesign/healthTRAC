@@ -76,8 +76,9 @@ def recording_control():
         else:
             return None
 
-    # stores most recent hub timestamp just in case connection is lost
-    current_hub_timestamp = 0
+    # stores most recent hub status just in case connection is lost
+    most_recent_recording_status = {"time_ns": 0, "recording": False}
+
     while running:
         # current timestamp on the satellite
         satellite_timestamp = time.time_ns()
@@ -91,16 +92,16 @@ def recording_control():
             # if recording is true and
             # the satellite timestamp is withing the hub timestamp + timeout
             # then: recording is true
-            recording_status = query_recording_status(HUB_ADDRESS)
-            current_hub_timestamp = recording_status["time_ns"]
+            most_recent_recording_status = query_recording_status(HUB_ADDRESS)
+
 
             status_message += "API: connected\n"
         except:
             status_message += "API: DISCONNECTED\n"
 
-        if recording_status["recording"] == False:
+        if most_recent_recording_status["recording"] == False:
             recording = False
-        elif satellite_timestamp > current_hub_timestamp + timeout:
+        elif satellite_timestamp > most_recent_recording_status["time_ns"] + timeout:
             recording = False
         else:
             recording = True
@@ -114,8 +115,8 @@ def recording_control():
         status_message += "\n---DEBUG INFO---\n"
 
         status_message += f"Satellite Timestamp: {satellite_timestamp}\n"
-        status_message += f"Hub Timestamp      : {current_hub_timestamp}\n"
-        status_message += f"Timeout            : {(satellite_timestamp - current_hub_timestamp)/1e9:.2f}/{timeout/1e9:.2f}s"
+        status_message += f"Hub Timestamp      : {most_recent_recording_status['time_ns']}\n"
+        status_message += f"Timeout            : {(satellite_timestamp - most_recent_recording_status['time_ns'])/1e9:.2f}/{timeout/1e9:.2f}s"
 
         subprocess.run(["clear"])
         print(status_message)
