@@ -61,7 +61,7 @@
 
     <!-- JS for graph generation and refresh -->
     <script>
-        const updateInterval = 500;
+        const updateInterval = 5000;
 
         // begin graph template
         placeholderData = {
@@ -112,7 +112,7 @@
             graphData = await graphData.json();
 
             targetGraph.data.labels = graphData.x_vals;
-            targetGraph.data.datasets.data = graphData.y_vals;
+            targetGraph.data.datasets[0].data = graphData.y_vals;
             targetGraph.update();
         }
 
