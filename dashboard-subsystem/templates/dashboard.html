@@ -59,5 +59,41 @@
             </div>
         </div>
 
+    <!-- JS for graph generation and refresh -->
+    <script>
+
+        // begin graph template
+        placeholderData = {
+            "x_vals": [0,1,2,3,4],
+            "y_vals": [0,1,4,9,16]
+        };
+        const graphFormat = {
+            type: "line",
+            data: {
+                labels: placeholderData.x_vals,
+                datasets: [{
+                    fill: false,
+                    lineTension: 0,
+                    backgroundColor: "rgba(0,0,255,1.0)",
+                    borderColor: "rgba(0,0,255,0.1)",
+                    data: placeholderData.y_vals
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: {display: false},
+                    title: {
+                        display: false
+                    }
+                }
+            }
+        };
+        // end graph template
+
+        // Populates imu canvas
+        const imuElement = document.getElementById("imuDiagnostics");
+        let imuDiagnostics = new Chart(imuElement, graphFormat);
+
+    </script>
     </body>
 </html>
