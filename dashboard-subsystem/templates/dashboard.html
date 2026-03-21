@@ -34,7 +34,7 @@
             .card { background-color: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex: 1; min-width: 400px; display: flex; flex-direction: column; }
             .card h2 {align-self: center;}
 
-            .diagnostic-chart {width: 100%; max-width: 600px;}
+            .diagnostic-chart {width: 100%;}
         </style>
     </head>
 
@@ -93,6 +93,10 @@
         // Populates imu canvas
         const imuElement = document.getElementById("imuDiagnostics");
         let imuDiagnostics = new Chart(imuElement, graphFormat);
+
+        // Populates fsr canvas
+        const fsrElement = document.getElementById("fsrDiagnostics");
+        let fsrDiagnostics = new Chart(fsrElement, graphFormat);
 
     </script>
     </body>
