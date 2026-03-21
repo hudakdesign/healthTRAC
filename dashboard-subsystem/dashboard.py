@@ -39,7 +39,7 @@ def main():
         })
 
     # Starts server
-    app.run(host="0.0.0.0", port=5000, debug=c.DEBUG)
+    app.run(host="0.0.0.0", port=c.PORT, debug=c.DEBUG)
 
 if __name__ == "__main__":
     main()
