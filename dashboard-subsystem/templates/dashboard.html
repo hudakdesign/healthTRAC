@@ -61,6 +61,7 @@
 
     <!-- JS for graph generation and refresh -->
     <script>
+        const updateInterval = 500;
 
         // begin graph template
         placeholderData = {
@@ -87,7 +88,7 @@
                     }
                 }
             }
-        };
+        }
         // end graph template
 
         // Populates imu canvas
@@ -98,6 +99,28 @@
         const fsrElement = document.getElementById("fsrDiagnostics");
         let fsrDiagnostics = new Chart(fsrElement, graphFormat);
 
+
+        // Routes for accessing the api
+        const apiAddress = "http://127.0.0.1:5000/";
+
+        const imuApiAddress = apiAddress + "imu";
+        const fsrApiAddress = apiAddress + "fsr";
+        
+        // updates the provided graph using data from provided url
+        async function updateGraph(targetGraph, url) {
+            let graphData = await fetch(url);
+            graphData = await graphData.json();
+
+            targetGraph.data.labels = graphData.x_vals;
+            targetGraph.data.datasets.data = graphData.y_vals;
+            targetGraph.update();
+        }
+
+        // updates the graphs every interval ms
+        setInterval(function() {
+            updateGraph(imuDiagnostics, imuApiAddress);
+            updateGraph(fsrDiagnostics, fsrApiAddress)
+        }, updateInterval);
     </script>
     </body>
 </html>
