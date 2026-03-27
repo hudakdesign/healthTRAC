@@ -4,8 +4,8 @@ import random
 import threading
 
 import constants as c
-
 app = Flask(__name__)
+import imu
 
 
 def main():
@@ -13,19 +13,6 @@ def main():
     @app.route("/")
     def index():
         return render_template("dashboard.html")
-
-    @app.route("/imu")
-    def imu_api():
-        # Example of preparing data to send
-        x_vals = [0, 1, 2, 3, 4]
-        y_vals = [0, 1, 4, 9, 16]
-        
-
-        return json.dumps({
-            "x_vals": x_vals,
-            "y_vals": y_vals
-        })
-    
 
     @app.route("/fsr")
     def fsr_api():
