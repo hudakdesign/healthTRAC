@@ -18,11 +18,33 @@ def main():
     def fsr_api():
         # Example of preparing data to send
         x_vals = [0, 1, 2, 3, 4]
-        y_vals = [0, 8, 16, 8, 0]
+        y_data = [
+            [0, 1, 2, 3, 4],
+            [4, 3, 2, 1, 0]
+        ]
+
+        y_dataset = [
+            {
+                "fill": False,
+                "lineTension": 0,
+                "backgroundColor": "rgba(0,0,255,1.0)",
+                "borderColor": "rgba(0,0,255,0.1)",
+                "data": y_data[0]
+            },
+            {
+                "fill": False,
+                "lineTension": 0,
+                "backgroundColor": "rgba(255,0,0,1.0)",
+                "borderColor": "rgba(255,0,0,0.1)",
+                "data": y_data[1]
+            }
+        ]
 
         return json.dumps({
-            "x_vals": x_vals,
-            "y_vals": y_vals
+            "data": {
+                "labels": x_vals,
+                "datasets": y_dataset
+            }
         })
 
     # Starts server
