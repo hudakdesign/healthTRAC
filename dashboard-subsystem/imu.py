@@ -6,6 +6,7 @@ DATA_PATH = "testing/test_imu.csv"
 
 # TODO: Update to take data from variable stored in memory. this current method will get slow over time
 def get_imu_data():
+    # loads all line from the file into data dict
     data_dict = {}
     with open(DATA_PATH, mode = "r") as file:
         csv_dict_reader = csv.DictReader(file)
@@ -18,12 +19,13 @@ def get_imu_data():
                 for key in line.keys():
                     data_dict[key].append(line[key])
 
+    # gets last 10 lines from this dict
     num_rows = 10
     last_n_item_dict = {}
-
     for key_, value_ in data_dict.items():
         last_n_item_dict[key_] = value_[-num_rows:]
 
+    # extracts and outputs x and y data
     x_vals = last_n_item_dict["timestamp_hub"]       
 
     y_data = []
@@ -33,6 +35,7 @@ def get_imu_data():
 
     return x_vals, y_data
 
+# Populates graph data and sends it over for chartjs to display
 @app.route("/imu")
 def imu_api():
     # Example of preparing data to send
