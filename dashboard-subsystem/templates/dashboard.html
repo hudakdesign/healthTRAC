@@ -112,7 +112,9 @@
             // targetGraph.data.labels = graphData.x_vals;
             // targetGraph.data.datasets[0].data = graphData.y_vals;
             targetGraph.data = graphData.data;
-            targetGraph.update();
+
+            // non argument disables animation
+            targetGraph.update('none');
         }
 
         // updates the graphs every interval ms
