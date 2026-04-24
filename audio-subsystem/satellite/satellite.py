@@ -115,7 +115,7 @@ def recording_control():
 
 # Thread for terminating the program
 # tells recording to stop when enter is pressed
-# then sets running to false to end all loops
+# then sets running to false to end all loophs
 def terminate_threads():
     global recording
     global running

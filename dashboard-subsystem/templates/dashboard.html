@@ -61,7 +61,7 @@
 
     <!-- JS for graph generation and refresh -->
     <script>
-        const updateInterval = 5000;
+        const updateInterval = 500;
 
         // begin graph template
         placeholderData = {
@@ -99,7 +99,7 @@
 
 
         // Routes for accessing the api
-        const apiAddress = "http://health-trac-pi:8080/";
+        const apiAddress = "http://127.0.0.1:8080/";
 
         const imuApiAddress = apiAddress + "imu";
         const fsrApiAddress = apiAddress + "fsr";
