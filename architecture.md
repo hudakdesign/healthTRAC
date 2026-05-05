@@ -21,7 +21,7 @@ The hub manages hosting the network for the ESP32s to connect to and periodicall
 
 ### Dashboard
 The hub will also need to host API routes for the dashboard to get graphing data from. The graphs on the dashboard should be looking for labels (the scale for the x-axis), and (x,y) data for each sensor.
-- Use the following json as a template where data is drawn from the rolling buffers and each graph on the dashboard has a corresponding API route
+- Use the following json as a template where data is drawn from the rolling buffers (2 minute or 24-hour) on the hub and each graph on the dashboard has a corresponding API route
 ```json
 {
     "labels": [0, 100, 200, 300, 400, 500],
