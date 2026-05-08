@@ -10,6 +10,8 @@ import numpy as np
 import constants as c
 app = Flask(__name__)
 running = True
+running_lock = threading.Lock()
+
 hub_polling_rate = 1
 
 # temporary buffers
@@ -139,51 +141,50 @@ if c.DEBUG:
         })
 
 def update_fsr_buffer():
-    global running
+    currently_running = True
     fsr_url = "http://127.0.0.1:8080/debug/simulated_fsr"
     time.sleep(1)
 
-    while running:
-        with fsr_data_lock:
-            try:
-                response = requests.get(fsr_url)
-                data = response.json()
-                timestamps = data["timestamps"]
-                sensors = data["sensors"]
+    while currently_running:
+        try:
+            response = requests.get(fsr_url)
+            data = response.json()
+            timestamps = data["timestamps"]
+            sensors = data["sensors"]
 
-                for data_entry in range(len(timestamps)):
-                    fsr_data["x_vals"].append(timestamps[data_entry])
-                    for sensor_number in range(num_fsr_fields):
-                        fsr_data["y_data"][sensor_number].append(sensors[sensor_number][data_entry])
-            
-            except Exception as e:
-                print(f"Error fetching FSR data: {e}")
+            with fsr_data_lock:
+                    for data_entry in range(len(timestamps)):
+                        fsr_data["x_vals"].append(timestamps[data_entry])
+                        for sensor_number in range(num_fsr_fields):
+                            fsr_data["y_data"][sensor_number].append(sensors[sensor_number][data_entry])
+        except Exception as e:
+            print(f"Error fetching FSR data: {e}")
 
-        # print("FSR buffer updated")
-        # print(fsr_data)
-        # print("Stored polls in buffer: ", len(fsr_data["x_vals"]))
-        # print("----------------------------")
+        with running_lock:
+            currently_running = running
 
 def update_imu_buffer():
-    global running
+    currently_running = True
     imu_url = "http://127.0.0.1:8080/debug/simulated_imu"
     time.sleep(1)
 
-    while running:
-        with imu_data_lock:
-            try:
-                response = requests.get(imu_url)
-                data = response.json()
-                timestamps = data["timestamps"]
-                sensors = data["sensors"]
+    while currently_running:
+        try:
+            response = requests.get(imu_url)
+            data = response.json()
+            timestamps = data["timestamps"]
+            sensors = data["sensors"]
 
+            with imu_data_lock:
                 for data_entry in range(len(timestamps)):
                     imu_data["x_vals"].append(timestamps[data_entry])
                     for sensor_number in range(num_imu_fields):
                         imu_data["y_data"][sensor_number].append(sensors[sensor_number][data_entry])
-            
-            except Exception as e:
-                print(f"Error fetching IMU data: {e}")
+        except Exception as e:
+            print(f"Error fetching IMU data: {e}")
+
+        with running_lock:
+            currently_running = running
 
 def server_stopper():
     global running
@@ -191,7 +192,8 @@ def server_stopper():
     global imu_data
 
     input("Press Enter to stop the server...\n")
-    running = False
+    with running_lock:
+        running = False
 
     time.sleep(1)
     with fsr_data_lock:
