@@ -9,6 +9,8 @@ import numpy as np
 
 import constants as c
 app = Flask(__name__)
+running = True
+hub_polling_rate = 1
 
 # temporary buffers
 short_buffer_size = 120 * 60 # 120 seconds of data at 60hz
@@ -111,6 +113,7 @@ def imu_api():
     })
 
 if c.DEBUG:
+    # simulators for tesitng purposes
     num_simulated_polls = 5
     @app.route("/debug/simulated_fsr")
     def simulated_fsr():
@@ -134,7 +137,35 @@ if c.DEBUG:
             "sensors": simulated_sensor_data
         })
 
+def update_fsr_buffer():
+    global running
+    fsr_url = "http://127.0.0.1:8080/debug/simulated_fsr"
+    time.sleep(1)
+
+    while running:
+        try:
+            response = requests.get(fsr_url)
+            data = response.json()
+            timestamps = data["timestamps"]
+            sensors = data["sensors"]
+
+            for data_entry in range(len(timestamps)):
+                fsr_data["x_vals"].append(timestamps[data_entry])
+                for sensor_number in range(num_fsr_fields):
+                    fsr_data["y_data"][sensor_number].append(sensors[sensor_number][data_entry])
+        
+        except Exception as e:
+            print(f"Error fetching FSR data: {e}")
+
+        print("FSR buffer updated")
+        print(fsr_data)
+        print("Stored polls in buffer: ", len(fsr_data["x_vals"]))
+        print("----------------------------")
+
 def main():
+    # start threads
+    fsr_thread = threading.Thread(target=update_fsr_buffer)
+    fsr_thread.start()
     # Starts server
     app.run(host="0.0.0.0", port=c.PORT, debug=c.DEBUG)
 
