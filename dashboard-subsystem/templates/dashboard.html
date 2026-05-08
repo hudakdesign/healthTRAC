@@ -1,101 +1,324 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <title>HealthTRAC Dashboard</title>
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!--Chart generation library-->
 
-        <style>
-            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background-color: #f0f2f5; color: #1c1e21; }
-            .header { background-color: #fff; padding: 10px 20px; border-bottom: 1px solid #dddfe2; display: flex; align-items: center; justify-content: space-between; }
-            .header h1 { font-size: 24px; margin: 0; }
-            .card-header { padding: 16px; border-bottom: 1px solid #dddfe2; }
-            .card-header h2 { font-size: 20px; margin: 0; }
-            .card-content { padding: 16px; font-size: 14px; color: #333; flex-grow: 1; }
-            .controls { display: flex; gap: 10px; align-items: center; }
-            .button { padding: 8px 16px; font-size: 14px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
-            .button-start { background-color: #42b72a; color: white; }
-            .button-stop { background-color: #f02849; color: white; }
-            .button:disabled { background-color: #e4e6eb; color: #bcc0c4; cursor: not-allowed; }
-            .status { display: flex; align-items: center; gap: 8px; font-weight: bold; }
-            .status-indicator { width: 12px; height: 12px; border-radius: 50%; }
-            .status-recording { background-color: #f02849; }
-            .status-stopped { background-color: #606770; }
-            .error-bar { background-color: #f02849; color: white; padding: 10px; text-align: center; display: none; position: fixed; top: 0; width: 100%; z-index: 1000; }
-            .device-list { list-style: none; padding: 0; margin: 0; }
-            .device-list li { padding: 8px 0; border-bottom: 1px solid #eee; }
-            .device-list li:last-child { border-bottom: none; }
-            .plot-container { background-color: white; margin: 15px 0; padding: 15px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
-            .plot-container img {width: 100%; height: 100%; object-fit: fill;}
+<head>
+    <meta charset="UTF-8">
+    <title>HealthTRAC Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!--Chart generation library-->
 
-            /* New Rules */
-            .container { display: flex; flex-wrap: wrap; padding: 20px; gap: 20px; }
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            background-color: #f0f2f5;
+            color: #1c1e21;
+        }
 
-            .card { background-color: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex: 1; min-width: 400px; display: flex; flex-direction: column; }
-            .card h2 {align-self: center;}
+        .header {
+            background-color: #fff;
+            padding: 10px 20px;
+            border-bottom: 1px solid #dddfe2;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
 
-            .diagnostic-chart {width: 100%;}
-        </style>
-    </head>
+        .header h1 {
+            font-size: 24px;
+            margin: 0;
+        }
 
-    <body>
-        <div class="header">
-            <h1>HealthTRAC Hub</h1>
+        .card-header {
+            padding: 16px;
+            border-bottom: 1px solid #dddfe2;
+        }
+
+        .card-header h2 {
+            font-size: 20px;
+            margin: 0;
+        }
+
+        .card-content {
+            padding: 16px;
+            font-size: 14px;
+            color: #333;
+            flex-grow: 1;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .button {
+            padding: 8px 16px;
+            font-size: 14px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .button-start {
+            background-color: #42b72a;
+            color: white;
+        }
+
+        .button-stop {
+            background-color: #f02849;
+            color: white;
+        }
+
+        .button:disabled {
+            background-color: #e4e6eb;
+            color: #bcc0c4;
+            cursor: not-allowed;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: bold;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .status-recording {
+            background-color: #f02849;
+        }
+
+        .status-stopped {
+            background-color: #606770;
+        }
+
+        .error-bar {
+            background-color: #f02849;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            display: none;
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1000;
+        }
+
+        .device-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .device-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .device-list li:last-child {
+            border-bottom: none;
+        }
+
+        .plot-container {
+            background-color: white;
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+        }
+
+        .plot-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: fill;
+        }
+
+        /* New Rules */
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .card {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            flex: 1;
+            min-width: 400px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .card h2 {
+            align-self: center;
+        }
+
+        .diagnostic-chart {
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>HealthTRAC Hub</h1>
+    </div>
+
+    <!-- IMU Diagnostic Graph -->
+    <div class="container">
+        <div class="card">
+            <h2>IMU Activity</h2>
+            <canvas id="imuDiagnostics" class="diagnostic-chart"></canvas>
         </div>
+    </div>
 
-        <!-- IMU Diagnostic Graph -->
-        <div class="container">
-            <div class="card">
-                <h2>IMU Activity</h2>
-                <canvas id="imuDiagnostics" class="diagnostic-chart"></canvas>
-            </div>
+    <!-- FSR Diagnostic Graph -->
+    <div class="container">
+        <div class="card">
+            <h2>FSR Activity</h2>
+            <canvas id="fsrDiagnostics" class="diagnostic-chart"></canvas>
         </div>
-
-        <!-- FSR Diagnostic Graph -->
-        <div class="container">
-            <div class="card">
-                <h2>FSR Activity</h2>
-                <canvas id="fsrDiagnostics" class="diagnostic-chart"></canvas>
-            </div>
-        </div>
+    </div>
 
     <!-- JS for graph generation and refresh -->
     <script>
-        const updateInterval = 500;
 
-        // begin graph template
-        placeholderData = {
-            "x_vals": [0,1,2,3,4],
-            "y_data": [
-                {fill: false, lineTension: 0, backgroundColor: "rgba(0,0,255,1.0)", borderColor: "rgba(0,0,255,0.1)", data: [0,1,2,3,4]},
-                {fill: false, lineTension: 0, backgroundColor: "rgba(255,0,0,1.0)", borderColor: "rgba(255,0,0,0.1)", data: [4,3,2,1,0]}
-            ]
-            
-        };
-        const graphFormat = {
+        // sample imu graph
+        let imuGraphFormat = {
             type: "line",
             data: {
-                labels: placeholderData.x_vals,
-                datasets: placeholderData.y_data
+                labels: [0, 1, 2, 3, 4],
+                datasets: [
+                    {
+                        fill: false, lineTension: 0, backgroundColor: "rgba(0,0,255,1.0)", borderColor: "rgba(0,0,255,0.1)", data: [
+                        { x: 0, y: 0 },
+                        { x: 1, y: 1 },
+                        { x: 2, y: 2 },
+                        { x: 3, y: 3 },
+                        { x: 4, y: 4 }]
+                    },
+                    {
+                        fill: false, lineTension: 0, backgroundColor: "rgba(255,0,0,1.0)", borderColor: "rgba(255,0,0,0.1)", data: [
+                        { x: 0, y: 4 },
+                        { x: 1, y: 3 },
+                        { x: 2, y: 2 },
+                        { x: 3, y: 1 },
+                        { x: 4, y: 0 }]
+                    },
+                    {
+                        fill: false, lineTension: 0, backgroundColor: "rgba(0,255,0,1.0)", borderColor: "rgba(0,255,0,0.1)", data: [
+                        { x: 0, y: 0 },
+                        { x: 1, y: 2 },
+                        { x: 2, y: 4 },
+                        { x: 3, y: 2 },
+                        { x: 4, y: 0 }]
+                    },
+                ]
             },
             options: {
                 plugins: {
-                    legend: {display: false},
-                    title: {
-                        display: false
-                    }
+                    legend: { display: false },
+                    title: { display: false }
                 }
             }
-        }
-        // end graph template
+        };
+
+        // sample fsr graph
+        let fsrGraphFormat = {
+            type: "line",
+            data: {
+                labels: [0, 1, 2, 3, 4],
+                datasets: [
+                    {
+                        fill: false, lineTension: 0, borderColor: "red", data: [
+                        { x: 0, y: 0 },
+                        { x: 1, y: 1 },
+                        { x: 2, y: 2 },
+                        { x: 3, y: 3 },
+                        { x: 4, y: 4 }]
+                    },
+                    {
+                        fill: false, lineTension: 0, borderColor: "orange", data: [
+                        { x: 4, y: 4 },
+                        { x: 3, y: 3 },
+                        { x: 2, y: 2 },
+                        { x: 1, y: 1 },
+                        { x: 0, y: 0 }]
+                    },
+                    {
+                        fill: false, lineTension: 0, borderColor: "yellow", data: [
+                        { x: 0, y: 0 },
+                        { x: 1, y: 2 },
+                        { x: 2, y: 4 },
+                        { x: 3, y: 2 },
+                        { x: 4, y: 0 }]
+                    },
+                    {
+                        fill: false, lineTension: 0, borderColor: "green", data: [
+                        { x: 0, y: 4 },
+                        { x: 1, y: 3 },
+                        { x: 2, y: 2 },
+                        { x: 3, y: 1 },
+                        { x: 4, y: 0 }]
+                    },
+                    {
+                        fill: false, lineTension: 0, borderColor: "blue", data: [
+                        { x: 0, y: 0 },
+                        { x: 1, y: 1 },
+                        { x: 2, y: 2 },
+                        { x: 3, y: 3 },
+                        { x: 4, y: 4 }]
+                    },
+                    {
+                        fill: false, lineTension: 0, borderColor: "purple", data: [
+                        { x: 4, y: 4 },
+                        { x: 3, y: 3 },
+                        { x: 2, y: 2 },
+                        { x: 1, y: 1 },
+                        { x: 0, y: 0 }]
+                    },
+                    {
+                        fill: false, lineTension: 0, borderColor: "pink)", data: [
+                        { x: 0, y: 0 },
+                        { x: 1, y: 2 },
+                        { x: 2, y: 4 },
+                        { x: 3, y: 2 },
+                        { x: 4, y: 0 }]
+                    },
+                    {
+                        fill: false, lineTension: 0, borderColor: "magenta", data: [
+                        { x: 0, y: 4 },
+                        { x: 1, y: 3 },
+                        { x: 2, y: 2 },
+                        { x: 3, y: 1 },
+                        { x: 4, y: 0 }]
+                    },
+                ]
+            },
+            options: {
+                plugins: {
+                    legend: { display: false },
+                    title: { display: false }
+                }
+            }
+        };
+
+        const updateInterval = 10000;
 
         // Populates imu canvas
         const imuElement = document.getElementById("imuDiagnostics");
-        let imuDiagnostics = new Chart(imuElement, graphFormat);
+        let imuDiagnostics = new Chart(imuElement, imuGraphFormat);
 
         // Populates fsr canvas
         const fsrElement = document.getElementById("fsrDiagnostics");
-        let fsrDiagnostics = new Chart(fsrElement, graphFormat);
+        let fsrDiagnostics = new Chart(fsrElement, fsrGraphFormat);
 
 
         // Routes for accessing the api
@@ -103,7 +326,7 @@
 
         const imuApiAddress = apiAddress + "imu";
         const fsrApiAddress = apiAddress + "fsr";
-        
+
         // updates the provided graph using data from provided url
         async function updateGraph(targetGraph, url) {
             let graphData = await fetch(url);
@@ -118,10 +341,11 @@
         }
 
         // updates the graphs every interval ms
-        setInterval(function() {
+        setInterval(function () {
             updateGraph(imuDiagnostics, imuApiAddress);
             updateGraph(fsrDiagnostics, fsrApiAddress)
         }, updateInterval);
     </script>
-    </body>
+</body>
+
 </html>
