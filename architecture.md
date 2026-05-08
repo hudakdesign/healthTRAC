@@ -10,6 +10,7 @@ ESP32 Hosts web server connected to network hosted by pi hub. Makes routes avail
 }
 ```
 - After calling the API, the json is returned, and the data buffers on the ESP32 are cleared
+- Length of timestamp array has to match length of each sensor array
 
 ### Hub
 The hub manages hosting the network for the ESP32s to connect to and periodically queries their APIs
