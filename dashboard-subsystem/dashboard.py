@@ -4,6 +4,8 @@ import random
 import threading
 import collections
 import requests
+import time
+import numpy as np
 
 import constants as c
 app = Flask(__name__)
@@ -11,12 +13,6 @@ app = Flask(__name__)
 # temporary buffers
 short_buffer_size = 120 * 60 # 120 seconds of data at 60hz
 long_buffer_size = 60 * 24 # 24 hours of data at 1 sample
-
-imu_short_term_buffer = collections.deque(maxlen=short_buffer_size) # 120 seconds of data at 60hz
-imu_long_term_buffer = collections.deque(maxlen=long_buffer_size) # 24 hours of data at 1 sample per minute
-
-fsr_short_term_buffer = collections.deque(maxlen=short_buffer_size)
-fsr_long_term_buffer = collections.deque(maxlen=long_buffer_size)
 
 # graphing buffers
 num_imu_fields = 3
@@ -113,6 +109,20 @@ def imu_api():
             "datasets": y_dataset
         }
     })
+
+if c.DEBUG:
+    num_simulated_polls = 60
+    @app.route("/debug/simulated_fsr")
+    def simulated_fsr():
+        simulated_timestamps = [time.time_ns() for _ in range(num_simulated_polls)]
+        # really long shorthand for fake sensor data
+        simulated_sensor_data = [[np.sin(current_simulated_time * sensor_number) for current_simulated_time in range(num_simulated_polls)] for sensor_number in range(num_fsr_fields)]
+
+        return json.dumps({
+            "timestamps": simulated_timestamps,
+            "sensors": simulated_sensor_data
+        })
+
 
 def main():
     # Starts server
