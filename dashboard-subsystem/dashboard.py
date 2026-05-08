@@ -82,8 +82,8 @@ def imu_api():
     # ]
 
     with imu_data_lock:
-        x_vals = imu_data["x_vals"]
-        y_data = imu_data["y_data"]
+        x_vals = list(imu_data["x_vals"])
+        y_data = [list(sensor_data) for sensor_data in imu_data["y_data"]]
 
     y_dataset = [
         {
