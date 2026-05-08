@@ -22,12 +22,14 @@ imu_data = {
     "x_vals": collections.deque(maxlen=short_buffer_size),
     "y_data": [collections.deque(maxlen=short_buffer_size) for _ in range(num_imu_fields)] # buffer for each sensor
 }
+imu_data_lock = threading.Lock()
 
 num_fsr_fields = 6
 fsr_data = {
     "x_vals": collections.deque(maxlen=short_buffer_size),
     "y_data": [collections.deque(maxlen=short_buffer_size) for _ in range(num_fsr_fields)] # buffer for each sensor
 }
+fsr_data_lock = threading.Lock()
 
 def get_imu_data():
     pass
@@ -143,27 +145,42 @@ def update_fsr_buffer():
     time.sleep(1)
 
     while running:
-        try:
-            response = requests.get(fsr_url)
-            data = response.json()
-            timestamps = data["timestamps"]
-            sensors = data["sensors"]
+        with fsr_data_lock:
+            try:
+                response = requests.get(fsr_url)
+                data = response.json()
+                timestamps = data["timestamps"]
+                sensors = data["sensors"]
 
-            for data_entry in range(len(timestamps)):
-                fsr_data["x_vals"].append(timestamps[data_entry])
-                for sensor_number in range(num_fsr_fields):
-                    fsr_data["y_data"][sensor_number].append(sensors[sensor_number][data_entry])
-        
-        except Exception as e:
-            print(f"Error fetching FSR data: {e}")
+                for data_entry in range(len(timestamps)):
+                    fsr_data["x_vals"].append(timestamps[data_entry])
+                    for sensor_number in range(num_fsr_fields):
+                        fsr_data["y_data"][sensor_number].append(sensors[sensor_number][data_entry])
+            
+            except Exception as e:
+                print(f"Error fetching FSR data: {e}")
 
-        print("FSR buffer updated")
+        # print("FSR buffer updated")
+        # print(fsr_data)
+        # print("Stored polls in buffer: ", len(fsr_data["x_vals"]))
+        # print("----------------------------")
+
+def server_stopper():
+    global running
+    global fsr_data
+    input("Press Enter to stop the server...\n")
+    running = False
+
+    time.sleep(1)
+    with fsr_data_lock:
         print(fsr_data)
-        print("Stored polls in buffer: ", len(fsr_data["x_vals"]))
-        print("----------------------------")
+        print(len(fsr_data["x_vals"]))
 
 def main():
     # start threads
+    server_stopper_thread = threading.Thread(target=server_stopper)
+    server_stopper_thread.start()
+
     fsr_thread = threading.Thread(target=update_fsr_buffer)
     fsr_thread.start()
     # Starts server
