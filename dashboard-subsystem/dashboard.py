@@ -175,6 +175,10 @@ if c.DEBUG:
                 "sensors": [list(sensor_data) for sensor_data in fsr_data["y_data"]]
             })
 
+# def store_fsr_data(fsr_data):
+    # with open(fsr_data_path)
+
+# Threads:
 def update_fsr_buffer():
     currently_running = True
     fsr_url = "http://127.0.0.1:8080/debug/simulated_fsr"
@@ -241,6 +245,7 @@ def server_stopper():
     with imu_data_lock:
         print(imu_data)
         print(len(imu_data["x_vals"]))
+# Threads/
 
 def main():
     # start threads

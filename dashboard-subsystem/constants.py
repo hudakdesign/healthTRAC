@@ -1,2 +1,3 @@
 DEBUG = True
 PORT = 8080
+MAX_CSV_AGE = 1 * 60 * 60
