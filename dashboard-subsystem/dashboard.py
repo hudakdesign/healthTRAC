@@ -31,8 +31,6 @@ fsr_data = {
 }
 fsr_data_lock = threading.Lock()
 
-def get_imu_data():
-    pass
 
 # Route for rendering dashboard html
 @app.route("/")
@@ -81,7 +79,8 @@ def imu_api():
     #     [4, 3, 2, 1, 0]
     # ]
 
-    x_vals, y_data = get_imu_data()
+    x_vals = imu_data["x_vals"]
+    y_data = imu_data["y_data"]
 
     y_dataset = [
         {
@@ -165,9 +164,32 @@ def update_fsr_buffer():
         # print("Stored polls in buffer: ", len(fsr_data["x_vals"]))
         # print("----------------------------")
 
+def update_imu_buffer():
+    global running
+    imu_url = "http://127.0.0.1:8080/debug/simulated_imu"
+    time.sleep(1)
+
+    while running:
+        with imu_data_lock:
+            try:
+                response = requests.get(imu_url)
+                data = response.json()
+                timestamps = data["timestamps"]
+                sensors = data["sensors"]
+
+                for data_entry in range(len(timestamps)):
+                    imu_data["x_vals"].append(timestamps[data_entry])
+                    for sensor_number in range(num_imu_fields):
+                        imu_data["y_data"][sensor_number].append(sensors[sensor_number][data_entry])
+            
+            except Exception as e:
+                print(f"Error fetching IMU data: {e}")
+
 def server_stopper():
     global running
     global fsr_data
+    global imu_data
+
     input("Press Enter to stop the server...\n")
     running = False
 
@@ -175,6 +197,9 @@ def server_stopper():
     with fsr_data_lock:
         print(fsr_data)
         print(len(fsr_data["x_vals"]))
+    with imu_data_lock:
+        print(imu_data)
+        print(len(imu_data["x_vals"]))
 
 def main():
     # start threads
@@ -183,6 +208,10 @@ def main():
 
     fsr_thread = threading.Thread(target=update_fsr_buffer)
     fsr_thread.start()
+
+    imu_thread = threading.Thread(target=update_imu_buffer)
+    imu_thread.start()
+
     # Starts server
     app.run(host="0.0.0.0", port=c.PORT, debug=c.DEBUG)
 
