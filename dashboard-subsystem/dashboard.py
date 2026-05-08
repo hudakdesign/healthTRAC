@@ -41,12 +41,9 @@ def index():
 
 @app.route("/fsr")
 def fsr_api():
-    # Example of preparing data to send
-    x_vals = [0, 1, 2, 3, 4]
-    y_data = [
-        [0, 1, 2, 3, 4],
-        [4, 3, 2, 1, 0]
-    ]
+    with fsr_data_lock:
+        x_vals = list(fsr_data["x_vals"])
+        y_data = [list(sensor_data) for sensor_data in fsr_data["y_data"]]
 
     y_dataset = [
         {
@@ -59,9 +56,37 @@ def fsr_api():
         {
             "fill": False,
             "lineTension": 0,
+            "backgroundColor": "rgba(0,255,0,1.0)",
+            "borderColor": "rgba(0,255,0,0.1)",
+            "data": y_data[1]
+        },
+        {
+            "fill": False,
+            "lineTension": 0,
+            "backgroundColor": "rgba(0,255,255,1.0)",
+            "borderColor": "rgba(0,255,255,0.1)",
+            "data": y_data[2]
+        },
+        {
+            "fill": False,
+            "lineTension": 0,
             "backgroundColor": "rgba(255,0,0,1.0)",
             "borderColor": "rgba(255,0,0,0.1)",
-            "data": y_data[1]
+            "data": y_data[3]
+        },
+        {
+            "fill": False,
+            "lineTension": 0,
+            "backgroundColor": "rgba(255,0,255,1.0)",
+            "borderColor": "rgba(255,0,255,0.1)",
+            "data": y_data[4]
+        },
+        {
+            "fill": False,
+            "lineTension": 0,
+            "backgroundColor": "rgba(255,255,0,1.0)",
+            "borderColor": "rgba(255,255,0,0.1)",
+            "data": y_data[5]
         }
     ]
 
@@ -74,13 +99,6 @@ def fsr_api():
 
 @app.route("/imu")
 def imu_api():
-    # Example of preparing data to send
-    # x_vals = [0, 1, 2, 3, 4]
-    # y_data = [
-    #     [0, 1, 2, 3, 4],
-    #     [4, 3, 2, 1, 0]
-    # ]
-
     with imu_data_lock:
         x_vals = list(imu_data["x_vals"])
         y_data = [list(sensor_data) for sensor_data in imu_data["y_data"]]
