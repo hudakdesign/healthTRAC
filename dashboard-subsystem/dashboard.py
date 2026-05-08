@@ -181,7 +181,7 @@ if c.DEBUG:
 # Threads:
 def update_fsr_buffer():
     currently_running = True
-    fsr_url = "http://127.0.0.1:8080/debug/simulated_fsr"
+    fsr_url = c.fsr_url
     time.sleep(1)
 
     while currently_running:
@@ -206,7 +206,7 @@ def update_fsr_buffer():
 
 def update_imu_buffer():
     currently_running = True
-    imu_url = "http://127.0.0.1:8080/debug/simulated_imu"
+    imu_url = c.imu_url
     time.sleep(1)
 
     while currently_running:
