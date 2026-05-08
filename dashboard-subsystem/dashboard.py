@@ -81,8 +81,9 @@ def imu_api():
     #     [4, 3, 2, 1, 0]
     # ]
 
-    x_vals = imu_data["x_vals"]
-    y_data = imu_data["y_data"]
+    with imu_data_lock:
+        x_vals = imu_data["x_vals"]
+        y_data = imu_data["y_data"]
 
     y_dataset = [
         {
@@ -140,6 +141,22 @@ if c.DEBUG:
             "sensors": simulated_sensor_data
         })
 
+    @app.route("/debug/get_fsr_data")
+    def get_fsr_data():
+        with fsr_data_lock:
+            return json.dumps({
+                "timestamps": list(fsr_data["x_vals"]),
+                "sensors": [list(sensor_data) for sensor_data in fsr_data["y_data"]]
+            })
+        
+    @app.route("/debug/get_imu_data")
+    def get_imu_data():
+        with imu_data_lock:
+            return json.dumps({
+                "timestamps": list(fsr_data["x_vals"]),
+                "sensors": [list(sensor_data) for sensor_data in fsr_data["y_data"]]
+            })
+
 def update_fsr_buffer():
     currently_running = True
     fsr_url = "http://127.0.0.1:8080/debug/simulated_fsr"
@@ -163,6 +180,8 @@ def update_fsr_buffer():
         with running_lock:
             currently_running = running
 
+        time.sleep(hub_polling_rate)
+
 def update_imu_buffer():
     currently_running = True
     imu_url = "http://127.0.0.1:8080/debug/simulated_imu"
@@ -185,6 +204,8 @@ def update_imu_buffer():
 
         with running_lock:
             currently_running = running
+        
+        time.sleep(hub_polling_rate)
 
 def server_stopper():
     global running
