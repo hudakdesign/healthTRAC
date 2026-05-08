@@ -136,7 +136,7 @@ def imu_api():
 
 if c.DEBUG:
     # simulators for tesitng purposes
-    num_simulated_polls = 5
+    num_simulated_polls = 60
     @app.route("/debug/simulated_fsr")
     def simulated_fsr():
         simulated_timestamps = [time.time_ns() for _ in range(num_simulated_polls)]
