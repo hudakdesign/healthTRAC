@@ -111,18 +111,28 @@ def imu_api():
     })
 
 if c.DEBUG:
-    num_simulated_polls = 60
+    num_simulated_polls = 5
     @app.route("/debug/simulated_fsr")
     def simulated_fsr():
         simulated_timestamps = [time.time_ns() for _ in range(num_simulated_polls)]
         # really long shorthand for fake sensor data
-        simulated_sensor_data = [[np.sin(current_simulated_time * sensor_number) for current_simulated_time in range(num_simulated_polls)] for sensor_number in range(num_fsr_fields)]
+        simulated_sensor_data = [[np.sin(current_simulated_time * sensor_number) for current_simulated_time in simulated_timestamps] for sensor_number in range(num_fsr_fields)]
 
         return json.dumps({
             "timestamps": simulated_timestamps,
             "sensors": simulated_sensor_data
         })
 
+    @app.route("/debug/simulated_imu")
+    def simulated_imu():
+        simulated_timestamps = [time.time_ns() for _ in range(num_simulated_polls)]
+        # really long shorthand for fake sensor data
+        simulated_sensor_data = [[np.sin(current_simulated_time * sensor_number) for current_simulated_time in simulated_timestamps] for sensor_number in range(num_imu_fields)]
+
+        return json.dumps({
+            "timestamps": simulated_timestamps,
+            "sensors": simulated_sensor_data
+        })
 
 def main():
     # Starts server
