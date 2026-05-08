@@ -134,6 +134,22 @@ def imu_api():
         }
     })
 
+@app.route("/fsr_data")
+def fsr_data_api():
+    with fsr_data_lock:
+        return json.dumps({
+            "timestamps": list(fsr_data["x_vals"]),
+            "sensors": [list(sensor_data) for sensor_data in fsr_data["y_data"]]
+        })
+
+@app.route("/imu_data")
+def imu_data_api():
+    with imu_data_lock:
+        return json.dumps({
+            "timestamps": list(imu_data["x_vals"]),
+            "sensors": [list(sensor_data) for sensor_data in imu_data["y_data"]]
+        })
+
 if c.DEBUG:
     # simulators for tesitng purposes
     num_simulated_polls = 60

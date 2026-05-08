@@ -310,7 +310,7 @@
             }
         };
 
-        const updateInterval = 10000;
+        const updateInterval = 1000;
 
         // Populates imu canvas
         const imuElement = document.getElementById("imuDiagnostics");
@@ -324,17 +324,18 @@
         // Routes for accessing the api
         const apiAddress = "http://127.0.0.1:8080/";
 
-        const imuApiAddress = apiAddress + "imu";
-        const fsrApiAddress = apiAddress + "fsr";
+        const imuApiAddress = apiAddress + "imu_data";
+        const fsrApiAddress = apiAddress + "fsr_data";
 
         // updates the provided graph using data from provided url
         async function updateGraph(targetGraph, url) {
             let graphData = await fetch(url);
             graphData = await graphData.json();
 
-            // targetGraph.data.labels = graphData.x_vals;
-            // targetGraph.data.datasets[0].data = graphData.y_vals;
-            targetGraph.data = graphData.data;
+            for (let i = 0; i < graphData.sensors.length; i++) {
+                targetGraph.data.datasets[i].data = graphData.sensors[i];
+            }
+            targetGraph.data.labels = graphData.timestamps;
 
             // non argument disables animation
             targetGraph.update('none');
