@@ -15,7 +15,8 @@ running_lock = threading.Lock()
 hub_polling_rate = 1
 
 # temporary buffers
-short_buffer_size = 120 * 60 # 120 seconds of data at 60hz
+short_buffer_size = 120 * 60 # 120 seconds of data at 60 hz
+short_buffer_size = 20 # NOTE: This is temporary and for temporary purposes. comment this code to undo
 long_buffer_size = 60 * 24 # 24 hours of data at 1 sample
 
 # graphing buffers
@@ -26,7 +27,7 @@ imu_data = {
 }
 imu_data_lock = threading.Lock()
 
-num_fsr_fields = 6
+num_fsr_fields = 8
 fsr_data = {
     "x_vals": collections.deque(maxlen=short_buffer_size),
     "y_data": [collections.deque(maxlen=short_buffer_size) for _ in range(num_fsr_fields)] # buffer for each sensor
