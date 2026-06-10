@@ -1,6 +1,6 @@
 HUB_ADDRESS = "romeo-papa"
 
-sleep_time = 1/10
+sleep_time = 1 / 10
 channels = 2
 dtype = "int16"
 

@@ -4,11 +4,12 @@ import json
 
 DATA_PATH = "testing/test_imu.csv"
 
+
 # TODO: Update to take data from variable stored in memory. this current method will get slow over time
 def get_imu_data():
     # loads all line from the file into data dict
     data_dict = {}
-    with open(DATA_PATH, mode = "r") as file:
+    with open(DATA_PATH, mode="r") as file:
         csv_dict_reader = csv.DictReader(file)
 
         for idx, line in enumerate(csv_dict_reader):
@@ -26,7 +27,7 @@ def get_imu_data():
         last_n_item_dict[key_] = value_[-num_rows:]
 
     # extracts and outputs x and y data
-    x_vals = last_n_item_dict["timestamp_hub"]       
+    x_vals = last_n_item_dict["timestamp_hub"]
 
     y_data = []
     y_data.append(last_n_item_dict["accel_x"])
@@ -34,6 +35,7 @@ def get_imu_data():
     y_data.append(last_n_item_dict["accel_z"])
 
     return x_vals, y_data
+
 
 # Populates graph data and sends it over for chartjs to display
 @app.route("/imu")
@@ -53,27 +55,22 @@ def imu_api():
             "lineTension": 0,
             "backgroundColor": "rgba(0,0,255,1.0)",
             "borderColor": "rgba(0,0,255,0.1)",
-            "data": y_data[0]
+            "data": y_data[0],
         },
         {
             "fill": False,
             "lineTension": 0,
             "backgroundColor": "rgba(255,0,0,1.0)",
             "borderColor": "rgba(255,0,0,0.1)",
-            "data": y_data[1]
+            "data": y_data[1],
         },
         {
             "fill": False,
             "lineTension": 0,
             "backgroundColor": "rgba(0,255,0,1.0)",
             "borderColor": "rgba(0,255,0,0.1)",
-            "data": y_data[2]
-        }
+            "data": y_data[2],
+        },
     ]
 
-    return json.dumps({
-        "data": {
-            "labels": x_vals,
-            "datasets": y_dataset
-        }
-    })
+    return json.dumps({"data": {"labels": x_vals, "datasets": y_dataset}})

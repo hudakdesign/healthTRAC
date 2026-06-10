@@ -17,6 +17,7 @@ def index():
     else:
         return create_json(False)
 
+
 # Creates json file to return via the api
 # takes in if the satellites should record or not
 def create_json(recording):
