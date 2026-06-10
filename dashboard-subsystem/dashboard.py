@@ -13,6 +13,7 @@ app = Flask(__name__)
 running = True
 running_lock = threading.Lock()
 
+# How often in between times that hub requests data from microcontrollers
 hub_polling_rate = 1
 
 # temporary buffers
@@ -45,93 +46,6 @@ def index():
     return render_template("dashboard.html")
 
 
-@app.route("/fsr")
-def fsr_api():
-    with fsr_data_lock:
-        x_vals = list(fsr_data["x_vals"])
-        y_data = [list(sensor_data) for sensor_data in fsr_data["y_data"]]
-
-    y_dataset = [
-        {
-            "fill": False,
-            "lineTension": 0,
-            "backgroundColor": "rgba(0,0,255,1.0)",
-            "borderColor": "rgba(0,0,255,0.1)",
-            "data": y_data[0],
-        },
-        {
-            "fill": False,
-            "lineTension": 0,
-            "backgroundColor": "rgba(0,255,0,1.0)",
-            "borderColor": "rgba(0,255,0,0.1)",
-            "data": y_data[1],
-        },
-        {
-            "fill": False,
-            "lineTension": 0,
-            "backgroundColor": "rgba(0,255,255,1.0)",
-            "borderColor": "rgba(0,255,255,0.1)",
-            "data": y_data[2],
-        },
-        {
-            "fill": False,
-            "lineTension": 0,
-            "backgroundColor": "rgba(255,0,0,1.0)",
-            "borderColor": "rgba(255,0,0,0.1)",
-            "data": y_data[3],
-        },
-        {
-            "fill": False,
-            "lineTension": 0,
-            "backgroundColor": "rgba(255,0,255,1.0)",
-            "borderColor": "rgba(255,0,255,0.1)",
-            "data": y_data[4],
-        },
-        {
-            "fill": False,
-            "lineTension": 0,
-            "backgroundColor": "rgba(255,255,0,1.0)",
-            "borderColor": "rgba(255,255,0,0.1)",
-            "data": y_data[5],
-        },
-    ]
-
-    return json.dumps({"data": {"labels": x_vals, "datasets": y_dataset}})
-
-
-@app.route("/imu")
-def imu_api():
-    with imu_data_lock:
-        x_vals = list(imu_data["x_vals"])
-        y_data = [list(sensor_data) for sensor_data in imu_data["y_data"]]
-
-    y_dataset = [
-        {
-            "fill": False,
-            "lineTension": 0,
-            "backgroundColor": "rgba(0,0,255,1.0)",
-            "borderColor": "rgba(0,0,255,0.1)",
-            "data": y_data[0],
-        },
-        {
-            "fill": False,
-            "lineTension": 0,
-            "backgroundColor": "rgba(255,0,0,1.0)",
-            "borderColor": "rgba(255,0,0,0.1)",
-            "data": y_data[1],
-        },
-        {
-            "fill": False,
-            "lineTension": 0,
-            "backgroundColor": "rgba(0,255,0,1.0)",
-            "borderColor": "rgba(0,255,0,0.1)",
-            "data": y_data[2],
-        },
-    ]
-
-    return json.dumps({"data": {"labels": x_vals, "datasets": y_dataset}})
-
-
 @app.route("/fsr_data")
 def fsr_data_api():
     with fsr_data_lock:
@@ -154,72 +68,9 @@ def imu_data_api():
         )
 
 
-if c.DEBUG:
-    # simulators for tesitng purposes
-    num_simulated_polls = 60
-
-    @app.route("/debug/simulated_fsr")
-    def simulated_fsr():
-        simulated_timestamps = [time.time_ns() for _ in range(num_simulated_polls)]
-        # really long shorthand for fake sensor data
-        simulated_sensor_data = [
-            [
-                np.sin(current_simulated_time * sensor_number)
-                for current_simulated_time in simulated_timestamps
-            ]
-            for sensor_number in range(num_fsr_fields)
-        ]
-
-        return json.dumps(
-            {"timestamps": simulated_timestamps, "sensors": simulated_sensor_data}
-        )
-
-    @app.route("/debug/simulated_imu")
-    def simulated_imu():
-        simulated_timestamps = [time.time_ns() for _ in range(num_simulated_polls)]
-        # really long shorthand for fake sensor data
-        simulated_sensor_data = [
-            [
-                np.sin(current_simulated_time * sensor_number)
-                for current_simulated_time in simulated_timestamps
-            ]
-            for sensor_number in range(num_imu_fields)
-        ]
-
-        return json.dumps(
-            {"timestamps": simulated_timestamps, "sensors": simulated_sensor_data}
-        )
-
-    @app.route("/debug/get_fsr_data")
-    def get_fsr_data():
-        with fsr_data_lock:
-            return json.dumps(
-                {
-                    "timestamps": list(fsr_data["x_vals"]),
-                    "sensors": [
-                        list(sensor_data) for sensor_data in fsr_data["y_data"]
-                    ],
-                }
-            )
-
-    @app.route("/debug/get_imu_data")
-    def get_imu_data():
-        with imu_data_lock:
-            return json.dumps(
-                {
-                    "timestamps": list(fsr_data["x_vals"]),
-                    "sensors": [
-                        list(sensor_data) for sensor_data in fsr_data["y_data"]
-                    ],
-                }
-            )
-
-
-# def store_fsr_data(fsr_data):
-# with open(fsr_data_path)
-
-
 # Threads:
+# Thread for requesting data from fsr.
+# Requests data from microcontroller, uses it to update short term data buffers
 def update_fsr_buffer():
     currently_running = True
     fsr_url = c.fsr_url
@@ -247,7 +98,8 @@ def update_fsr_buffer():
 
         time.sleep(hub_polling_rate)
 
-
+# Thread for requesting data from imu.
+# Requests data from microcontroller, uses it to update short term data buffers
 def update_imu_buffer():
     currently_running = True
     imu_url = c.imu_url
@@ -276,6 +128,7 @@ def update_imu_buffer():
         time.sleep(hub_polling_rate)
 
 
+# Thread for stopping the server. If the user pressed enter, all threads are told to stop looping
 def server_stopper():
     global running
     global fsr_data
@@ -308,7 +161,7 @@ def main():
     imu_thread = threading.Thread(target=update_imu_buffer)
     imu_thread.start()
 
-    # Starts server
+    # start server
     app.run(host="0.0.0.0", port=c.PORT, debug=c.DEBUG)
 
 
