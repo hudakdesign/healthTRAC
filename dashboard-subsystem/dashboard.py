@@ -29,7 +29,7 @@ imu_data = {
 }
 imu_data_lock = threading.Lock()
 
-num_fsr_fields = 6
+num_fsr_fields = 8
 fsr_data = {
     "x_vals": collections.deque(maxlen=short_buffer_size),
     "y_data": [
