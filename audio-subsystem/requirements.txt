@@ -1,5 +1,0 @@
-flask
-gpiozero
-numpy
-requests
-sounddevice

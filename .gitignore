@@ -1,8 +1,9 @@
+.DS_Store
 .venv/
 .idea/
 .vscode/
 __pycache__/
-testing/
+audio-subsystem/hub/recordings/*
 data/
-.DS_Store
 logs*
+testing/
