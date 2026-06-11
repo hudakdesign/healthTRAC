@@ -72,6 +72,15 @@ Script to run on microphone satellite to record audio, send telemetry data to th
 
 Flask app to serve a dashboard for live debugging, and for logging data from connected sensors
 
+- Sensors are addressed by the route to their api, which is the sensors ip address followed by the route specified in the sensors code. e.g. "<http://127.0.0.1:8081/data>" for the simulated FSR sensor.
+- These addresses are stored in `dashboard-subsystem/constants.py` and should be updated to reflect the desired sensors to connect to
+
+### `simulated-sensors/simulated_*.py`
+
+Both `simulated_fsr.py` and `simulated_imu.py` are scripts to simulate the api used by the actual FSR and IMU devices. Running these scripts will create a locally hosted version of the sensor api for testing purposes.
+
+- Running `simulated_fsr.py`, `simulated_imu.py`, and `dashboard.py` in separate terminal windows simultaneously will allow for testing the system without physical hardware sensors.
+
 ---
 
 ## Development Notes
