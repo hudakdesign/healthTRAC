@@ -55,8 +55,8 @@ def recording_control():
 
     # Function for checking with hub if it should be recording
     # takes in hub address
-    def query_recording_status(address):
-        url = f"http://{address}:5000/"
+    def query_recording_status(address, port):
+        url = f"http://{address}:{port}/"
         response = requests.get(url)
 
         if response.status_code == 200:
@@ -80,7 +80,7 @@ def recording_control():
             # if recording is true and
             # the satellite timestamp is withing the hub timestamp + timeout
             # then: recording is true
-            most_recent_recording_status = query_recording_status(c.HUB_ADDRESS)
+            most_recent_recording_status = query_recording_status(c.HUB_ADDRESS, c.HUB_PORT)
 
             status_message += "API: connected\n"
         except:
