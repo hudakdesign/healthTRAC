@@ -1,6 +1,5 @@
 from flask import Flask, render_template
 import json
-import random
 import threading
 import collections
 import requests
