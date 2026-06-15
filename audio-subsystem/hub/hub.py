@@ -1,21 +1,30 @@
 from flask import Flask
 import json
-import subprocess
 import time
+import threading
 
 flag_directory = "data/"
 flag_file = "recording_flag"
 flag_path = f"{flag_directory}{flag_file}"
+
+recording_flag = False
+recording_flag_lock = threading.Lock()
 
 app = Flask(__name__)
 
 
 @app.route("/")
 def index():
-    if check_recording_flag():
-        return create_json(True)
-    else:
-        return create_json(False)
+    with recording_flag_lock:
+        return create_json(recording_flag)
+
+
+@app.route("/toggle_recording")
+def toggle_recording():
+    global recording_flag
+    with recording_flag_lock:
+        recording_flag = not recording_flag
+        return str(recording_flag)
 
 
 # Creates json file to return via the api
@@ -23,20 +32,6 @@ def index():
 def create_json(recording):
     data = {"time_ns": time.time_ns(), "recording": recording}
     return json.dumps(data)
-
-
-# Placeholder function prior to button implementation
-def check_recording_flag():
-    flag = subprocess.run(
-        ["cat", flag_path], capture_output=True, text=True
-    ).stdout.strip()
-
-    print(flag)
-
-    if flag == "1":
-        return True
-    else:
-        return False
 
 
 # TODO: check button via gpio
