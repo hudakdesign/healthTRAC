@@ -39,6 +39,15 @@ fsr_data = {
 }
 fsr_data_lock = threading.Lock()
 
+num_audio_fields = 1
+audio_data = {
+    "x_vals": collections.deque(maxlen=short_buffer_size),
+    "y_data": [
+        collections.deque(maxlen=short_buffer_size) for _ in range(num_audio_fields)
+    ],  # buffer for each sensor
+}
+audio_data_lock = threading.Lock()
+
 
 # Route for rendering dashboard html
 @app.route("/")
@@ -64,6 +73,16 @@ def imu_data_api():
             {
                 "timestamps": list(imu_data["x_vals"]),
                 "sensors": [list(sensor_data) for sensor_data in imu_data["y_data"]],
+            }
+        )
+    
+@app.route("/audio_data")
+def audio_data_api():
+    with audio_data_lock:
+        return json.dumps(
+            {
+                "timestamps": list(audio_data["x_vals"]),
+                "sensors": [list(sensor_data) for sensor_data in audio_data["y_data"]]
             }
         )
 
@@ -127,12 +146,44 @@ def update_imu_buffer():
 
         time.sleep(hub_polling_rate)
 
+# Thread for requesting data from satellite
+# Requests data from satellite, uses it to update short term data buffers
+def update_audio_buffer():
+    currently_running = True
+    audio_url = c.audio_url
+    time.sleep(1)
+
+    while currently_running:
+        try:
+            response = requests.get(audio_url)
+            print(f"response: {response}")
+            data = response.json()
+            timestamps = data["timestamps"]
+            sensors = data["sensors"]
+
+            print(f"audio response: {data}")
+
+            with audio_data_lock:
+                    audio_data["x_vals"].append(timestamps)
+                    for sensor_number in range(num_audio_fields):
+                        audio_data["y_data"][sensor_number].append(
+                            sensors[sensor_number]
+                        )
+        except Exception as e:
+            print(f"Error fetching Audio data: {e}")
+
+        with running_lock:
+            currently_running = running
+
+        time.sleep(hub_polling_rate)
+
 
 # Thread for stopping the server. If the user pressed enter, all threads are told to stop looping
 def server_stopper():
     global running
     global fsr_data
     global imu_data
+    global audio_data
 
     input("Press Enter to stop the server...\n")
     with running_lock:
@@ -145,6 +196,9 @@ def server_stopper():
     with imu_data_lock:
         print(imu_data)
         print(len(imu_data["x_vals"]))
+    with audio_data_lock:
+        print(audio_data)
+        print(len(audio_data["x_vals"]))
 
 
 # Threads/
@@ -160,6 +214,9 @@ def main():
 
     imu_thread = threading.Thread(target=update_imu_buffer)
     imu_thread.start()
+
+    audio_thread = threading.Thread(target=update_audio_buffer)
+    audio_thread.start()
 
     # start server
     app.run(host="0.0.0.0", port=c.PORT, debug=c.DEBUG)

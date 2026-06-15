@@ -187,6 +187,14 @@
         </div>
     </div>
 
+    <!-- Audio Diagnostic Graph -->
+    <div class="container">
+        <div class="card">
+            <h2>Audio Activity</h2>
+            <canvas id="audioDiagnostics" class="diagnostic-chart"></canvas>
+        </div>
+    </div>
+
     <!-- JS for graph generation and refresh -->
     <script>
 
@@ -310,6 +318,30 @@
             }
         };
 
+        // sample audio graph
+        let audioGraphFormat = {
+            type: "line",
+            data: {
+                labels: [0, 1, 2, 3, 4],
+                datasets: [
+                    {
+                        fill: false, lineTension: 0, borderColor: "red", data: [
+                        { x: 0, y: 0 },
+                        { x: 1, y: 1 },
+                        { x: 2, y: 2 },
+                        { x: 3, y: 3 },
+                        { x: 4, y: 4 }]
+                    }
+                ]
+            },
+            options: {
+                plugins: {
+                    legend: { display: false },
+                    title: { display: false }
+                }
+            }
+        };
+
         const updateInterval = 1000;
 
         // Populates imu canvas
@@ -320,12 +352,17 @@
         const fsrElement = document.getElementById("fsrDiagnostics");
         let fsrDiagnostics = new Chart(fsrElement, fsrGraphFormat);
 
+        // Populated audio canvas
+        const audioElement = document.getElementById("audioDiagnostics");
+        let audioDiagnostics = new Chart(audioElement, audioGraphFormat);
+
 
         // Routes for accessing the api
         const apiAddress = "http://127.0.0.1:8080/";
 
         const imuApiAddress = apiAddress + "imu_data";
         const fsrApiAddress = apiAddress + "fsr_data";
+        const audioApiAddress = apiAddress + "audio_data";
 
         // updates the provided graph using data from provided url
         async function updateGraph(targetGraph, url) {
@@ -344,7 +381,8 @@
         // updates the graphs every interval ms
         setInterval(function () {
             updateGraph(imuDiagnostics, imuApiAddress);
-            updateGraph(fsrDiagnostics, fsrApiAddress)
+            updateGraph(fsrDiagnostics, fsrApiAddress);
+            updateGraph(audioDiagnostics, audioApiAddress);
         }, updateInterval);
     </script>
 </body>
