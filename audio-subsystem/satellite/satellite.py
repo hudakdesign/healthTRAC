@@ -12,7 +12,9 @@ import constants as c
 file_path = f"{c.file_directory}{c.file_name}"
 
 # Sets sample rate to default of default device
-sample_rate = sd.query_devices(0)["default_samplerate"]
+sample_rate = sd.query_devices(c.device_index)["default_samplerate"]
+print(sd.query_devices(c.device_index))
+channels = sd.query_devices(c.device_index)["max_input_channels"]
 
 audio_frames = []
 recording = False
@@ -33,7 +35,7 @@ def create_recording():
 
     # Start recording stream
     with sd.InputStream(
-        samplerate=sample_rate, channels=c.channels, dtype=c.dtype, callback=callback
+        samplerate=sample_rate, channels=channels, dtype=c.dtype, callback=callback
     ):
         global recording
         while recording:
@@ -43,7 +45,7 @@ def create_recording():
 
     # Writes data to file timestamped with the start time
     with wave.open(f"{file_path}_{start_time}.wav", "wb") as wav_file:
-        wav_file.setnchannels(c.channels)
+        wav_file.setnchannels(channels)
         wav_file.setsampwidth(np.dtype(c.dtype).itemsize)
         wav_file.setframerate(sample_rate)
         wav_file.writeframes(audio_data.tobytes())
