@@ -1,5 +1,5 @@
 HUB_ADDRESS = "127.0.0.1"
-HUB_PORT = 5001
+HUB_PORT = 8080
 SATELLITE_PORT = 5002
 
 device_index = 2

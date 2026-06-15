@@ -47,12 +47,32 @@ audio_data = {
 }
 audio_data_lock = threading.Lock()
 
+# Recording flag for controlling satellite recording
+recording_flag = True
+recording_flag_lock = threading.Lock()
+
 
 # Route for rendering dashboard html
 @app.route("/")
 def index():
     return render_template("dashboard.html")
 
+# Route for getting recording flag status
+# (if the satellite should be recording)
+@app.route("/recording_flag")
+def recording_flag_api():
+    global recording_flag
+    with recording_flag_lock:
+        data = {"time_ns": time.time_ns(), "recording": recording_flag}
+        return json.dumps(data)
+
+# Route for toggling recording flag
+@app.route("/toggle_recording_flag")
+def toggle_recording_flag():
+    global recording_flag
+    with recording_flag_lock:
+        recording_flag = not recording_flag
+        return str(recording_flag)
 
 @app.route("/fsr_data")
 def fsr_data_api():

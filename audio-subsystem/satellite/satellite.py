@@ -71,7 +71,7 @@ def recording_control():
     # Function for checking with hub if it should be recording
     # takes in hub address
     def query_recording_status(address, port):
-        url = f"http://{address}:{port}/"
+        url = f"http://{address}:{port}/recording_flag"
         response = requests.get(url)
 
         if response.status_code == 200:
