@@ -7,6 +7,10 @@ import time
 import wave
 import requests
 import constants as c
+from flask import Flask
+import json
+
+app = Flask(__name__)
 
 # Defaults
 file_path = f"{c.file_directory}{c.file_name}"
@@ -20,6 +24,10 @@ audio_frames = []
 recording = False
 hub_timestamp = 0
 
+# Buffers for diagnostic data sent to the dashboard
+diagnostic_data = [0 for _ in range(channels)]
+diagnostic_data_lock = threading.Lock()
+
 running = True
 
 
@@ -27,6 +35,11 @@ def callback(indata, frames, time, status):
     if status:
         print(status, file=sys.stderr)
     audio_frames.append(indata.copy())
+
+    # Whenever callback is called, diagnostic data is updated with most recent audio data
+    global diagnostic_data
+    with diagnostic_data_lock:
+        diagnostic_data = indata[-1].copy()
 
 
 def create_recording():
@@ -114,6 +127,10 @@ def recording_control():
         # waits sleep_time seconds to avoid busy waiting
         time.sleep(c.sleep_time)
 
+# Flask api thread
+# Runs flask api on the satellite alongside everything else
+def flask_api_thread():
+    app.run(host="0.0.0.0", port=c.SATELLITE_PORT, debug=False)
 
 # Thread for terminating the program
 # tells recording to stop when enter is pressed
@@ -126,6 +143,25 @@ def terminate_threads():
     recording = False
     running = False
 
+# Route for satellite to send data to the dashboard
+@app.route("/data")
+def satellite_api():
+    data = {"device_name": c.device_name,
+            "timestamps": time.time_ns(),
+            "sensors": []
+            }
+
+    with diagnostic_data_lock:
+        print("ROUTE AQUIRED LOCK")
+        data["sensors"] = list(diagnostic_data)
+    
+    for i in range(len(data["sensors"])):
+        data["sensors"][i] = int(data["sensors"][i])
+
+    print(f"json payload: {data}")
+    return json.dumps(data)
+
+
 
 if __name__ == "__main__":
     # create recordings directory if it doesnt exist
@@ -136,6 +172,9 @@ if __name__ == "__main__":
 
     termination_thread = threading.Thread(target=terminate_threads)
     termination_thread.start()
+
+    api_thread = threading.Thread(target=flask_api_thread)
+    api_thread.start()
 
     while running:
         # If recording is toggled on, retoggle it

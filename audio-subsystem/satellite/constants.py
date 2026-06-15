@@ -1,5 +1,6 @@
 HUB_ADDRESS = "127.0.0.1"
 HUB_PORT = 5001
+SATELLITE_PORT = 5002
 
 device_index = 2
 
@@ -10,3 +11,5 @@ file_name = "recording"
 file_directory = "recordings/"
 
 timeout = 5e9
+
+device_name = "Satellite 0"
