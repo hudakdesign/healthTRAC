@@ -1,12 +1,11 @@
-from flask import Flask, render_template
+import collections
 import json
 import threading
-import collections
-import requests
 import time
-import numpy as np
 
 import constants as c
+import requests
+from flask import Flask, render_template
 
 app = Flask(__name__)
 running = True
@@ -57,6 +56,7 @@ recording_flag_lock = threading.Lock()
 def index():
     return render_template("dashboard.html")
 
+
 # Route for getting recording flag status
 # (if the satellite should be recording)
 @app.route("/recording_flag")
@@ -66,6 +66,7 @@ def recording_flag_api():
         data = {"time_ns": time.time_ns(), "recording": recording_flag}
         return json.dumps(data)
 
+
 # Route for toggling recording flag
 @app.route("/toggle_recording_flag")
 def toggle_recording_flag():
@@ -73,6 +74,7 @@ def toggle_recording_flag():
     with recording_flag_lock:
         recording_flag = not recording_flag
         return str(recording_flag)
+
 
 @app.route("/fsr_data")
 def fsr_data_api():
@@ -94,14 +96,15 @@ def imu_data_api():
                 "sensors": [list(sensor_data) for sensor_data in imu_data["y_data"]],
             }
         )
-    
+
+
 @app.route("/audio_data")
 def audio_data_api():
     with audio_data_lock:
         return json.dumps(
             {
                 "timestamps": list(audio_data["x_vals"]),
-                "sensors": [list(sensor_data) for sensor_data in audio_data["y_data"]]
+                "sensors": [list(sensor_data) for sensor_data in audio_data["y_data"]],
             }
         )
 
@@ -136,6 +139,7 @@ def update_fsr_buffer():
 
         time.sleep(hub_polling_rate)
 
+
 # Thread for requesting data from imu.
 # Requests data from microcontroller, uses it to update short term data buffers
 def update_imu_buffer():
@@ -165,6 +169,7 @@ def update_imu_buffer():
 
         time.sleep(hub_polling_rate)
 
+
 # Thread for requesting data from satellite
 # Requests data from satellite, uses it to update short term data buffers
 def update_audio_buffer():
@@ -183,11 +188,9 @@ def update_audio_buffer():
             print(f"audio response: {data}")
 
             with audio_data_lock:
-                    audio_data["x_vals"].append(timestamps)
-                    for sensor_number in range(num_audio_fields):
-                        audio_data["y_data"][sensor_number].append(
-                            sensors[sensor_number]
-                        )
+                audio_data["x_vals"].append(timestamps)
+                for sensor_number in range(num_audio_fields):
+                    audio_data["y_data"][sensor_number].append(sensors[sensor_number])
         except Exception as e:
             print(f"Error fetching Audio data: {e}")
 
