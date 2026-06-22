@@ -38,8 +38,9 @@ def callback(indata, frames, time, status):
 
     # Whenever callback is called, diagnostic data is updated with most recent audio data
     global diagnostic_data
-    with diagnostic_data_lock:
-        diagnostic_data = indata[-1].copy()
+    if not diagnostic_data_lock.locked():
+        with diagnostic_data_lock:
+            diagnostic_data = indata[-1].copy()
 
 
 def create_recording():
