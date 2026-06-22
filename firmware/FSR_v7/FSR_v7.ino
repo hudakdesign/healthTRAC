@@ -27,7 +27,7 @@
 #define DEVICE_ID "FSR1"
 #define FW_VERSION "fsr_v7_20260508"
 
-#define STATIC_IP "10.0.1.10"
+#define STATIC_IP "10.0.1.50"
 #define STATIC_GATEWAY "10.0.1.1"
 #define STATIC_SUBNET "255.255.255.0"
 #define STATIC_DNS "8.8.8.8"
