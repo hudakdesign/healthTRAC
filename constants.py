@@ -1,13 +1,13 @@
 DEBUG = True
-PORT = 8080
+PORT = 5002
 MAX_CSV_AGE = 1 * 60 * 60
 
 # <Audio subsystem constants>
-HUB_ADDRESS = "127.0.0.1"
-HUB_PORT = 8080
-SATELLITE_PORT = 5002
+HUB_ADDRESS = "10.0.1.5"
+HUB_PORT = PORT
+SATELLITE_PORT = 5003
 
-device_index = 2
+device_index = 0
 
 sleep_time = 1 / 10
 dtype = "int16"
@@ -20,6 +20,6 @@ timeout = 5e9
 device_name = "Satellite 0"
 # </Audio subsystem constants>
 
-fsr_url = "http://127.0.0.1:8081/data"
+fsr_url = "http://10.0.1.50/data"
 imu_url = "http://127.0.0.1:8082/data"
 audio_url = "http://127.0.0.1:5002/data"
