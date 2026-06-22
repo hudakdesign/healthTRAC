@@ -38,6 +38,10 @@ def callback(indata, frames, time, status):
 
     # Whenever callback is called, diagnostic data is updated with most recent audio data
     global diagnostic_data
+
+    # only tries to update the diagnostic data if it isnt locked
+    # this helps minimize some distortion from polling diagnostic data
+    # callback will only be "held up" if it is currently being moved
     if not diagnostic_data_lock.locked():
         with diagnostic_data_lock:
             diagnostic_data = indata[-1].copy()
@@ -153,13 +157,13 @@ def satellite_api():
             }
 
     with diagnostic_data_lock:
-        print("ROUTE AQUIRED LOCK")
+        # print("ROUTE AQUIRED LOCK")
         data["sensors"] = list(diagnostic_data)
     
     for i in range(len(data["sensors"])):
         data["sensors"][i] = int(data["sensors"][i])
 
-    print(f"json payload: {data}")
+    # print(f"json payload: {data}")
     return json.dumps(data)
 
 
