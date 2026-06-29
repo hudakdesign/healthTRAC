@@ -26,6 +26,30 @@ static QueueHandle_t poll_queue;
 // Task: every 10 ms, get data from each sensor
 void collectSensorData(void *parameters)
 {
+  struct dataPoll data; // initializes struct instance for thread
+
+  while (1)
+  {
+    // get timestamp for when this poll is being taken
+    data.timestamp = millis();
+
+    // loop through each sensor checking their values
+    for (int i = 0; i < num_fsrs; i++)
+    {
+      // get the value
+
+      // store it in the data struct
+      data.sensor_readings[i] = 0;
+    }
+
+    // copy it to the queue because it is now ready
+    if (xQueueSend(poll_queue, (void *)&data, 0) != pdTRUE) {
+      Serial.println("Queue full"); // for now print out debug data to confirm that queue fills up
+    }
+
+    // wait until it is time for the next poll
+    vTaskDelay(1000 / 100 / portTICK_PERIOD_MS); // 1000 / 100: 100hz (every 10 ms)
+  }
 }
 
 // Main (runs as own task with priority 1 on core 1)
@@ -35,17 +59,27 @@ void setup()
   // Initialize serial
   Serial.begin(115200);
 
-  // put your setup code here, to run once:
-  int result = myFunction(2, 3);
+  // wait to start
+  vTaskDelay(2000 / portTICK_PERIOD_MS);
+  Serial.println();
+  Serial.println("--FSR Concurrent Firmware--");
+
+  // create the queue
+  poll_queue = xQueueCreate(poll_queue_len, sizeof(struct dataPoll));
+
+  // start data collection task
+  xTaskCreatePinnedToCore(collectSensorData,
+                          "Collect Sensor Data",
+                          2048,
+                          NULL,
+                          2, // higher priority than main (data must be collected on time)
+                          NULL,
+                          app_cpu);
 }
 
 void loop()
 {
-  // put your main code here, to run repeatedly:
-}
-
-// put function definitions here:
-int myFunction(int x, int y)
-{
-  return x + y;
+  Serial.print(millis());
+  Serial.println("firmware is running");
+  vTaskDelay(1000 / portTICK_PERIOD_MS);
 }
