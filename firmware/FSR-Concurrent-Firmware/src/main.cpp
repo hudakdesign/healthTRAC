@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <WiFi.h>
 
 #if CONFIG_FREERTOS_UNICORE
 static const BaseType_t app_cpu = 0;
@@ -12,6 +13,17 @@ static const int poll_rate = 100;                                  // 100 hz
 static const int poll_seconds_stored = 10;                         // store up to 10 seconds of polls
 static const int poll_queue_len = poll_rate * poll_seconds_stored; // stores 10 seconds of polls at 100 hz
 
+// network credentials:
+const char* ssid = "CBI IoT";
+const char* password = "cbir00ls";
+const char* hostname = "fsr-alpha";
+
+// server settings:
+const int timeout_time = 2000;
+const int server_port = 80;
+WiFiServer server(server_port);
+
+
 // Struct declaration
 struct dataPoll
 {
@@ -22,10 +34,16 @@ struct dataPoll
 // Globals:
 static QueueHandle_t poll_queue;
 
+String header; // variable to store http request
+unsigned long current_time = millis();
+unsigned long previous_time = 0;
+
+
 // Utility Functions:
 // provides synthetic data for testing purposes
-int getSyntheticSensorValue(int timestamp, int idx) {
-  return (int) ((sin(timestamp * (idx + 1) * 0.01) + 1) * 4096 / 2); // returns int value simulating fsr output
+int getSyntheticSensorValue(int timestamp, int idx)
+{
+  return (int)((sin(timestamp * (idx + 1) * 0.01) + 1) * 4096 / 2); // returns int value simulating fsr output
 }
 
 // Tasks:
@@ -53,7 +71,8 @@ void collectSensorData(void *parameters)
     Serial.println();
 
     // copy it to the queue because it is now ready
-    if (xQueueSend(poll_queue, (void *)&data, 0) != pdTRUE) {
+    if (xQueueSend(poll_queue, (void *)&data, 0) != pdTRUE)
+    {
       Serial.println("Queue full"); // for now print out debug data to confirm that queue fills up
     }
 
