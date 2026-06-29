@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include <ArduinoJson.h>
 
 #if CONFIG_FREERTOS_UNICORE
 static const BaseType_t app_cpu = 0;
@@ -10,7 +11,7 @@ static const BaseType_t app_cpu = 1;
 // Settings:
 static const int num_fsrs = 8;
 static const int poll_rate = 100;                                  // 100 hz
-static const int poll_seconds_stored = 10;                         // store up to 10 seconds of polls
+static const int poll_seconds_stored = 60;                         // store up to 10 seconds of polls
 static const int poll_queue_len = poll_rate * poll_seconds_stored; // stores 10 seconds of polls at 100 hz
 
 // network credentials:
@@ -128,90 +129,48 @@ void setup()
 
 // This loop will handle the webserver sending information from the queue
 void loop() {
-  WiFiClient client = server.available(); // Listen for incoming clients
- 
-  if (client) { // If a new client connects
-    current_time = millis();
-    previous_time = current_time;
-    Serial.println("New Client.");
-    String currentLine = ""; // String for incoming data
- 
-    while (client.connected() && current_time - previous_time <= timeout_time) { // loop while the client is connected
-      current_time = millis();
- 
-      if (client.available()) { // If theres bytes to read from the client
-        char c = client.read(); // read a byte
-        Serial.write(c); // print the byte to serial monitor
-        header += c; // add the byte to the header
-        
-        if (c == '\n') { // if the byte is a newline character
-          // if the current line is blank, theres two newlines in a row
-          // that indicates the end of the client HTTP request
-          // time to respond
-          if (currentLine.length() == 0) {
-            Serial.println("Sending a response :)");
- 
-            // HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK)
-            // and a content-type so the client knows what's coming, then a blank line:
-            // <HTTP header>
-            client.println("HTTP/1.1 200 OK"); // Response code
-            client.println("Content-type:text/html"); // content-type
-            client.println("Connection: close"); // indicates to client that server will immediately terminate connection
-            // </HTTP header>
+  static struct dataPoll newData;
 
-            // print out json data to the client
-            
- 
-            // // <Making decisions off of client header>
-            // // turn the led on/off
-            // if (header.indexOf("GET /toggleLed") >= 0) { // if this specific line appears in the request then toggle the led
-            //   if (internalLedState == 0) { // if its off, turn it on
-            //     internalLedState = 1;
-            //     digitalWrite(LED_BUILTIN, HIGH);
-            //     Serial.println("Internal Led: On");
-            //   } else { // if its on, turn it off
-            //     internalLedState = 0;
-            //     digitalWrite(LED_BUILTIN, LOW);
-            //     Serial.println("Internal Led: Off");
-            //   }
-            // }
- 
- 
-            // if (header.indexOf("GET /internalLed/on") >= 0) { // if this specific line appears in the request
-            //   Serial.println("Internal Led: on"); // logs to serial
-            //   internalLedState = 1; // sets the state for logic
-            //   digitalWrite(LED_BUILTIN, HIGH); // sets the pin to high
-            // } else if (header.indexOf("GET /internalLed/off") >= 0) { // same as previous
-            //   Serial.println("Internal Led: off"); // logs to serial
-            //   internalLedState = 0; // sets state for logic
-            //   digitalWrite(LED_BUILTIN, LOW); // sets pin to low
-            // }
-            // // </Making decisions off of client header>
- 
-            client.println(); // use another newline to indicate the end of the HTTP response
- 
-            break; // break out of the while loop
- 
-          } else { // if you got a newline, then clear currentline
-            currentLine = "";
-          }
-        } else if (c != '\r') { // if you got anything else other than carriage return,
-          currentLine += c;     // add to end of currentLine
-        }
-      }
-    }
-    header = ""; // Clear the header in memory
-    
-    client.stop(); // Close the connection
- 
-    Serial.println("Client disconnected.");
-    Serial.println("");
- 
-    Serial.print("Time to process request: ");// DEBUG INFO FOR PERFORMANCE MEASUREMENTS
-    Serial.print(millis() - previous_time);
-    Serial.println("ms");
-  } else { // otherwise use this time to populate json
-    
+  // wait for incoming connection
+  WiFiClient client = server.available();
+
+  if (!client) {
+    return;
   }
+
+  Serial.println("New client");
+
+  // read the request (ignore contents)
+  while (client.available()) {
+    client.read();
+  }
+
+  // NOTE: only fill up to certain point to avoid memory leak
+  // allocate temporary json document
+  JsonDocument doc; // TODO: switch to static json document (come back to me)
+
+  // create the timestamps array
+  JsonArray timestampValues = doc["timestamps"].to<JsonArray>();
+  JsonArray sensorValues0 = doc["sensor0"].to<JsonArray>();
+  JsonArray sensorValues1 = doc["sensor1"].to<JsonArray>();
+  JsonArray sensorValues2 = doc["sensor2"].to<JsonArray>();
+  JsonArray sensorValues3 = doc["sensor3"].to<JsonArray>();
+  JsonArray sensorValues4 = doc["sensor4"].to<JsonArray>();
+  JsonArray sensorValues5 = doc["sensor5"].to<JsonArray>();
+  JsonArray sensorValues6 = doc["sensor6"].to<JsonArray>();
+  JsonArray sensorValues7 = doc["sensor7"].to<JsonArray>();
+
+  // counter to avoid memory leak
+  int counter = 0;
+
+  // read in values from the queue
+  // append them to their corresponding json arrays
+  // increment the counter to avoid potential memory leak
+  while ((xQueueReceive(poll_queue, (void *)&newData, 0) == pdTRUE) && counter < poll_queue_len) { // while an item is successfully received and less than set amount of entries are stored
+    // add them to the json arrays
+    doc.createNestedArray
+    timestampValues
+  }
+
+
 }
- 
