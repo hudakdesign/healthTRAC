@@ -96,6 +96,26 @@ void setup()
   // create the queue
   poll_queue = xQueueCreate(poll_queue_len, sizeof(struct dataPoll));
 
+  // set up the network connection:
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
+  WiFi.setHostname(hostname);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    vTaskDelay(500);
+    Serial.print(".");
+  }
+
+  // print connection details
+  Serial.println("");
+  Serial.println("WiFi connected.");
+  Serial.print("IP Address: ");
+  Serial.println(WiFi.localIP());
+  Serial.print("Hostname: ");
+  Serial.println(WiFi.getHostname());
+
+  server.begin(); // starts up the webserver
+
   // start data collection task
   xTaskCreatePinnedToCore(collectSensorData,
                           "Collect Sensor Data",
