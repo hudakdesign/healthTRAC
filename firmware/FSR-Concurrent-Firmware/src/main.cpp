@@ -22,8 +22,15 @@ struct dataPoll
 // Globals:
 static QueueHandle_t poll_queue;
 
+// Utility Functions:
+// provides synthetic data for testing purposes
+int getSyntheticSensorValue(int timestamp, int idx) {
+  return (int) ((sin(timestamp * (idx + 1) * 0.01) + 1) * 4096 / 2); // returns int value simulating fsr output
+}
+
 // Tasks:
 // Task: every 10 ms, get data from each sensor
+// Higher priority (this will always execute when it needs to)
 void collectSensorData(void *parameters)
 {
   struct dataPoll data; // initializes struct instance for thread
@@ -39,8 +46,11 @@ void collectSensorData(void *parameters)
       // get the value
 
       // store it in the data struct
-      data.sensor_readings[i] = 0;
+      data.sensor_readings[i] = getSyntheticSensorValue(data.timestamp, i);
+      Serial.print(data.sensor_readings[i]);
+      Serial.print(" ");
     }
+    Serial.println();
 
     // copy it to the queue because it is now ready
     if (xQueueSend(poll_queue, (void *)&data, 0) != pdTRUE) {
