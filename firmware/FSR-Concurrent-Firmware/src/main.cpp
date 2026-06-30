@@ -3,11 +3,9 @@
 #include <ArduinoJson.h>
 #include <StreamUtils.h>
 
-#if CONFIG_FREERTOS_UNICORE
-static const BaseType_t app_cpu = 0;
-#else
+// Configure cores:
+static const BaseType_t pro_cpu = 0;
 static const BaseType_t app_cpu = 1;
-#endif
 
 // Settings:
 static const int num_fsrs = 8;
@@ -118,9 +116,9 @@ void setup()
                           "Collect Sensor Data",
                           2048,
                           NULL,
-                          2, // higher priority than main (data must be collected on time)
+                          1, // priority doesnt matter, this is the only thing running on procore
                           NULL,
-                          app_cpu);
+                          pro_cpu);
 }
 
 // This loop will handle the webserver sending information from the queue
