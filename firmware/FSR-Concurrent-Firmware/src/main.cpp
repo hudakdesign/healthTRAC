@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <ArduinoJson.h>
+#include <StreamUtils.h>
 
 #if CONFIG_FREERTOS_UNICORE
 static const BaseType_t app_cpu = 0;
@@ -168,9 +169,31 @@ void loop() {
   // increment the counter to avoid potential memory leak
   while ((xQueueReceive(poll_queue, (void *)&newData, 0) == pdTRUE) && counter < poll_queue_len) { // while an item is successfully received and less than set amount of entries are stored
     // add them to the json arrays
-    doc.createNestedArray
-    timestampValues
+    timestampValues.add(newData.timestamp);
+    sensorValues0.add(newData.sensor_readings[0]);
+    sensorValues1.add(newData.sensor_readings[1]);
+    sensorValues2.add(newData.sensor_readings[2]);
+    sensorValues3.add(newData.sensor_readings[3]);
+    sensorValues4.add(newData.sensor_readings[4]);
+    sensorValues5.add(newData.sensor_readings[5]);
+    sensorValues6.add(newData.sensor_readings[6]);
+    sensorValues7.add(newData.sensor_readings[7]);
+
+    counter++;
   }
 
+  // Write response headers
+  client.println(F("HTTP/1.0 200 OK"));
+  client.println(F("Content-Type: application/json"));
+  client.println(F("Connection: close"));
+  client.print(F("Content-Length: "));
+  client.println(measureJson(doc));
+  client.println();
 
+  // Write buffered doc
+  WriteBufferingStream bufferedWiFiClient(client, 8192);
+  serializeJson(doc, bufferedWiFiClient);
+  bufferedWiFiClient.flush();
+
+  client.stop();
 }
