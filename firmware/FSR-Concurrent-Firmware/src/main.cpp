@@ -16,15 +16,14 @@ static const int poll_seconds_stored = 60;                         // store up t
 static const int poll_queue_len = poll_rate * poll_seconds_stored; // stores 10 seconds of polls at 100 hz
 
 // network credentials:
-const char* ssid = "CBI IoT";
-const char* password = "cbir00lz";
-const char* hostname = "fsr-alpha";
+const char *ssid = "CBI IoT";
+const char *password = "cbir00lz";
+const char *hostname = "fsr-alpha";
 
 // server settings:
 const int timeout_time = 2000;
 const int server_port = 80;
 WiFiServer server(server_port);
-
 
 // Struct declaration
 struct dataPoll
@@ -40,13 +39,8 @@ String header; // variable to store http request
 unsigned long current_time = millis();
 unsigned long previous_time = 0;
 
-
-// Utility Functions:
-// provides synthetic data for testing purposes
-int getSyntheticSensorValue(int timestamp, int idx)
-{
-  return (int)((sin(timestamp * (idx + 1) * 0.01) + 1) * 4096 / 2); // returns int value simulating fsr output
-}
+// Declaring utility functions:
+int getSyntheticSensorValue(int, int);
 
 // Tasks:
 // Task: every 10 ms, get data from each sensor
@@ -103,7 +97,8 @@ void setup()
   Serial.println(ssid);
   WiFi.setHostname(hostname);
   WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
+  while (WiFi.status() != WL_CONNECTED)
+  {
     vTaskDelay(500);
     Serial.print(".");
   }
@@ -129,20 +124,23 @@ void setup()
 }
 
 // This loop will handle the webserver sending information from the queue
-void loop() {
+void loop()
+{
   static struct dataPoll newData;
 
   // wait for incoming connection
   WiFiClient client = server.available();
 
-  if (!client) {
+  if (!client)
+  {
     return;
   }
 
   Serial.println("New client");
 
   // read the request (ignore contents)
-  while (client.available()) {
+  while (client.available())
+  {
     client.read();
   }
 
@@ -167,7 +165,8 @@ void loop() {
   // read in values from the queue
   // append them to their corresponding json arrays
   // increment the counter to avoid potential memory leak
-  while ((xQueueReceive(poll_queue, (void *)&newData, 0) == pdTRUE) && counter < poll_queue_len) { // while an item is successfully received and less than set amount of entries are stored
+  while ((xQueueReceive(poll_queue, (void *)&newData, 0) == pdTRUE) && counter < poll_queue_len)
+  { // while an item is successfully received and less than set amount of entries are stored
     // add them to the json arrays
     timestampValues.add(newData.timestamp);
     sensorValues0.add(newData.sensor_readings[0]);
@@ -196,4 +195,11 @@ void loop() {
   bufferedWiFiClient.flush();
 
   client.stop();
+}
+
+// Utility Functions:
+// Return synthetic data output
+int getSyntheticSensorValue(int timestamp, int idx)
+{
+  return (int)((sin(timestamp * (idx + 1) * 0.01) + 1) * 4096 / 2); // returns int value simulating fsr output
 }
