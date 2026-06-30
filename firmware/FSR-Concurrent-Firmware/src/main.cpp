@@ -10,7 +10,7 @@ static const BaseType_t app_cpu = 1;
 // Settings:
 static const int num_fsrs = 8;
 static const int poll_rate = 100;                                  // 100 hz
-static const int poll_seconds_stored = 60;                         // store up to 10 seconds of polls
+static const int poll_seconds_stored = 30;                         // store up to 10 seconds of polls
 static const int poll_queue_len = poll_rate * poll_seconds_stored; // stores 10 seconds of polls at 100 hz
 
 // pin numbers:
@@ -62,15 +62,18 @@ void collectSensorData(void *parameters)
 
       // store it in the data struct
       data.sensor_readings[i] = getSyntheticSensorValue(data.timestamp, i);
-      Serial.print(data.sensor_readings[i]);
-      Serial.print(" ");
+      // Serial.print(data.sensor_readings[i]);
+      // Serial.print(" ");
     }
-    Serial.println();
+    // Serial.println();
 
     // copy it to the queue because it is now ready
     if (xQueueSend(poll_queue, (void *)&data, 0) != pdTRUE)
     {
-      Serial.println("Queue full"); // for now print out debug data to confirm that queue fills up
+      // Serial.println("Queue full"); // for now print out debug data to confirm that queue fills up
+      digitalWrite(led_pin, HIGH);
+      vTaskDelay(50 / portTICK_PERIOD_MS);
+      digitalWrite(led_pin, LOW);
     }
 
     // wait until it is time for the next poll
@@ -197,7 +200,7 @@ void loop()
   client.println();
 
   // Write buffered doc
-  WriteBufferingStream bufferedWiFiClient(client, 1024 * 32);
+  WriteBufferingStream bufferedWiFiClient(client, 1024 * 1); // normally 32kb
   serializeJson(doc, bufferedWiFiClient);
   bufferedWiFiClient.flush();
 
