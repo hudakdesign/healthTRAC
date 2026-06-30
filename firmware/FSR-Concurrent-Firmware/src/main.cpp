@@ -13,6 +13,9 @@ static const int poll_rate = 100;                                  // 100 hz
 static const int poll_seconds_stored = 60;                         // store up to 10 seconds of polls
 static const int poll_queue_len = poll_rate * poll_seconds_stored; // stores 10 seconds of polls at 100 hz
 
+// pin numbers:
+static const int led_pin = 13;
+
 // network credentials:
 const char *ssid = "CBI IoT";
 const char *password = "cbir00lz";
@@ -82,6 +85,9 @@ void setup()
   // Initialize serial
   Serial.begin(115200);
 
+  // set led pin to output
+  pinMode(led_pin, OUTPUT);
+
   // wait to start
   vTaskDelay(2000 / portTICK_PERIOD_MS);
   Serial.println();
@@ -136,6 +142,9 @@ void loop()
 
   Serial.println("New client");
 
+  // when a new client connects: turn led on
+  digitalWrite(led_pin, HIGH);
+
   // read the request (ignore contents)
   while (client.available())
   {
@@ -180,19 +189,22 @@ void loop()
   }
 
   // Write response headers
-  client.println(F("HTTP/1.0 200 OK"));
-  client.println(F("Content-Type: application/json"));
-  client.println(F("Connection: close"));
-  client.print(F("Content-Length: "));
+  client.println("HTTP/1.0 200 OK");
+  client.println("Content-Type: application/json");
+  client.println("Connection: close");
+  client.print("Content-Length: ");
   client.println(measureJson(doc));
   client.println();
 
   // Write buffered doc
-  WriteBufferingStream bufferedWiFiClient(client, 8192);
+  WriteBufferingStream bufferedWiFiClient(client, 1024 * 32);
   serializeJson(doc, bufferedWiFiClient);
   bufferedWiFiClient.flush();
 
-  client.stop();
+  client.stop(); // higher priority than main (data must be collected on time)
+  
+  // when the client disconnects: turn off the led
+  digitalWrite(led_pin, LOW);
 }
 
 // Utility Functions:
