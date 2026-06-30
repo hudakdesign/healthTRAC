@@ -1,4 +1,4 @@
-DEBUG = True
+DEBUG = False
 PORT = 5002
 MAX_CSV_AGE = 1 * 60 * 60
 
