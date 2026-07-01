@@ -7,14 +7,22 @@
 static const BaseType_t pro_cpu = 0;
 static const BaseType_t app_cpu = 1;
 
+// Pin numbers:
+// led
+static const int led_pin = 13;
+
+// mux
+static const int selection_pins[] = {8, 9, 10, 11};
+static const int mux_output_pin = A0;
+static const int num_channels = 16;
+
 // Settings:
 static const int num_fsrs = 8;
 static const int poll_rate = 100;                                  // 100 hz
 static const int poll_seconds_stored = 20;                         // store up to 10 seconds of polls
 static const int poll_queue_len = poll_rate * poll_seconds_stored; // stores 10 seconds of polls at 100 hz
 
-// pin numbers:
-static const int led_pin = 13;
+
 
 // network credentials:
 const char *ssid = "CBI IoT";
@@ -42,6 +50,9 @@ unsigned long previous_time = 0;
 
 // Declaring utility functions:
 int getSyntheticSensorValue(int, int);
+void setMuxChannel(int);
+int getMuxOutput(int, int);
+int getKBit(int, int);
 
 // Tasks:
 // Task: every 10 ms, get data from each sensor
@@ -61,7 +72,7 @@ void collectSensorData(void *parameters)
       // get the value
 
       // store it in the data struct
-      data.sensor_readings[i] = getSyntheticSensorValue(data.timestamp, i);
+      data.sensor_readings[i] = getMuxOutput(i, mux_output_pin);
       // Serial.print(data.sensor_readings[i]);
       // Serial.print(" ");
     }
@@ -90,6 +101,12 @@ void setup()
 
   // set led pin to output
   pinMode(led_pin, OUTPUT);
+
+  // configure selection pins
+  for (int i; i < (sizeof(selection_pins) / sizeof(int)); i++)
+  {
+    pinMode(selection_pins[i], OUTPUT);
+  }
 
   // wait to start
   vTaskDelay(2000 / portTICK_PERIOD_MS);
@@ -219,5 +236,44 @@ void loop()
 // Return synthetic data output
 int getSyntheticSensorValue(int timestamp, int idx)
 {
-  return (int)((sin(timestamp * (idx + 1) * 0.01) + 1) * 4096 / 2); // returns int value simulating fsr output
+  return 16;
+  // return (int)((sin(timestamp * (idx + 1) * 0.01) + 1) * 4096 / 2); // returns int value simulating fsr output
+}
+
+// sets selection pins to tell mux which channel to provide
+void setMuxChannel(int channel)
+{
+  // Serial.println("1");
+  // convert channel number to binary (4-bits)
+  // loop through each selection pin, and assign them based on selection bit
+  for (int i = 0; i < (sizeof(selection_pins) / sizeof(int)); i++)
+  {
+    // Serial.println("2");
+    // if the i'th bit of channel is 1:
+    if (getKBit(channel, i))
+    {
+      // set the selection pin to high
+      digitalWrite(selection_pins[i], HIGH);
+    }
+    else
+    {
+      // otherwise set the selection pin to low
+      digitalWrite(selection_pins[i], LOW);
+    }
+  }
+}
+
+// gets the analog output of the mux
+int getMuxOutput(int channel, int output_pin) {
+  setMuxChannel(channel);
+  return analogRead(output_pin);
+}
+
+// extracts the k'th bit from n
+int getKBit(int n, int k)
+{
+  // Serial.println("3");
+  int mask = 1 << k;
+  int masked_n = n & mask;
+  return masked_n >> k;
 }
