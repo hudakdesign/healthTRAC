@@ -10,7 +10,7 @@ static const BaseType_t app_cpu = 1;
 // Settings:
 static const int num_fsrs = 8;
 static const int poll_rate = 100;                                  // 100 hz
-static const int poll_seconds_stored = 30;                         // store up to 10 seconds of polls
+static const int poll_seconds_stored = 20;                         // store up to 10 seconds of polls
 static const int poll_queue_len = poll_rate * poll_seconds_stored; // stores 10 seconds of polls at 100 hz
 
 // pin numbers:
@@ -106,7 +106,12 @@ void setup()
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED)
   {
-    vTaskDelay(500);
+    // blinky and print .
+    digitalWrite(led_pin, HIGH);
+    vTaskDelay(250 / portTICK_PERIOD_MS);
+    digitalWrite(led_pin, LOW);
+    vTaskDelay(250 / portTICK_PERIOD_MS);
+
     Serial.print(".");
   }
 
@@ -175,7 +180,7 @@ void loop()
   // read in values from the queue
   // append them to their corresponding json arrays
   // increment the counter to avoid potential memory leak
-  while ((xQueueReceive(poll_queue, (void *)&newData, 0) == pdTRUE) && counter < poll_queue_len)
+  while ((xQueueReceive(poll_queue, (void *)&newData, 0) == pdTRUE) && counter < poll_queue_len * 2)
   { // while an item is successfully received and less than set amount of entries are stored
     // add them to the json arrays
     timestampValues.add(newData.timestamp);
