@@ -7,11 +7,14 @@ static const int NUM_ACCELERATION_VALUES = 3;
 
 // polling constants
 static const int POLLING_RATE = 100;     // hz
-static const int POLLING_TIME_SECS = 60; // how long we need to collect data
+static const int POLLING_TIME_SECS = 10; // how long we need to collect data
 
 static const int POLLING_TIME_MS = POLLING_TIME_SECS * 1000;            // converted to ms
 static const int MS_BETWEEN_POLLS = 1000 / POLLING_RATE;                // how long between polls
 static const int MAX_QUEUED_POLLS = POLLING_TIME_MS / MS_BETWEEN_POLLS; // polling time / how long between polls
+
+// ble server constants
+static const int BLINK_RATE = 250;
 
 // Struct declarations:
 struct imuDataPoll
@@ -28,7 +31,7 @@ static LSM6DS3 myIMU(I2C_MODE, 0x6A);
 static QueueHandle_t pollQueue;
 
 // put function declarations here:
-void plotImuData();
+// void plotImuData();
 imuDataPoll getImuData();
 // void printStoredDataPoll(int);
 
@@ -40,10 +43,7 @@ void collectSensorData(void *parameters)
   static imuDataPoll newPoll;
 
   // populate the new poll
-  newPoll.timestamp = millis();
-  newPoll.accelerationValues[0] = myIMU.readFloatAccelX();
-  newPoll.accelerationValues[1] = myIMU.readFloatAccelY();
-  newPoll.accelerationValues[2] = myIMU.readFloatAccelZ();
+  newPoll = getImuData();
 
   // push that poll to the queue
   if (xQueueSend(pollQueue, (void *)&newPoll, 0) != pdTRUE) {
@@ -54,7 +54,7 @@ void collectSensorData(void *parameters)
   }
 
   // wait for next poll
-  vTaskDelay(MS_BETWEEN_POLLS / portTICK_PERIOD_MS);
+  vTaskDelay(pdMS_TO_TICKS(POLLING_TIME_MS));
 }
 
 void setup()
@@ -77,6 +77,7 @@ void setup()
 
   // set pin modes
   pinMode(LED_RED, OUTPUT);
+  pinMode(LED_BLUE, OUTPUT);
 
   // create poll queue
   pollQueue = xQueueCreate(MAX_QUEUED_POLLS, sizeof(imuDataPoll));
@@ -84,7 +85,7 @@ void setup()
   // create producer thread
   xTaskCreate(collectSensorData,
               "Data Collection Thread",
-              2048,
+              4096,
               NULL,
               2, // higher priority than consumer thread (it should always collect on time)
               NULL);
@@ -98,27 +99,27 @@ void setup()
 void loop()
 {
   digitalWrite(LED_BLUE, HIGH);
-  vTaskDelay(250 / portTICK_PERIOD_MS);
+  vTaskDelay(pdMS_TO_TICKS(BLINK_RATE));
   digitalWrite(LED_BLUE, LOW);
-  vTaskDelay(250 / portTICK_PERIOD_MS);
+  vTaskDelay(pdMS_TO_TICKS(BLINK_RATE));
 }
 
-// put function definitions here:
-void plotImuData()
-{
-  static float currentXAccel, currentYAccel, currentZAccel = 0;
+// // put function definitions here:
+// void plotImuData()
+// {
+//   static float currentXAccel, currentYAccel, currentZAccel = 0;
 
-  currentXAccel = myIMU.readFloatAccelX();
-  currentYAccel = myIMU.readFloatAccelY();
-  currentZAccel = myIMU.readFloatAccelZ();
+//   currentXAccel = myIMU.readFloatAccelX();
+//   currentYAccel = myIMU.readFloatAccelY();
+//   currentZAccel = myIMU.readFloatAccelZ();
 
-  Serial.println(">x_accel:" + (String)currentXAccel);
-  Serial.println(">y_accel:" + (String)currentYAccel);
-  Serial.println(">z_accel:" + (String)currentZAccel);
-}
+//   Serial.println(">x_accel:" + (String)currentXAccel);
+//   Serial.println(">y_accel:" + (String)currentYAccel);
+//   Serial.println(">z_accel:" + (String)currentZAccel);
+// }
 
 // returns populated imu datapoll
-imuDataPoll getImuData()
+inline imuDataPoll getImuData()
 {
   imuDataPoll newPoll;
 
@@ -132,12 +133,3 @@ imuDataPoll getImuData()
 
   return newPoll;
 }
-
-// void printStoredDataPoll(int pollNumber)
-// {
-//   Serial.println(">poll_number:" + (String)pollNumber + "|t"); // includes text field for the current poll number
-//   Serial.println(">timestamp_ms:" + (String)pollBuffer[pollNumber].timestamp + "|t");
-//   Serial.println(">x_accel:" + (String)pollBuffer[pollNumber].accelerationValues[0]);
-//   Serial.println(">y_accel:" + (String)pollBuffer[pollNumber].accelerationValues[1]);
-//   Serial.println(">z_accel:" + (String)pollBuffer[pollNumber].accelerationValues[2]);
-// }
