@@ -30,7 +30,7 @@ static QueueHandle_t pollQueue;
 // put function declarations here:
 void plotImuData();
 imuDataPoll getImuData();
-void printStoredDataPoll(int);
+// void printStoredDataPoll(int);
 
 // Tasks:
 // Get data from IMU and push to queue,
@@ -82,28 +82,25 @@ void setup()
   pollQueue = xQueueCreate(MAX_QUEUED_POLLS, sizeof(imuDataPoll));
 
   // create producer thread
+  xTaskCreate(collectSensorData,
+              "Data Collection Thread",
+              2048,
+              NULL,
+              2, // higher priority than consumer thread (it should always collect on time)
+              NULL);
 
   // create consumer thread
+  // not yet implemented
 }
 
+// This will become the bluetooth server (consumer part)
+// for now it blinks blue to represent "blue"tooth
 void loop()
 {
-  static int pollNumber = 0;
-
-  if (pollNumber < MAX_QUEUED_POLLS)
-  {
-  }
-  // update poll buffer with new poll
-  pollBuffer[pollNumber] = getImuData(); // mod loops around when the buffer fills up
-
-  // print out data from stored poll
-  printStoredDataPoll(pollNumber);
-
-  // increment poll number
-  pollNumber++;
-
-  // wait for next poll
-  delay(MS_BETWEEN_POLLS);
+  digitalWrite(LED_BLUE, HIGH);
+  vTaskDelay(250 / portTICK_PERIOD_MS);
+  digitalWrite(LED_BLUE, LOW);
+  vTaskDelay(250 / portTICK_PERIOD_MS);
 }
 
 // put function definitions here:
@@ -136,11 +133,11 @@ imuDataPoll getImuData()
   return newPoll;
 }
 
-void printStoredDataPoll(int pollNumber)
-{
-  Serial.println(">poll_number:" + (String)pollNumber + "|t"); // includes text field for the current poll number
-  Serial.println(">timestamp_ms:" + (String)pollBuffer[pollNumber].timestamp + "|t");
-  Serial.println(">x_accel:" + (String)pollBuffer[pollNumber].accelerationValues[0]);
-  Serial.println(">y_accel:" + (String)pollBuffer[pollNumber].accelerationValues[1]);
-  Serial.println(">z_accel:" + (String)pollBuffer[pollNumber].accelerationValues[2]);
-}
+// void printStoredDataPoll(int pollNumber)
+// {
+//   Serial.println(">poll_number:" + (String)pollNumber + "|t"); // includes text field for the current poll number
+//   Serial.println(">timestamp_ms:" + (String)pollBuffer[pollNumber].timestamp + "|t");
+//   Serial.println(">x_accel:" + (String)pollBuffer[pollNumber].accelerationValues[0]);
+//   Serial.println(">y_accel:" + (String)pollBuffer[pollNumber].accelerationValues[1]);
+//   Serial.println(">z_accel:" + (String)pollBuffer[pollNumber].accelerationValues[2]);
+// }
