@@ -24,9 +24,6 @@ struct imuDataPoll
 // imu class instance
 static LSM6DS3 myIMU(I2C_MODE, 0x6A);
 
-// data storage
-static imuDataPoll pollBuffer[MAX_QUEUED_POLLS];
-
 // queue handle
 static QueueHandle_t pollQueue;
 
@@ -40,6 +37,24 @@ void printStoredDataPoll(int);
 // then wait until it is time for the next poll
 void collectSensorData(void *parameters)
 {
+  static imuDataPoll newPoll;
+
+  // populate the new poll
+  newPoll.timestamp = millis();
+  newPoll.accelerationValues[0] = myIMU.readFloatAccelX();
+  newPoll.accelerationValues[1] = myIMU.readFloatAccelY();
+  newPoll.accelerationValues[2] = myIMU.readFloatAccelZ();
+
+  // push that poll to the queue
+  if (xQueueSend(pollQueue, (void *)&newPoll, 0) != pdTRUE) {
+    // if the queue is full, turn on the red led
+    digitalWrite(LED_RED, HIGH);
+  } else {
+    digitalWrite(LED_RED, LOW);
+  }
+
+  // wait for next poll
+  vTaskDelay(MS_BETWEEN_POLLS / portTICK_PERIOD_MS);
 }
 
 void setup()
