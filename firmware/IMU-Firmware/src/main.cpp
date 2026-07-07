@@ -6,12 +6,12 @@
 static const int NUM_ACCELERATION_VALUES = 3;
 
 // polling constants
-static const int POLLING_RATE = 100;    // hz
-static const int POLLING_TIME_MINS = 5; // how long we need to collect data
+static const int POLLING_RATE = 100;     // hz
+static const int POLLING_TIME_SECS = 60; // how long we need to collect data
 
-static const int POLLING_TIME_MS = POLLING_TIME_MINS * 60 * 1000;       // converted to ms
+static const int POLLING_TIME_MS = POLLING_TIME_SECS * 1000;            // converted to ms
 static const int MS_BETWEEN_POLLS = 1000 / POLLING_RATE;                // how long between polls
-static const int MAX_STORED_POLLS = POLLING_TIME_MS / MS_BETWEEN_POLLS; // polling time / how long between polls
+static const int MAX_QUEUED_POLLS = POLLING_TIME_MS / MS_BETWEEN_POLLS; // polling time / how long between polls
 
 // Struct declarations:
 struct imuDataPoll
@@ -25,10 +25,22 @@ struct imuDataPoll
 static LSM6DS3 myIMU(I2C_MODE, 0x6A);
 
 // data storage
-static imuDataPoll pollBuffer[MAX_STORED_POLLS];
+static imuDataPoll pollBuffer[MAX_QUEUED_POLLS];
+
+// queue handle
+static QueueHandle_t pollQueue;
 
 // put function declarations here:
 void plotImuData();
+imuDataPoll getImuData();
+void printStoredDataPoll(int);
+
+// Tasks:
+// Get data from IMU and push to queue,
+// then wait until it is time for the next poll
+void collectSensorData(void *parameters)
+{
+}
 
 void setup()
 {
@@ -50,11 +62,32 @@ void setup()
 
   // set pin modes
   pinMode(LED_RED, OUTPUT);
+
+  // create poll queue
+  pollQueue = xQueueCreate(MAX_QUEUED_POLLS, sizeof(imuDataPoll));
+
+  // create producer thread
+
+  // create consumer thread
 }
 
 void loop()
 {
-  plotImuData();
+  static int pollNumber = 0;
+
+  if (pollNumber < MAX_QUEUED_POLLS)
+  {
+  }
+  // update poll buffer with new poll
+  pollBuffer[pollNumber] = getImuData(); // mod loops around when the buffer fills up
+
+  // print out data from stored poll
+  printStoredDataPoll(pollNumber);
+
+  // increment poll number
+  pollNumber++;
+
+  // wait for next poll
   delay(MS_BETWEEN_POLLS);
 }
 
@@ -70,4 +103,29 @@ void plotImuData()
   Serial.println(">x_accel:" + (String)currentXAccel);
   Serial.println(">y_accel:" + (String)currentYAccel);
   Serial.println(">z_accel:" + (String)currentZAccel);
+}
+
+// returns populated imu datapoll
+imuDataPoll getImuData()
+{
+  imuDataPoll newPoll;
+
+  // set timestamp
+  newPoll.timestamp = millis();
+
+  // get accel values
+  newPoll.accelerationValues[0] = myIMU.readFloatAccelX();
+  newPoll.accelerationValues[1] = myIMU.readFloatAccelY();
+  newPoll.accelerationValues[2] = myIMU.readFloatAccelZ();
+
+  return newPoll;
+}
+
+void printStoredDataPoll(int pollNumber)
+{
+  Serial.println(">poll_number:" + (String)pollNumber + "|t"); // includes text field for the current poll number
+  Serial.println(">timestamp_ms:" + (String)pollBuffer[pollNumber].timestamp + "|t");
+  Serial.println(">x_accel:" + (String)pollBuffer[pollNumber].accelerationValues[0]);
+  Serial.println(">y_accel:" + (String)pollBuffer[pollNumber].accelerationValues[1]);
+  Serial.println(">z_accel:" + (String)pollBuffer[pollNumber].accelerationValues[2]);
 }
