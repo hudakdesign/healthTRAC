@@ -54,7 +54,17 @@ void setup()
 
 void loop()
 {
-  plotImuData();
+  static bool justPolled = false;
+
+  if ((millis() % MS_BETWEEN_POLLS) && !(justPolled))
+  {
+    plotImuData();
+    justPolled = true;
+  }
+  else
+  {
+    justPolled = false;
+  }
 }
 
 // put function definitions here:
