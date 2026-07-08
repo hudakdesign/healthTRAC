@@ -80,9 +80,9 @@ void collectSensorData(void *parameters)
     if (xQueueSend(pollQueue, (void *)&data, 0) != pdTRUE)
     {
       // Serial.println("Queue full"); // for now print out debug data to confirm that queue fills up
-      digitalWrite(LED_RED, HIGH);
+      digitalWrite(LED_RED, LOW); // rgb led uses low for turning on
     } else {
-      digitalWrite(LED_RED, LOW);
+      digitalWrite(LED_RED, HIGH);
     }
 
     // wait until it is time for the next poll
