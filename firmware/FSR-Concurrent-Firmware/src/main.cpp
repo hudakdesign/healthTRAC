@@ -4,23 +4,20 @@
 #include <StreamUtils.h>
 
 // Configure cores:
-static const BaseType_t pro_cpu = 0;
-static const BaseType_t app_cpu = 1;
+static const BaseType_t proCpu = 0;
+static const BaseType_t appCpu = 1;
 
 // Pin numbers:
-// led
-static const int led_pin = 13;
-
 // mux
-static const int selection_pins[] = {8, 9, 10, 11};
-static const int mux_output_pin = A0;
-static const int num_channels = 16;
+static const int selectionPins[] = {8, 9, 10, 11};
+static const int muxOutputPin = A0;
+static const int numChannels = 16;
 
 // Settings:
-static const int num_fsrs = 8;
-static const int poll_rate = 100;                                  // 100 hz
-static const int poll_seconds_stored = 20;                         // store up to 10 seconds of polls
-static const int poll_queue_len = poll_rate * poll_seconds_stored; // stores 10 seconds of polls at 100 hz
+static const int numFsrs = 8;
+static const int pollRate = 100;                                  // 100 hz
+static const int pollSecondsStored = 20;                         // store up to 10 seconds of polls
+static const int pollQueueLen = pollRate * pollSecondsStored; // stores 10 seconds of polls at 100 hz
 
 
 
@@ -30,23 +27,23 @@ const char *password = "cbir00lz";
 const char *hostname = "fsr-alpha";
 
 // server settings:
-const int timeout_time = 2000;
-const int server_port = 80;
-WiFiServer server(server_port);
+const int timeoutTime = 2000;
+const int serverPort = 80;
+WiFiServer server(serverPort);
 
 // Struct declaration
 struct dataPoll
 {
   int timestamp;          // timestamp when polls were taken
-  int sensor_readings[8]; // values from each fsr
+  int sensorReadings[8]; // values from each fsr
 };
 
 // Globals:
-static QueueHandle_t poll_queue;
+static QueueHandle_t pollQueue;
 
 String header; // variable to store http request
-unsigned long current_time = millis();
-unsigned long previous_time = 0;
+unsigned long currentTime = millis();
+unsigned long previousTime = 0;
 
 // Declaring utility functions:
 int getSyntheticSensorValue(int, int);
@@ -67,24 +64,24 @@ void collectSensorData(void *parameters)
     data.timestamp = millis();
 
     // loop through each sensor checking their values
-    for (int i = 0; i < num_fsrs; i++)
+    for (int i = 0; i < numFsrs; i++)
     {
       // get the value
 
       // store it in the data struct
-      data.sensor_readings[i] = getMuxOutput(i, mux_output_pin);
+      data.sensorReadings[i] = getMuxOutput(i, muxOutputPin);
       // Serial.print(data.sensor_readings[i]);
       // Serial.print(" ");
     }
     // Serial.println();
 
     // copy it to the queue because it is now ready
-    if (xQueueSend(poll_queue, (void *)&data, 0) != pdTRUE)
+    if (xQueueSend(pollQueue, (void *)&data, 0) != pdTRUE)
     {
       // Serial.println("Queue full"); // for now print out debug data to confirm that queue fills up
-      digitalWrite(led_pin, HIGH);
+      digitalWrite(LED_BUILTIN, HIGH);
       vTaskDelay(50 / portTICK_PERIOD_MS);
-      digitalWrite(led_pin, LOW);
+      digitalWrite(LED_BUILTIN, LOW);
     }
 
     // wait until it is time for the next poll
@@ -100,12 +97,12 @@ void setup()
   Serial.begin(115200);
 
   // set led pin to output
-  pinMode(led_pin, OUTPUT);
+  pinMode(LED_BUILTIN, OUTPUT);
 
   // configure selection pins
-  for (int i; i < (sizeof(selection_pins) / sizeof(int)); i++)
+  for (int i; i < (sizeof(selectionPins) / sizeof(int)); i++)
   {
-    pinMode(selection_pins[i], OUTPUT);
+    pinMode(selectionPins[i], OUTPUT);
   }
 
   // wait to start
@@ -114,7 +111,7 @@ void setup()
   Serial.println("--FSR Concurrent Firmware--");
 
   // create the queue
-  poll_queue = xQueueCreate(poll_queue_len, sizeof(struct dataPoll));
+  pollQueue = xQueueCreate(pollQueueLen, sizeof(struct dataPoll));
 
   // set up the network connection:
   Serial.print("Connecting to ");
@@ -124,9 +121,9 @@ void setup()
   while (WiFi.status() != WL_CONNECTED)
   {
     // blinky and print .
-    digitalWrite(led_pin, HIGH);
+    digitalWrite(LED_BUILTIN, HIGH);
     vTaskDelay(250 / portTICK_PERIOD_MS);
-    digitalWrite(led_pin, LOW);
+    digitalWrite(LED_BUILTIN, LOW);
     vTaskDelay(250 / portTICK_PERIOD_MS);
 
     Serial.print(".");
@@ -149,7 +146,7 @@ void setup()
                           NULL,
                           1, // priority doesnt matter, this is the only thing running on procore
                           NULL,
-                          pro_cpu);
+                          proCpu);
 }
 
 // This loop will handle the webserver sending information from the queue
@@ -168,7 +165,7 @@ void loop()
   Serial.println("New client");
 
   // when a new client connects: turn led on
-  digitalWrite(led_pin, HIGH);
+  digitalWrite(LED_BUILTIN, HIGH);
 
   // read the request (ignore contents)
   while (client.available())
@@ -197,18 +194,18 @@ void loop()
   // read in values from the queue
   // append them to their corresponding json arrays
   // increment the counter to avoid potential memory leak
-  while ((xQueueReceive(poll_queue, (void *)&newData, 0) == pdTRUE) && counter < poll_queue_len * 2)
+  while ((xQueueReceive(pollQueue, (void *)&newData, 0) == pdTRUE) && counter < pollQueueLen * 2)
   { // while an item is successfully received and less than set amount of entries are stored
     // add them to the json arrays
     timestampValues.add(newData.timestamp);
-    sensorValues0.add(newData.sensor_readings[0]);
-    sensorValues1.add(newData.sensor_readings[1]);
-    sensorValues2.add(newData.sensor_readings[2]);
-    sensorValues3.add(newData.sensor_readings[3]);
-    sensorValues4.add(newData.sensor_readings[4]);
-    sensorValues5.add(newData.sensor_readings[5]);
-    sensorValues6.add(newData.sensor_readings[6]);
-    sensorValues7.add(newData.sensor_readings[7]);
+    sensorValues0.add(newData.sensorReadings[0]);
+    sensorValues1.add(newData.sensorReadings[1]);
+    sensorValues2.add(newData.sensorReadings[2]);
+    sensorValues3.add(newData.sensorReadings[3]);
+    sensorValues4.add(newData.sensorReadings[4]);
+    sensorValues5.add(newData.sensorReadings[5]);
+    sensorValues6.add(newData.sensorReadings[6]);
+    sensorValues7.add(newData.sensorReadings[7]);
 
     counter++;
   }
@@ -229,7 +226,7 @@ void loop()
   client.stop(); // higher priority than main (data must be collected on time)
   
   // when the client disconnects: turn off the led
-  digitalWrite(led_pin, LOW);
+  digitalWrite(LED_BUILTIN, LOW);
 }
 
 // Utility Functions:
@@ -246,19 +243,19 @@ void setMuxChannel(int channel)
   // Serial.println("1");
   // convert channel number to binary (4-bits)
   // loop through each selection pin, and assign them based on selection bit
-  for (int i = 0; i < (sizeof(selection_pins) / sizeof(int)); i++)
+  for (int i = 0; i < (sizeof(selectionPins) / sizeof(int)); i++)
   {
     // Serial.println("2");
     // if the i'th bit of channel is 1:
     if (getKBit(channel, i))
     {
       // set the selection pin to high
-      digitalWrite(selection_pins[i], HIGH);
+      digitalWrite(selectionPins[i], HIGH);
     }
     else
     {
       // otherwise set the selection pin to low
-      digitalWrite(selection_pins[i], LOW);
+      digitalWrite(selectionPins[i], LOW);
     }
   }
 }

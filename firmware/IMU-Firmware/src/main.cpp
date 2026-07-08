@@ -28,7 +28,7 @@ struct imuDataPoll
 static LSM6DS3 myIMU(I2C_MODE, 0x6A);
 
 // queue handle
-static QueueHandle_t pollQueue;
+// static QueueHandle_t pollQueue;
 
 // put function declarations here:
 // void plotImuData();
@@ -40,21 +40,28 @@ imuDataPoll getImuData();
 // then wait until it is time for the next poll
 void collectSensorData(void *parameters)
 {
-  static imuDataPoll newPoll;
+  // static imuDataPoll newPoll;
 
-  // populate the new poll
-  newPoll = getImuData();
+  // // populate the new poll
+  // newPoll = getImuData();
 
-  // push that poll to the queue
-  if (xQueueSend(pollQueue, (void *)&newPoll, 0) != pdTRUE) {
-    // if the queue is full, turn on the red led
-    digitalWrite(LED_RED, HIGH);
-  } else {
-    digitalWrite(LED_RED, LOW);
-  }
+  // // push that poll to the queue
+  // if (xQueueSend(pollQueue, (void *)&newPoll, 0) != pdTRUE) {
+  //   // if the queue is full, turn on the red led
+  //   digitalWrite(LED_RED, HIGH);
+  // } else {
+  //   digitalWrite(LED_RED, LOW);
+  // }
 
-  // wait for next poll
-  vTaskDelay(pdMS_TO_TICKS(POLLING_TIME_MS));
+  // // wait for next poll
+  // vTaskDelay(pdMS_TO_TICKS(POLLING_TIME_MS));
+
+  // switch to blinky for testing
+  digitalWrite(LED_RED, HIGH);
+  vTaskDelay(pdMS_TO_TICKS(100));
+  digitalWrite(LED_RED, LOW);
+  vTaskDelay(pdMS_TO_TICKS(100));
+
 }
 
 void setup()
@@ -80,14 +87,14 @@ void setup()
   pinMode(LED_BLUE, OUTPUT);
 
   // create poll queue
-  pollQueue = xQueueCreate(MAX_QUEUED_POLLS, sizeof(imuDataPoll));
+  // pollQueue = xQueueCreate(MAX_QUEUED_POLLS, sizeof(imuDataPoll));
 
   // create producer thread
   xTaskCreate(collectSensorData,
               "Data Collection Thread",
-              4096,
+              2048,
               NULL,
-              2, // higher priority than consumer thread (it should always collect on time)
+              1, // higher priority than consumer thread (it should always collect on time)
               NULL);
 
   // create consumer thread
