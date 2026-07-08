@@ -69,7 +69,8 @@ void collectSensorData(void *parameters)
       // get the value
 
       // store it in the data struct
-      data.sensorReadings[i] = getMuxOutput(i, muxOutputPin);
+      // data.sensorReadings[i] = getMuxOutput(i, muxOutputPin);
+      data.sensorReadings[i] = getSyntheticSensorValue(data.timestamp, i); // code for when no fsr attached
       // Serial.print(data.sensor_readings[i]);
       // Serial.print(" ");
     }
@@ -79,9 +80,9 @@ void collectSensorData(void *parameters)
     if (xQueueSend(pollQueue, (void *)&data, 0) != pdTRUE)
     {
       // Serial.println("Queue full"); // for now print out debug data to confirm that queue fills up
-      digitalWrite(LED_BUILTIN, HIGH);
-      vTaskDelay(50 / portTICK_PERIOD_MS);
-      digitalWrite(LED_BUILTIN, LOW);
+      digitalWrite(LED_RED, HIGH);
+    } else {
+      digitalWrite(LED_RED, LOW);
     }
 
     // wait until it is time for the next poll
@@ -98,6 +99,7 @@ void setup()
 
   // set led pin to output
   pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(LED_RED, OUTPUT);
 
   // configure selection pins
   for (int i; i < (sizeof(selectionPins) / sizeof(int)); i++)
