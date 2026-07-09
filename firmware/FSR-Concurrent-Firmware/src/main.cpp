@@ -20,12 +20,10 @@ static const int POLL_SECONDS_STORED = 20;                         // store up t
 static const int POLL_QUEUE_LEN = POLL_RATE * POLL_SECONDS_STORED; // stores 10 seconds of polls at 100 hz
 
 static const int PRODUCER_THREAD_STACK_SIZE = 2048;
-static const int BUFFER_STREAM_SIZE = 1024; 
+static const int BUFFER_STREAM_SIZE = 1024;
 static const int MONITOR_SPEED = 115200;
 static const int START_DELAY = 2000;
 static const int BLINK_RATE = 250;
-
-
 
 // network credentials:
 const char *SSID = "CBI IoT";
@@ -42,7 +40,7 @@ WiFiServer server(SERVER_PORT);
 // Struct declaration
 struct dataPoll
 {
-  int timestamp;          // timestamp when polls were taken
+  int timestamp;         // timestamp when polls were taken
   int sensorReadings[8]; // values from each fsr
 };
 
@@ -89,7 +87,9 @@ void collectSensorData(void *parameters)
     {
       // Serial.println("Queue full"); // for now print out debug data to confirm that queue fills up
       digitalWrite(LED_RED, LOW); // rgb led uses low for turning on
-    } else {
+    }
+    else
+    {
       digitalWrite(LED_RED, HIGH);
     }
 
@@ -238,7 +238,7 @@ void loop()
   bufferedWiFiClient.flush();
 
   client.stop(); // higher priority than main (data must be collected on time)
-  
+
   // when the client disconnects: turn off the led
   digitalWrite(LED_BUILTIN, LOW);
 }
@@ -275,7 +275,8 @@ void setMuxChannel(int channel)
 }
 
 // gets the analog output of the mux
-int getMuxOutput(int channel, int output_pin) {
+int getMuxOutput(int channel, int output_pin)
+{
   setMuxChannel(channel);
   return analogRead(output_pin);
 }
