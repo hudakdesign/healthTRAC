@@ -18,7 +18,12 @@ static const int NUM_FSRS = 8;
 static const int POLL_RATE = 100;                                  // 100 hz
 static const int POLL_SECONDS_STORED = 20;                         // store up to 10 seconds of polls
 static const int POLL_QUEUE_LEN = POLL_RATE * POLL_SECONDS_STORED; // stores 10 seconds of polls at 100 hz
+
+static const int PRODUCER_THREAD_STACK_SIZE = 2048;
 static const int BUFFER_STREAM_SIZE = 1024; 
+static const int MONITOR_SPEED = 115200;
+static const int START_DELAY = 2000;
+static const int BLINK_RATE = 250;
 
 
 
@@ -89,7 +94,7 @@ void collectSensorData(void *parameters)
     }
 
     // wait until it is time for the next poll
-    vTaskDelay(1000 / 100 / portTICK_PERIOD_MS); // 1000 / 100: 100hz (every 10 ms)
+    vTaskDelay(1000 / POLL_RATE / portTICK_PERIOD_MS); // 1000 / 100: 100hz (every 10 ms)
   }
 }
 
@@ -98,7 +103,7 @@ void collectSensorData(void *parameters)
 void setup()
 {
   // Initialize serial
-  Serial.begin(115200);
+  Serial.begin(MONITOR_SPEED);
 
   // set led pin to output
   pinMode(LED_BUILTIN, OUTPUT);
@@ -111,7 +116,7 @@ void setup()
   }
 
   // wait to start
-  vTaskDelay(2000 / portTICK_PERIOD_MS);
+  vTaskDelay(START_DELAY / portTICK_PERIOD_MS);
   Serial.println();
   Serial.println("--FSR Concurrent Firmware--");
 
@@ -127,9 +132,9 @@ void setup()
   {
     // blinky and print .
     digitalWrite(LED_BUILTIN, HIGH);
-    vTaskDelay(250 / portTICK_PERIOD_MS);
+    vTaskDelay(BLINK_RATE / portTICK_PERIOD_MS);
     digitalWrite(LED_BUILTIN, LOW);
-    vTaskDelay(250 / portTICK_PERIOD_MS);
+    vTaskDelay(BLINK_RATE / portTICK_PERIOD_MS);
 
     Serial.print(".");
   }
@@ -147,7 +152,7 @@ void setup()
   // start data collection task
   xTaskCreatePinnedToCore(collectSensorData,
                           "Collect Sensor Data",
-                          2048,
+                          PRODUCER_THREAD_STACK_SIZE,
                           NULL,
                           1, // priority doesnt matter, this is the only thing running on procore
                           NULL,
