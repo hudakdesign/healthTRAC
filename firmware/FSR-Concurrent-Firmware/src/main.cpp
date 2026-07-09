@@ -208,7 +208,7 @@ void loop()
   // // read in values from the queue
   // // append them to their corresponding json arrays
   // // increment the counter to avoid potential memory leak
-  while ((xQueueReceive(pollQueue, (void *)&newData, 0) == pdTRUE) && counter < POLL_QUEUE_LEN * 2)
+  while ((xQueueReceive(pollQueue, (void *)&newData, 0) == pdTRUE) && counter < POLL_QUEUE_LEN)
   { // while an item is successfully received and less than set amount of entries are stored
     // add them to the json arrays
     timestamps.add(newData.timestamp);
