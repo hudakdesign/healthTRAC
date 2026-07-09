@@ -144,6 +144,9 @@ def main():
 
     print("---Starting FSR Mini Dashboard---")
 
+    # create db (if it doesnt exist)
+    create_database()
+
     # create threads
     get_fsr_data_thread = threading.Thread(target=get_fsr_data)
     process_fsr_data_thread = threading.Thread(target=process_fsr_data)
