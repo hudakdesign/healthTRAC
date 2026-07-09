@@ -110,8 +110,8 @@ def process_fsr_data():
             # add to db
             add_fsr_data(conn, fsr_data)
 
-            print(f"Data poll: {new_data_poll}")
-            print(f"Data poll -> db compatible {fsr_data}")
+            # print(f"Data poll: {new_data_poll}")
+            # print(f"Data poll -> db compatible {fsr_data}")
 
 
 # webserver: TODO
