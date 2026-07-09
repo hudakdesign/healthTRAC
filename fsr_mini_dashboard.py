@@ -117,12 +117,7 @@ def process_fsr_data():
 def serve_flask_app():
     pass
 
-
-def main():
-    global running
-
-    print("---Starting FSR Mini Dashboard---")
-
+def create_database():
     # create database
     create_table = '''CREATE TABLE IF NOT EXISTS fsr_one (
                             poll_id INT AUTO_INCREMENT PRIMARY KEY,
@@ -141,7 +136,10 @@ def main():
         cursor = conn.cursor()
         cursor.execute(create_table)
 
-    # exit()
+def main():
+    global running
+
+    print("---Starting FSR Mini Dashboard---")
 
     # create threads
     get_fsr_data_thread = threading.Thread(target=get_fsr_data)
