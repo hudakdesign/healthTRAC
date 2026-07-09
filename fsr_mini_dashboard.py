@@ -5,6 +5,7 @@ import requests
 import json
 import time
 import sqlite3
+import subprocess
 
 # Constants
 MAX_QUEUE_LEN = 5000
@@ -118,6 +119,9 @@ def serve_flask_app():
     pass
 
 def create_database():
+    # create data directory
+    subprocess.call(["mkdir", "-p", "data"])
+
     create_table = '''CREATE TABLE IF NOT EXISTS fsr_one (
                             poll_id INT AUTO_INCREMENT PRIMARY KEY,
                             timestamp INT,
