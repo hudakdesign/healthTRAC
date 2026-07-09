@@ -4,11 +4,13 @@ import queue
 import requests
 import json
 import time
+import sqlite3
 
 # Constants
 MAX_QUEUE_LEN = 5000
 FSR_URL = "http://10.0.1.27/"
 TIME_BETWEEN_POLLS = 5  # seconds
+DATABASE_FILENAME = "data/test.db"
 
 # Globals
 running = True
@@ -32,6 +34,7 @@ fsr_data_queue = queue.Queue(maxsize=MAX_QUEUE_LEN)
 
 # producer:
 #   makes requests to fsr-subsystem at a fixed rate. parses responses and puts them into a queue
+# DONE
 def get_fsr_data():
     global running
 
@@ -69,20 +72,48 @@ def get_fsr_data():
 
 
 # consumer:
-#   1. takes data out of the queue, saves it to the db
-#   2. next load data into a pandas df
-#   3. extract aggregate data from this df (averages for every half second maybe...)
-#   4. push aggregate data to rolling buffer
+#   1. takes data out of the queue, saves it to the db TODO
+#   2. next load data into a pandas df TODO
+#   3. extract aggregate data from this df (averages for every half second maybe...) TODO
+#   4. push aggregate data to rolling buffer TODO
 def process_fsr_data():
     global running
 
+    def add_fsr_data(conn, fsr_data):
+        sql = '''INSERT INTO fsr_one(timestamp, sensor0, sensor1, sensor2, sensor3, sensor4, sensor5, sensor6, sensor7)
+                 VALUES(?,?,?,?,?,?,?,?,?)'''
+        
+        cur = conn.cursor()
+
+        cur.execute(sql, fsr_data)
+
+        conn.commit()
+
     # for now just get the data from the queue and print it as is
-    while running:
-        new_data_poll = fsr_data_queue.get()
-        print(f"Data poll: {new_data_poll}")
+    with sqlite3.connect(DATABASE_FILENAME) as conn:
+        while running:
+            new_data_poll = fsr_data_queue.get()
+
+            # prepare for writing to db
+            fsr_data = []
+            
+            # start with timestamp
+            fsr_data.append(new_data_poll["timestamp"])
+
+            # then add sensors
+            fsr_data.extend(new_data_poll["sensors"])
+
+            # convert to tuple for db
+            fsr_data = tuple(fsr_data)
+
+            # add to db
+            add_fsr_data(conn, fsr_data)
+
+            print(f"Data poll: {new_data_poll}")
+            print(f"Data poll -> db compatible {fsr_data}")
 
 
-# webserver:
+# webserver: TODO
 def serve_flask_app():
     pass
 
@@ -91,6 +122,26 @@ def main():
     global running
 
     print("---Starting FSR Mini Dashboard---")
+
+    # create database
+    create_table = '''CREATE TABLE IF NOT EXISTS fsr_one (
+                            poll_id INT AUTO_INCREMENT PRIMARY KEY,
+                            timestamp INT,
+                            sensor0 INT,
+                            sensor1 INT,
+                            sensor2 INT,
+                            sensor3 INT,
+                            sensor4 INT,
+                            sensor5 INT,
+                            sensor6 INT,
+                            sensor7 INT
+                            );'''
+
+    with sqlite3.connect(DATABASE_FILENAME) as conn:
+        cursor = conn.cursor()
+        cursor.execute(create_table)
+
+    # exit()
 
     # create threads
     get_fsr_data_thread = threading.Thread(target=get_fsr_data)
