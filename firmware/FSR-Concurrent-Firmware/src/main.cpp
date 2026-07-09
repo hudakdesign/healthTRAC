@@ -77,8 +77,8 @@ void collectSensorData(void *parameters)
       // get the value
 
       // store it in the data struct
-      // data.sensorReadings[i] = getMuxOutput(i, MUX_OUTPUT_PIN);
-      data.sensorReadings[i] = getSyntheticSensorValue(data.timestamp, i); // code for when no fsr attached
+      data.sensorReadings[i] = getMuxOutput(i, MUX_OUTPUT_PIN);
+      // data.sensorReadings[i] = getSyntheticSensorValue(data.timestamp, i); // code for when no fsr attached
       // Serial.print(data.sensor_readings[i]);
       // Serial.print(" ");
     }
@@ -188,20 +188,20 @@ void loop()
   JsonDocument doc; // TODO: switch to static json document (come back to me)
 
   // creates portion for timestamps
-  JsonArray timestamps = doc.createNestedArray("timestamps");
+  JsonArray timestamps = doc["timestamps"].to<JsonArray>();
 
   // creates portion for sensors
-  JsonArray sensors = doc.createNestedArray("sensors");
+  JsonArray sensors = doc["sensors"].to<JsonArray>();
 
   // create an array entry for each sensor
-  JsonArray sensors0 = sensors.createNestedArray();
-  JsonArray sensors1 = sensors.createNestedArray();
-  JsonArray sensors2 = sensors.createNestedArray();
-  JsonArray sensors3 = sensors.createNestedArray();
-  JsonArray sensors4 = sensors.createNestedArray();
-  JsonArray sensors5 = sensors.createNestedArray();
-  JsonArray sensors6 = sensors.createNestedArray();
-  JsonArray sensors7 = sensors.createNestedArray();
+  JsonArray sensors0 = sensors.add<JsonArray>();
+  JsonArray sensors1 = sensors.add<JsonArray>();
+  JsonArray sensors2 = sensors.add<JsonArray>();
+  JsonArray sensors3 = sensors.add<JsonArray>();
+  JsonArray sensors4 = sensors.add<JsonArray>();
+  JsonArray sensors5 = sensors.add<JsonArray>();
+  JsonArray sensors6 = sensors.add<JsonArray>();
+  JsonArray sensors7 = sensors.add<JsonArray>();
 
   int counter = 0;
 
