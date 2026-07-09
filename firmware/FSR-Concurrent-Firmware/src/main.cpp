@@ -4,32 +4,35 @@
 #include <StreamUtils.h>
 
 // Configure cores:
-static const BaseType_t proCpu = 0;
-static const BaseType_t appCpu = 1;
+static const BaseType_t PRO_CPU = 0;
+static const BaseType_t APP_CPU = 1;
 
 // Pin numbers:
 // mux
-static const int selectionPins[] = {8, 9, 10, 11};
-static const int muxOutputPin = A0;
-static const int numChannels = 16;
+static const int SELECTION_PINS[] = {8, 9, 10, 11};
+static const int MUX_OUTPUT_PIN = A0;
+static const int NUM_CHANNELS = 16;
 
 // Settings:
-static const int numFsrs = 8;
-static const int pollRate = 100;                                  // 100 hz
-static const int pollSecondsStored = 20;                         // store up to 10 seconds of polls
-static const int pollQueueLen = pollRate * pollSecondsStored; // stores 10 seconds of polls at 100 hz
+static const int NUM_FSRS = 8;
+static const int POLL_RATE = 100;                                  // 100 hz
+static const int POLL_SECONDS_STORED = 20;                         // store up to 10 seconds of polls
+static const int POLL_QUEUE_LEN = POLL_RATE * POLL_SECONDS_STORED; // stores 10 seconds of polls at 100 hz
+static const int BUFFER_STREAM_SIZE = 1024; 
 
 
 
 // network credentials:
-const char *ssid = "CBI IoT";
-const char *password = "cbir00lz";
-const char *hostname = "fsr-alpha";
+const char *SSID = "CBI IoT";
+const char *PASSWORD = "cbir00lz";
+const char *HOSTNAME = "fsr-alpha";
 
 // server settings:
-const int timeoutTime = 2000;
-const int serverPort = 80;
-WiFiServer server(serverPort);
+const int TIMEOUT_TIME = 2000;
+const int SERVER_PORT = 80;
+
+// declare WiFiServer
+WiFiServer server(SERVER_PORT);
 
 // Struct declaration
 struct dataPoll
@@ -64,12 +67,12 @@ void collectSensorData(void *parameters)
     data.timestamp = millis();
 
     // loop through each sensor checking their values
-    for (int i = 0; i < numFsrs; i++)
+    for (int i = 0; i < NUM_FSRS; i++)
     {
       // get the value
 
       // store it in the data struct
-      // data.sensorReadings[i] = getMuxOutput(i, muxOutputPin);
+      // data.sensorReadings[i] = getMuxOutput(i, MUX_OUTPUT_PIN);
       data.sensorReadings[i] = getSyntheticSensorValue(data.timestamp, i); // code for when no fsr attached
       // Serial.print(data.sensor_readings[i]);
       // Serial.print(" ");
@@ -102,9 +105,9 @@ void setup()
   pinMode(LED_RED, OUTPUT);
 
   // configure selection pins
-  for (int i; i < (sizeof(selectionPins) / sizeof(int)); i++)
+  for (int i; i < (sizeof(SELECTION_PINS) / sizeof(int)); i++)
   {
-    pinMode(selectionPins[i], OUTPUT);
+    pinMode(SELECTION_PINS[i], OUTPUT);
   }
 
   // wait to start
@@ -113,13 +116,13 @@ void setup()
   Serial.println("--FSR Concurrent Firmware--");
 
   // create the queue
-  pollQueue = xQueueCreate(pollQueueLen, sizeof(struct dataPoll));
+  pollQueue = xQueueCreate(POLL_QUEUE_LEN, sizeof(struct dataPoll));
 
   // set up the network connection:
   Serial.print("Connecting to ");
-  Serial.println(ssid);
-  WiFi.setHostname(hostname);
-  WiFi.begin(ssid, password);
+  Serial.println(SSID);
+  WiFi.setHostname(HOSTNAME);
+  WiFi.begin(SSID, PASSWORD);
   while (WiFi.status() != WL_CONNECTED)
   {
     // blinky and print .
@@ -148,7 +151,7 @@ void setup()
                           NULL,
                           1, // priority doesnt matter, this is the only thing running on procore
                           NULL,
-                          proCpu);
+                          PRO_CPU);
 }
 
 // This loop will handle the webserver sending information from the queue
@@ -179,35 +182,39 @@ void loop()
   // allocate temporary json document
   JsonDocument doc; // TODO: switch to static json document (come back to me)
 
-  // create the timestamps array
-  JsonArray timestampValues = doc["timestamps"].to<JsonArray>();
-  JsonArray sensorValues0 = doc["sensor0"].to<JsonArray>();
-  JsonArray sensorValues1 = doc["sensor1"].to<JsonArray>();
-  JsonArray sensorValues2 = doc["sensor2"].to<JsonArray>();
-  JsonArray sensorValues3 = doc["sensor3"].to<JsonArray>();
-  JsonArray sensorValues4 = doc["sensor4"].to<JsonArray>();
-  JsonArray sensorValues5 = doc["sensor5"].to<JsonArray>();
-  JsonArray sensorValues6 = doc["sensor6"].to<JsonArray>();
-  JsonArray sensorValues7 = doc["sensor7"].to<JsonArray>();
+  // creates portion for timestamps
+  JsonArray timestamps = doc.createNestedArray("timestamps");
 
-  // counter to avoid memory leak
+  // creates portion for sensors
+  JsonArray sensors = doc.createNestedArray("sensors");
+
+  // create an array entry for each sensor
+  JsonArray sensors0 = sensors.createNestedArray();
+  JsonArray sensors1 = sensors.createNestedArray();
+  JsonArray sensors2 = sensors.createNestedArray();
+  JsonArray sensors3 = sensors.createNestedArray();
+  JsonArray sensors4 = sensors.createNestedArray();
+  JsonArray sensors5 = sensors.createNestedArray();
+  JsonArray sensors6 = sensors.createNestedArray();
+  JsonArray sensors7 = sensors.createNestedArray();
+
   int counter = 0;
 
-  // read in values from the queue
-  // append them to their corresponding json arrays
-  // increment the counter to avoid potential memory leak
-  while ((xQueueReceive(pollQueue, (void *)&newData, 0) == pdTRUE) && counter < pollQueueLen * 2)
+  // // read in values from the queue
+  // // append them to their corresponding json arrays
+  // // increment the counter to avoid potential memory leak
+  while ((xQueueReceive(pollQueue, (void *)&newData, 0) == pdTRUE) && counter < POLL_QUEUE_LEN * 2)
   { // while an item is successfully received and less than set amount of entries are stored
     // add them to the json arrays
-    timestampValues.add(newData.timestamp);
-    sensorValues0.add(newData.sensorReadings[0]);
-    sensorValues1.add(newData.sensorReadings[1]);
-    sensorValues2.add(newData.sensorReadings[2]);
-    sensorValues3.add(newData.sensorReadings[3]);
-    sensorValues4.add(newData.sensorReadings[4]);
-    sensorValues5.add(newData.sensorReadings[5]);
-    sensorValues6.add(newData.sensorReadings[6]);
-    sensorValues7.add(newData.sensorReadings[7]);
+    timestamps.add(newData.timestamp);
+    sensors0.add(newData.sensorReadings[0]);
+    sensors1.add(newData.sensorReadings[1]);
+    sensors2.add(newData.sensorReadings[2]);
+    sensors3.add(newData.sensorReadings[3]);
+    sensors4.add(newData.sensorReadings[4]);
+    sensors5.add(newData.sensorReadings[5]);
+    sensors6.add(newData.sensorReadings[6]);
+    sensors7.add(newData.sensorReadings[7]);
 
     counter++;
   }
@@ -221,7 +228,7 @@ void loop()
   client.println();
 
   // Write buffered doc
-  WriteBufferingStream bufferedWiFiClient(client, 1024 * 1); // normally 32kb
+  WriteBufferingStream bufferedWiFiClient(client, BUFFER_STREAM_SIZE);
   serializeJson(doc, bufferedWiFiClient);
   bufferedWiFiClient.flush();
 
@@ -245,19 +252,19 @@ void setMuxChannel(int channel)
   // Serial.println("1");
   // convert channel number to binary (4-bits)
   // loop through each selection pin, and assign them based on selection bit
-  for (int i = 0; i < (sizeof(selectionPins) / sizeof(int)); i++)
+  for (int i = 0; i < (sizeof(SELECTION_PINS) / sizeof(int)); i++)
   {
     // Serial.println("2");
     // if the i'th bit of channel is 1:
     if (getKBit(channel, i))
     {
       // set the selection pin to high
-      digitalWrite(selectionPins[i], HIGH);
+      digitalWrite(SELECTION_PINS[i], HIGH);
     }
     else
     {
       // otherwise set the selection pin to low
-      digitalWrite(selectionPins[i], LOW);
+      digitalWrite(SELECTION_PINS[i], LOW);
     }
   }
 }
