@@ -118,7 +118,6 @@ def serve_flask_app():
     pass
 
 def create_database():
-    # create database
     create_table = '''CREATE TABLE IF NOT EXISTS fsr_one (
                             poll_id INT AUTO_INCREMENT PRIMARY KEY,
                             timestamp INT,
