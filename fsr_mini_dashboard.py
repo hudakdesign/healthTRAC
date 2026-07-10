@@ -19,7 +19,9 @@ running = True
 fsr_data_queue = queue.Queue(maxsize=MAX_QUEUE_LEN)
 
 # rolling buffer for storing recent values
-fsr_data_buffer = collections.deque(maxlen=MAX_QUEUE_LEN) # TODO: change this to a better value
+fsr_data_buffer = collections.deque(
+    maxlen=MAX_QUEUE_LEN
+)  # TODO: change this to a better value
 fsr_data_buffer_lock = threading.Lock()
 
 # Architecture:
@@ -80,9 +82,9 @@ def get_fsr_data():
 #   2. next push the data to a rolling buffer DONE
 def process_fsr_data():
     def add_fsr_data(conn, fsr_data):
-        sql = '''INSERT INTO fsr_one(timestamp, sensor0, sensor1, sensor2, sensor3, sensor4, sensor5, sensor6, sensor7)
-                 VALUES(?,?,?,?,?,?,?,?,?)'''
-        
+        sql = """INSERT INTO fsr_one(timestamp, sensor0, sensor1, sensor2, sensor3, sensor4, sensor5, sensor6, sensor7)
+                 VALUES(?,?,?,?,?,?,?,?,?)"""
+
         cur = conn.cursor()
 
         cur.execute(sql, fsr_data)
@@ -96,7 +98,7 @@ def process_fsr_data():
 
             # prepare for writing to db
             fsr_data = []
-            
+
             # start with timestamp
             fsr_data.append(new_data_poll["timestamp"])
 
@@ -109,14 +111,27 @@ def process_fsr_data():
             # add to db
             add_fsr_data(conn, fsr_data)
 
+            # convert to timestamp, sensor0, sensor1,... format for pandas
+            pd_formatted_datapoll = {}
+            pd_formatted_datapoll["timestamp"] = new_data_poll["timestamp"]
+            pd_formatted_datapoll["sensor0"] = new_data_poll["sensors"][0]
+            pd_formatted_datapoll["sensor1"] = new_data_poll["sensors"][1]
+            pd_formatted_datapoll["sensor2"] = new_data_poll["sensors"][2]
+            pd_formatted_datapoll["sensor3"] = new_data_poll["sensors"][3]
+            pd_formatted_datapoll["sensor4"] = new_data_poll["sensors"][4]
+            pd_formatted_datapoll["sensor5"] = new_data_poll["sensors"][5]
+            pd_formatted_datapoll["sensor6"] = new_data_poll["sensors"][6]
+            pd_formatted_datapoll["sensor7"] = new_data_poll["sensors"][7]
+
             # push to rolling buffer
             with fsr_data_buffer_lock:
-                fsr_data_buffer.append(new_data_poll)
+                fsr_data_buffer.append(pd_formatted_datapoll)
 
 
 # webserver: TODO
 def serve_flask_app():
     pass
+
 
 # utility task
 # periodically display buffer contents
@@ -126,11 +141,12 @@ def periodically_display_buffer_contents():
         with fsr_data_buffer_lock:
             # print out the last (most recent) value
             # if there is data in the buffer
-            if (len(fsr_data_buffer) > 0):
+            if len(fsr_data_buffer) > 0:
                 print(fsr_data_buffer[-1])
-        
+
         # wait to avoid flooding the terminal
         time.sleep(1)
+
 
 # small scale prototype
 # task gets data out of rolling buffer and
@@ -139,15 +155,14 @@ def periodically_display_buffer_contents():
 def get_aggregate_data():
     pass
     # while running:
-        # lock the buffer
-
+    # lock the buffer
 
 
 def create_database():
     # create data directory
     subprocess.call(["mkdir", "-p", "data"])
 
-    create_table = '''CREATE TABLE IF NOT EXISTS fsr_one (
+    create_table = """CREATE TABLE IF NOT EXISTS fsr_one (
                             poll_id INTEGER PRIMARY KEY AUTOINCREMENT,
                             timestamp INTEGER,
                             sensor0 INTEGER,
@@ -158,11 +173,12 @@ def create_database():
                             sensor5 INTEGER,
                             sensor6 INTEGER,
                             sensor7 INTEGER
-                            );'''
+                            );"""
 
     with sqlite3.connect(DATABASE_FILENAME) as conn:
         cursor = conn.cursor()
         cursor.execute(create_table)
+
 
 def main():
     global running
@@ -175,8 +191,9 @@ def main():
     # create threads
     get_fsr_data_thread = threading.Thread(target=get_fsr_data)
     process_fsr_data_thread = threading.Thread(target=process_fsr_data)
-    display_contents_thread = threading.Thread(target=periodically_display_buffer_contents)
-
+    display_contents_thread = threading.Thread(
+        target=periodically_display_buffer_contents
+    )
 
     # start threads
     get_fsr_data_thread.start()
