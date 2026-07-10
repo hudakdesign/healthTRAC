@@ -3,3 +3,4 @@ requests
 numpy
 sounddevice
 gpiozero
+pandas
