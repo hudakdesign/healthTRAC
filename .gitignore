@@ -8,3 +8,4 @@ data/
 logs*
 testing/
 recordings/
+*test.py

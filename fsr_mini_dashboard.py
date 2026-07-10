@@ -6,10 +6,10 @@ import time
 import sqlite3
 import subprocess
 import collections
-import pandas
+import pandas as pd
 
 # Constants
-MAX_QUEUE_LEN = 5000
+MAX_QUEUE_LEN = 100 * 120
 FSR_URL = "http://10.0.1.27/"
 TIME_BETWEEN_POLLS = 0.5  # seconds
 DATABASE_FILENAME = "data/test.db"
@@ -153,9 +153,29 @@ def periodically_display_buffer_contents():
 # loads it into a pandas df
 # then it prints out averages based on the data
 def get_aggregate_data():
-    pass
     # while running:
-    # lock the buffer
+    while running:
+        # lock the buffer and load the df
+        with fsr_data_buffer_lock:
+            timer = time.time()
+            df = pd.DataFrame(fsr_data_buffer)
+            timer_end = time.time() - timer
+        print(f"Time to load df: {timer_end}")
+
+        # get means for each row and time how long
+        timer = time.time()
+        df_means = df.mean()
+        timer_end = time.time() - timer
+        print(f"Time to process means: {timer_end}")
+        print("Means:")
+        print(df_means)
+
+
+
+        time.sleep(5)
+
+        
+        
 
 
 def create_database():
@@ -194,11 +214,13 @@ def main():
     display_contents_thread = threading.Thread(
         target=periodically_display_buffer_contents
     )
+    aggregate_thread = threading.Thread(target=get_aggregate_data)
 
     # start threads
     get_fsr_data_thread.start()
     process_fsr_data_thread.start()
     display_contents_thread.start()
+    aggregate_thread.start()
 
     # stop if enter is pressed
     input("")
