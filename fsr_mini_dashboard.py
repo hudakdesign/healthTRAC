@@ -6,6 +6,7 @@ import json
 import time
 import sqlite3
 import subprocess
+import collections
 
 # Constants
 MAX_QUEUE_LEN = 5000
@@ -37,8 +38,6 @@ fsr_data_queue = queue.Queue(maxsize=MAX_QUEUE_LEN)
 #   makes requests to fsr-subsystem at a fixed rate. parses responses and puts them into a queue
 # DONE
 def get_fsr_data():
-    global running
-
     def queue_individual_polls(data_polls):
         for i in range(len(data_polls["timestamps"])):
             # stores each new data poll to be put in the queue
@@ -78,8 +77,6 @@ def get_fsr_data():
 #   3. extract aggregate data from this df (averages for every half second maybe...) TODO
 #   4. push aggregate data to rolling buffer TODO
 def process_fsr_data():
-    global running
-
     def add_fsr_data(conn, fsr_data):
         sql = '''INSERT INTO fsr_one(timestamp, sensor0, sensor1, sensor2, sensor3, sensor4, sensor5, sensor6, sensor7)
                  VALUES(?,?,?,?,?,?,?,?,?)'''
@@ -123,16 +120,16 @@ def create_database():
     subprocess.call(["mkdir", "-p", "data"])
 
     create_table = '''CREATE TABLE IF NOT EXISTS fsr_one (
-                            poll_id INT AUTO_INCREMENT PRIMARY KEY,
-                            timestamp INT,
-                            sensor0 INT,
-                            sensor1 INT,
-                            sensor2 INT,
-                            sensor3 INT,
-                            sensor4 INT,
-                            sensor5 INT,
-                            sensor6 INT,
-                            sensor7 INT
+                            poll_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            timestamp INTEGER,
+                            sensor0 INTEGER,
+                            sensor1 INTEGER,
+                            sensor2 INTEGER,
+                            sensor3 INTEGER,
+                            sensor4 INTEGER,
+                            sensor5 INTEGER,
+                            sensor6 INTEGER,
+                            sensor7 INTEGER
                             );'''
 
     with sqlite3.connect(DATABASE_FILENAME) as conn:
