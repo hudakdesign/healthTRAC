@@ -79,7 +79,9 @@ def get_fsr_data():
 
 # consumer:
 #   1. takes data out of the queue, saves it to the db DONE
-#   2. next push the data to a rolling buffer DONE
+#   2. TODO: next save it to a temporary buffer which fills up and
+#            which when full takes the highest amplitude value
+#   3. TODO: send the highest amplitude value of that chunk to the rolling buffer
 def process_fsr_data():
     def add_fsr_data(conn, fsr_data):
         sql = """INSERT INTO fsr_one(timestamp, sensor0, sensor1, sensor2, sensor3, sensor4, sensor5, sensor6, sensor7)
@@ -93,6 +95,9 @@ def process_fsr_data():
 
     # for now just get the data from the queue and print it as is
     with sqlite3.connect(DATABASE_FILENAME) as conn:
+        incoming_datapoints = []
+        chunk_size = 50
+
         while running:
             new_data_poll = fsr_data_queue.get()
 
@@ -123,12 +128,17 @@ def process_fsr_data():
             pd_formatted_datapoll["sensor6"] = new_data_poll["sensors"][6]
             pd_formatted_datapoll["sensor7"] = new_data_poll["sensors"][7]
 
-            # push to rolling buffer
-            with fsr_data_buffer_lock:
-                fsr_data_buffer.append(pd_formatted_datapoll)
+            # get the aggregate data for the chunk if the chunk is full
+            if len(incoming_datapoints) >= chunk_size:
+                aggregate_datapoint = get_aggregate_datapoint(incoming_datapoints)
+                incoming_datapoints.clear()
+                # push to rolling buffer
+                with fsr_data_buffer_lock:
+                    fsr_data_buffer.append(aggregate_datapoint)
+                    # fsr_data_buffer.append(pd_formatted_datapoll)
 
 
-# webserver: TODO
+# TODO: webserver:
 def serve_flask_app():
     pass
 
@@ -148,34 +158,37 @@ def periodically_display_buffer_contents():
         time.sleep(1)
 
 
+# gets a datapoint which represents the aggregate of a chunk of data
+# for now just returns the last value from the chunk (very basic downsampling)
+# TODO: implement better aggregate function
+def get_aggregate_datapoint(incoming_datapoints):
+    return incoming_datapoints[-1]
+
+
 # small scale prototype
 # task gets data out of rolling buffer and
 # loads it into a pandas df
 # then it prints out averages based on the data
-def get_aggregate_data():
-    # while running:
-    while running:
-        # lock the buffer and load the df
-        with fsr_data_buffer_lock:
-            timer = time.time()
-            df = pd.DataFrame(fsr_data_buffer)
-            timer_end = time.time() - timer
-        print(f"Time to load df: {timer_end}")
+# def get_aggregate_data():
+#     # while running:
+#     while running:
+#         # lock the buffer and load the df
+#         with fsr_data_buffer_lock:
+#             timer = time.time()
+#             df = pd.DataFrame(fsr_data_buffer)
+#             timer_end = time.time() - timer
+#         print(f"Time to load df: {timer_end}")
 
-        # get means for each row and time how long
-        timer = time.time()
-        df_means = df.mean()
-        timer_end = time.time() - timer
-        print(f"Time to process means: {timer_end}")
-        print("Means:")
-        print(df_means)
+#         # get means for each row and time how long
+#         timer = time.time()
+#         df_means = df.mean()
+#         timer_end = time.time() - timer
+#         print(f"Time to process means: {timer_end}")
+#         print("Means:")
+#         print(df_means)
 
 
-
-        time.sleep(5)
-
-        
-        
+#         time.sleep(5)
 
 
 def create_database():
@@ -214,13 +227,11 @@ def main():
     display_contents_thread = threading.Thread(
         target=periodically_display_buffer_contents
     )
-    aggregate_thread = threading.Thread(target=get_aggregate_data)
 
     # start threads
     get_fsr_data_thread.start()
     process_fsr_data_thread.start()
     display_contents_thread.start()
-    aggregate_thread.start()
 
     # stop if enter is pressed
     input("")
