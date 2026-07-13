@@ -13,7 +13,9 @@ FSR_URL = "http://127.0.0.1:8085/data"
 TIME_BETWEEN_POLLS = 0.5  # seconds
 DATABASE_FILENAME = "data/test.db"
 AGGREGATE_CHUNK_LEN = 50
-MAX_QUEUE_LEN = 100 * 120 # do normal calculations and adjust for using aggregate values
+MAX_QUEUE_LEN = (
+    100 * 120
+)  # do normal calculations and adjust for using aggregate values
 
 # Globals
 running = True
@@ -24,6 +26,8 @@ fsr_data_buffer = collections.deque(
     maxlen=MAX_QUEUE_LEN // AGGREGATE_CHUNK_LEN
 )  # DONE: change this to a better value
 fsr_data_buffer_lock = threading.Lock()
+
+app = Flask(__name__)
 
 # Architecture:
 # Threads:
@@ -99,51 +103,55 @@ def process_fsr_data():
         incoming_datapoints = []
 
         while running:
-            new_data_poll = fsr_data_queue.get()
+            # if something goes wrong (i.e. queue didnt get anything new) then loop again and check if its running
+            try:
+                new_data_poll = fsr_data_queue.get(timeout=1)
+            
+                # prepare for writing to db
+                fsr_data = []
 
-            # prepare for writing to db
-            fsr_data = []
+                # start with timestamp
+                fsr_data.append(new_data_poll["timestamp"])
 
-            # start with timestamp
-            fsr_data.append(new_data_poll["timestamp"])
+                # then add sensors
+                fsr_data.extend(new_data_poll["sensors"])
 
-            # then add sensors
-            fsr_data.extend(new_data_poll["sensors"])
+                # convert to tuple for db
+                fsr_data = tuple(fsr_data)
 
-            # convert to tuple for db
-            fsr_data = tuple(fsr_data)
+                # add to db
+                add_fsr_data(conn, fsr_data)
 
-            # add to db
-            add_fsr_data(conn, fsr_data)
+                # convert to timestamp, sensor0, sensor1,... format for pandas
+                pd_formatted_datapoll = {}
+                pd_formatted_datapoll["timestamp"] = new_data_poll["timestamp"]
+                pd_formatted_datapoll["sensor0"] = new_data_poll["sensors"][0]
+                pd_formatted_datapoll["sensor1"] = new_data_poll["sensors"][1]
+                pd_formatted_datapoll["sensor2"] = new_data_poll["sensors"][2]
+                pd_formatted_datapoll["sensor3"] = new_data_poll["sensors"][3]
+                pd_formatted_datapoll["sensor4"] = new_data_poll["sensors"][4]
+                pd_formatted_datapoll["sensor5"] = new_data_poll["sensors"][5]
+                pd_formatted_datapoll["sensor6"] = new_data_poll["sensors"][6]
+                pd_formatted_datapoll["sensor7"] = new_data_poll["sensors"][7]
 
-            # convert to timestamp, sensor0, sensor1,... format for pandas
-            pd_formatted_datapoll = {}
-            pd_formatted_datapoll["timestamp"] = new_data_poll["timestamp"]
-            pd_formatted_datapoll["sensor0"] = new_data_poll["sensors"][0]
-            pd_formatted_datapoll["sensor1"] = new_data_poll["sensors"][1]
-            pd_formatted_datapoll["sensor2"] = new_data_poll["sensors"][2]
-            pd_formatted_datapoll["sensor3"] = new_data_poll["sensors"][3]
-            pd_formatted_datapoll["sensor4"] = new_data_poll["sensors"][4]
-            pd_formatted_datapoll["sensor5"] = new_data_poll["sensors"][5]
-            pd_formatted_datapoll["sensor6"] = new_data_poll["sensors"][6]
-            pd_formatted_datapoll["sensor7"] = new_data_poll["sensors"][7]
+                # append instance of pd_formatted_datapoll to incoming_datapoints
+                incoming_datapoints.append(pd_formatted_datapoll)
 
-            # append instance of pd_formatted_datapoll to incoming_datapoints
-            incoming_datapoints.append(pd_formatted_datapoll)
-
-            # get the aggregate data for the chunk if the chunk is full
-            if len(incoming_datapoints) >= AGGREGATE_CHUNK_LEN:
-                aggregate_datapoint = get_aggregate_datapoint(incoming_datapoints)
-                incoming_datapoints.clear()
-                # push to rolling buffer
-                with fsr_data_buffer_lock:
-                    fsr_data_buffer.append(aggregate_datapoint)
-                    # fsr_data_buffer.append(pd_formatted_datapoll)
+                # get the aggregate data for the chunk if the chunk is full
+                if len(incoming_datapoints) >= AGGREGATE_CHUNK_LEN:
+                    aggregate_datapoint = get_aggregate_datapoint(incoming_datapoints)
+                    incoming_datapoints.clear()
+                    # push to rolling buffer
+                    with fsr_data_buffer_lock:
+                        fsr_data_buffer.append(aggregate_datapoint)
+                        # fsr_data_buffer.append(pd_formatted_datapoll)
+            except:
+                continue
 
 
 # TODO: webserver:
 def serve_flask_app():
-    pass
+    app.run(host="0.0.0.0", port=8050, debug=False)
 
 
 # utility task
@@ -160,37 +168,12 @@ def periodically_display_buffer_contents():
         # wait to avoid flooding the terminal
         time.sleep(1)
 
+
 # gets a datapoint which represents the aggregate of a chunk of data
 # for now just returns the last value from the chunk (very basic downsampling)
 # TODO: implement better aggregate function
 def get_aggregate_datapoint(incoming_datapoints):
     return incoming_datapoints[-1]
-
-
-# small scale prototype
-# task gets data out of rolling buffer and
-# loads it into a pandas df
-# then it prints out averages based on the data
-# def get_aggregate_data():
-#     # while running:
-#     while running:
-#         # lock the buffer and load the df
-#         with fsr_data_buffer_lock:
-#             timer = time.time()
-#             df = pd.DataFrame(fsr_data_buffer)
-#             timer_end = time.time() - timer
-#         print(f"Time to load df: {timer_end}")
-
-#         # get means for each row and time how long
-#         timer = time.time()
-#         df_means = df.mean()
-#         timer_end = time.time() - timer
-#         print(f"Time to process means: {timer_end}")
-#         print("Means:")
-#         print(df_means)
-
-
-#         time.sleep(5)
 
 
 def create_database():
@@ -215,6 +198,13 @@ def create_database():
         cursor.execute(create_table)
 
 
+# Routes:
+# dashboard (index)
+@app.route("/")
+def index():
+    return render_template("fsr_dashboard.html")
+
+
 def main():
     global running
 
@@ -233,10 +223,10 @@ def main():
     # start threads
     get_fsr_data_thread.start()
     process_fsr_data_thread.start()
-    display_contents_thread.start()
+    # display_contents_thread.start()
 
-    # stop if enter is pressed
-    input("")
+    # stop when the server is closed
+    serve_flask_app() 
     running = False
 
 
