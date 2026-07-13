@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>HealthTRAC Dashboard</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+    <!--Chart generation library-->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+
+  <body>
+    <!-- TODO: REWRITE THIS -->
+    <!-- Diagnostic Graph -->
+    <div class="container">
+      <div class="card">
+        <h2>Sensor Activity</h2>
+        <canvas id="sensorDiagnostics" class="diagnostic-chart"></canvas>
+      </div>
+    </div>
+
+    <!-- JS for graph generation and refresh -->
+    <script>
+      // parameters for all graphs
+      let graphLineTension = 0.5;
+
+      // sample sensor graph
+      let sensorGraphFormat = {
+        type: "line",
+        data: {
+          labels: [0, 1, 2, 3, 4],
+          datasets: [
+            {
+              fill: false,
+              lineTension: graphLineTension,
+              borderColor: "red",
+              data: [
+                { x: 0, y: 0 },
+                { x: 1, y: 1 },
+                { x: 2, y: 2 },
+                { x: 3, y: 3 },
+                { x: 4, y: 4 },
+              ],
+            },
+            {
+              fill: false,
+              lineTension: graphLineTension,
+              borderColor: "orange",
+              data: [
+                { x: 4, y: 4 },
+                { x: 3, y: 3 },
+                { x: 2, y: 2 },
+                { x: 1, y: 1 },
+                { x: 0, y: 0 },
+              ],
+            },
+            {
+              fill: false,
+              lineTension: graphLineTension,
+              borderColor: "yellow",
+              data: [
+                { x: 0, y: 0 },
+                { x: 1, y: 2 },
+                { x: 2, y: 4 },
+                { x: 3, y: 2 },
+                { x: 4, y: 0 },
+              ],
+            },
+            {
+              fill: false,
+              lineTension: graphLineTension,
+              borderColor: "green",
+              data: [
+                { x: 0, y: 4 },
+                { x: 1, y: 3 },
+                { x: 2, y: 2 },
+                { x: 3, y: 1 },
+                { x: 4, y: 0 },
+              ],
+            },
+            {
+              fill: false,
+              lineTension: graphLineTension,
+              borderColor: "blue",
+              data: [
+                { x: 0, y: 0 },
+                { x: 1, y: 1 },
+                { x: 2, y: 2 },
+                { x: 3, y: 3 },
+                { x: 4, y: 4 },
+              ],
+            },
+            {
+              fill: false,
+              lineTension: graphLineTension,
+              borderColor: "purple",
+              data: [
+                { x: 4, y: 4 },
+                { x: 3, y: 3 },
+                { x: 2, y: 2 },
+                { x: 1, y: 1 },
+                { x: 0, y: 0 },
+              ],
+            },
+            {
+              fill: false,
+              lineTension: graphLineTension,
+              borderColor: "pink)",
+              data: [
+                { x: 0, y: 0 },
+                { x: 1, y: 2 },
+                { x: 2, y: 4 },
+                { x: 3, y: 2 },
+                { x: 4, y: 0 },
+              ],
+            },
+            {
+              fill: false,
+              lineTension: graphLineTension,
+              borderColor: "magenta",
+              data: [
+                { x: 0, y: 4 },
+                { x: 1, y: 3 },
+                { x: 2, y: 2 },
+                { x: 3, y: 1 },
+                { x: 4, y: 0 },
+              ],
+            },
+          ],
+        },
+        options: {
+          plugins: {
+            legend: { display: false },
+            title: { display: false },
+          },
+        },
+      };
+      // </TODO: REWRITE THIS>
+
+      const updateInterval = 1000;
+
+      // Populates sensor canvas
+      const sensorElement = document.getElementById("sensorDiagnostics");
+      let sensorDiagnostics = new Chart(sensorElement, sensorGraphFormat);
+
+      // Routes for accessing the api
+      const apiAddress = "http://127.0.0.1:8050/";
+
+      const sensorApiAddress = apiAddress + "api/fsr";
+
+      // updates the provided graph using data from provided url
+      async function updateGraph(targetGraph, url) {
+        let graphData = await fetch(url);
+        graphData = await graphData.json();
+
+        for (let i = 0; i < graphData.sensors.length; i++) {
+          targetGraph.data.datasets[i].data = graphData.sensors[i];
+        }
+        targetGraph.data.labels = graphData.timestamps;
+
+        // non argument disables animation
+        targetGraph.update("none");
+      }
+
+      // updates the graphs every interval ms
+      setInterval(function () {
+        updateGraph(sensorDiagnostics, sensorApiAddress);
+      }, updateInterval);
+    </script>
+  </body>
+</html>

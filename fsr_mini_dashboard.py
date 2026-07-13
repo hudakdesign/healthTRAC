@@ -6,10 +6,11 @@ import time
 import sqlite3
 import subprocess
 import collections
-import pandas as pd
+import json
 
 # Constants
 FSR_URL = "http://127.0.0.1:8085/data"
+NUM_FSRS = 8
 TIME_BETWEEN_POLLS = 0.5  # seconds
 DATABASE_FILENAME = "data/test.db"
 AGGREGATE_CHUNK_LEN = 50
@@ -106,7 +107,7 @@ def process_fsr_data():
             # if something goes wrong (i.e. queue didnt get anything new) then loop again and check if its running
             try:
                 new_data_poll = fsr_data_queue.get(timeout=1)
-            
+
                 # prepare for writing to db
                 fsr_data = []
 
@@ -205,6 +206,27 @@ def index():
     return render_template("fsr_dashboard.html")
 
 
+@app.route("/api/fsr")
+def fsr_api():
+    new_json_dict = {"timestamps": [], "sensors": [[] for _ in range(NUM_FSRS)]}
+
+    # lock buffer while creating the json
+    with fsr_data_buffer_lock:
+        for i in range(len(fsr_data_buffer)):
+            new_json_dict["timestamps"].append(fsr_data_buffer[i]["timestamp"])
+            new_json_dict["sensors"][0].append(fsr_data_buffer[i]["sensor0"])
+            new_json_dict["sensors"][1].append(fsr_data_buffer[i]["sensor1"])
+            new_json_dict["sensors"][2].append(fsr_data_buffer[i]["sensor2"])
+            new_json_dict["sensors"][3].append(fsr_data_buffer[i]["sensor3"])
+            new_json_dict["sensors"][4].append(fsr_data_buffer[i]["sensor4"])
+            new_json_dict["sensors"][5].append(fsr_data_buffer[i]["sensor5"])
+            new_json_dict["sensors"][6].append(fsr_data_buffer[i]["sensor6"])
+            new_json_dict["sensors"][7].append(fsr_data_buffer[i]["sensor7"])
+    
+    new_json = json.dumps(new_json_dict)
+    return new_json
+
+
 def main():
     global running
 
@@ -226,7 +248,7 @@ def main():
     # display_contents_thread.start()
 
     # stop when the server is closed
-    serve_flask_app() 
+    serve_flask_app()
     running = False
 
 
