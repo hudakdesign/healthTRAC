@@ -16,7 +16,7 @@
     <!-- Diagnostic Graph -->
     <div class="container">
       <div class="card">
-        <h2>Sensor Activity</h2>
+        <h2>FSR Activity</h2>
         <canvas id="sensorDiagnostics" class="diagnostic-chart"></canvas>
       </div>
     </div>
@@ -131,6 +131,11 @@
           ],
         },
         options: {
+          elements: {
+            point:{
+              radius: 0
+            }
+          },
           plugins: {
             legend: { display: false },
             title: { display: false },

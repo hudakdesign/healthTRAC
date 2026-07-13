@@ -137,7 +137,7 @@ body {
     flex-wrap: wrap;
     padding: 20px;
     gap: 20px;
-    width: 50%;
+    max-width: 50%;
 }
 
 .card {
