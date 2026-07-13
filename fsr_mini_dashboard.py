@@ -9,10 +9,11 @@ import collections
 import pandas as pd
 
 # Constants
-MAX_QUEUE_LEN = 100 * 120
-FSR_URL = "http://10.0.1.27/"
+FSR_URL = "http://127.0.0.1:8085/data"
 TIME_BETWEEN_POLLS = 0.5  # seconds
 DATABASE_FILENAME = "data/test.db"
+AGGREGATE_CHUNK_LEN = 50
+MAX_QUEUE_LEN = 100 * 120 # do normal calculations and adjust for using aggregate values
 
 # Globals
 running = True
@@ -20,8 +21,8 @@ fsr_data_queue = queue.Queue(maxsize=MAX_QUEUE_LEN)
 
 # rolling buffer for storing recent values
 fsr_data_buffer = collections.deque(
-    maxlen=MAX_QUEUE_LEN
-)  # TODO: change this to a better value
+    maxlen=MAX_QUEUE_LEN // AGGREGATE_CHUNK_LEN
+)  # DONE: change this to a better value
 fsr_data_buffer_lock = threading.Lock()
 
 # Architecture:
@@ -79,9 +80,9 @@ def get_fsr_data():
 
 # consumer:
 #   1. takes data out of the queue, saves it to the db DONE
-#   2. TODO: next save it to a temporary buffer which fills up and
-#            which when full takes the highest amplitude value
-#   3. TODO: send the highest amplitude value of that chunk to the rolling buffer
+#   2. DONE: next save it to a temporary buffer which fills up and
+#            which when full is used to get an aggregate value
+#   3. DONE: send the aggregate value of that chunk to the rolling buffer
 def process_fsr_data():
     def add_fsr_data(conn, fsr_data):
         sql = """INSERT INTO fsr_one(timestamp, sensor0, sensor1, sensor2, sensor3, sensor4, sensor5, sensor6, sensor7)
@@ -96,7 +97,6 @@ def process_fsr_data():
     # for now just get the data from the queue and print it as is
     with sqlite3.connect(DATABASE_FILENAME) as conn:
         incoming_datapoints = []
-        chunk_size = 50
 
         while running:
             new_data_poll = fsr_data_queue.get()
@@ -128,8 +128,11 @@ def process_fsr_data():
             pd_formatted_datapoll["sensor6"] = new_data_poll["sensors"][6]
             pd_formatted_datapoll["sensor7"] = new_data_poll["sensors"][7]
 
+            # append instance of pd_formatted_datapoll to incoming_datapoints
+            incoming_datapoints.append(pd_formatted_datapoll)
+
             # get the aggregate data for the chunk if the chunk is full
-            if len(incoming_datapoints) >= chunk_size:
+            if len(incoming_datapoints) >= AGGREGATE_CHUNK_LEN:
                 aggregate_datapoint = get_aggregate_datapoint(incoming_datapoints)
                 incoming_datapoints.clear()
                 # push to rolling buffer
@@ -156,7 +159,6 @@ def periodically_display_buffer_contents():
 
         # wait to avoid flooding the terminal
         time.sleep(1)
-
 
 # gets a datapoint which represents the aggregate of a chunk of data
 # for now just returns the last value from the chunk (very basic downsampling)

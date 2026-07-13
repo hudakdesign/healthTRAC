@@ -9,13 +9,13 @@ app = Flask(__name__)
 # NOTE: change these to change what sensor you're simulating
 device_name = "FSR"
 num_sensors = 8
-port = 8081  # make sure this port isnt in use
+port = 8085  # make sure this port isnt in use
 
 
 update_frequency = 1 / 60
 # simulated buffer of sensor data (whats on the device)
 data = {
-    "device_name": device_name,
+    # "device_name": device_name,
     "timestamps": [],
     "sensors": [[] for _ in range(num_sensors)],
 }
@@ -28,6 +28,7 @@ def get_sensor_data(t):
     data["timestamps"].append(t)
     for i in range(num_sensors):
         value = np.sin(t * (i + 1) * 0.001)
+        value = abs(int(value * 4096))
         data["sensors"][i].append(value)
 
 
