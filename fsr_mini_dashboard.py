@@ -9,7 +9,7 @@ import collections
 import json
 
 # Constants
-FSR_URL = "http://127.0.0.1:8085/data"
+FSR_URL = "http://10.0.1.27/"
 NUM_FSRS = 8
 TIME_BETWEEN_POLLS = 0.5  # seconds
 DATABASE_FILENAME = "data/test.db"

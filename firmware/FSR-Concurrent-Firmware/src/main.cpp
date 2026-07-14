@@ -108,6 +108,7 @@ void setup()
   // set led pin to output
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(LED_RED, OUTPUT);
+  pinMode(LED_GREEN, OUTPUT);
 
   // configure selection pins
   for (int i; i < (sizeof(SELECTION_PINS) / sizeof(int)); i++)
@@ -131,9 +132,9 @@ void setup()
   while (WiFi.status() != WL_CONNECTED)
   {
     // blinky and print .
-    digitalWrite(LED_BUILTIN, HIGH);
+    digitalWrite(LED_GREEN, LOW);
     vTaskDelay(BLINK_RATE / portTICK_PERIOD_MS);
-    digitalWrite(LED_BUILTIN, LOW);
+    digitalWrite(LED_GREEN, HIGH);
     vTaskDelay(BLINK_RATE / portTICK_PERIOD_MS);
 
     Serial.print(".");
@@ -237,7 +238,7 @@ void loop()
   serializeJson(doc, bufferedWiFiClient);
   bufferedWiFiClient.flush();
 
-  client.stop(); // higher priority than main (data must be collected on time)
+  client.stop();
 
   // when the client disconnects: turn off the led
   digitalWrite(LED_BUILTIN, LOW);
