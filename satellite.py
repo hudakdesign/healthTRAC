@@ -87,6 +87,7 @@ def create_recording():
 
 
 # Recording control thread
+# TODO: Update recording control to work off of hub status and simlify tui
 def recording_control():
     global recording
 
@@ -204,8 +205,11 @@ if __name__ == "__main__":
     termination_thread = threading.Thread(target=terminate_threads)
     termination_thread.start()
 
+    # FIXME: flask server should be running in the main thread
+    # move recording creation logic to its own thread
     api_thread = threading.Thread(target=flask_api_thread)
     api_thread.start()
+
 
     while running:
         # If recording is toggled on, retoggle it
