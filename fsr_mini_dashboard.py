@@ -73,10 +73,10 @@ def get_fsr_data():
 
             # turn json from request into dict
             data = r.json()
+            
+            queue_individual_polls(data)
         except:
             print(f"Problem when requesting {FSR_URL}. Trying again")
-
-        queue_individual_polls(data)
 
         # waits until its time to poll again
         time.sleep(TIME_BETWEEN_POLLS)
