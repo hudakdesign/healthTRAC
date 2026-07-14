@@ -9,6 +9,7 @@ import requests
 import constants as c
 from flask import Flask
 import json
+import collections
 
 app = Flask(__name__)
 
@@ -25,26 +26,42 @@ recording = False
 hub_timestamp = 0
 
 # Buffers for diagnostic data sent to the dashboard
-diagnostic_data = [0 for _ in range(channels)]
+# DONE: Update to rolling buffer of each channel amplitude value
+diagnostic_data = collections.deque(maxlen=c.MIC_DIAGNOSTIC_LENGTH)
 diagnostic_data_lock = threading.Lock()
 
 running = True
+next_poll_time = 0
 
 
-def callback(indata, frames, time, status):
+def callback(indata, frames, t_, status):
+    # Whenever callback is called, diagnostic data is updated with most recent audio data
+    global diagnostic_data
+    global next_poll_time
+
     if status:
         print(status, file=sys.stderr)
     audio_frames.append(indata.copy())
 
-    # Whenever callback is called, diagnostic data is updated with most recent audio data
-    global diagnostic_data
+    # TODO: Update to save this poll every `polling_rate` ms
+    #
+    curr_time = time.time_ns()
+    if curr_time > next_poll_time:
+        # only tries to update the diagnostic data if it isnt locked
+        # this helps minimize some distortion from polling diagnostic data
+        # callback will only be "held up" if it is currently being moved
+        if not diagnostic_data_lock.locked():
+            with diagnostic_data_lock:
+                # prepare the entry to add to the buffer
+                diagnostic_entry = {}
+                diagnostic_entry["timestamp"] = time.time_ns() // 1_000_000
+                diagnostic_entry["sensors"] = indata[-1].copy()
 
-    # only tries to update the diagnostic data if it isnt locked
-    # this helps minimize some distortion from polling diagnostic data
-    # callback will only be "held up" if it is currently being moved
-    if not diagnostic_data_lock.locked():
-        with diagnostic_data_lock:
-            diagnostic_data = indata[-1].copy()
+                # add the entry to the buffer
+                diagnostic_data.append(diagnostic_entry)
+
+        # sets next poll to occur after at least 1 sec of ns / frequency passes
+        next_poll_time = curr_time + 1_000_000_000 / c.MIC_DIAGNOSTIC_FREQUENCY
 
 
 def create_recording():
@@ -100,7 +117,9 @@ def recording_control():
             # if recording is true and
             # the satellite timestamp is withing the hub timestamp + timeout
             # then: recording is true
-            most_recent_recording_status = query_recording_status(c.HUB_ADDRESS, c.HUB_PORT)
+            most_recent_recording_status = query_recording_status(
+                c.HUB_ADDRESS, c.HUB_PORT
+            )
 
             status_message += "API: connected\n"
         except:
@@ -132,10 +151,12 @@ def recording_control():
         # waits sleep_time seconds to avoid busy waiting
         time.sleep(c.sleep_time)
 
+
 # Flask api thread
 # Runs flask api on the satellite alongside everything else
 def flask_api_thread():
     app.run(host="0.0.0.0", port=c.SATELLITE_PORT, debug=False)
+
 
 # Thread for terminating the program
 # tells recording to stop when enter is pressed
@@ -148,24 +169,29 @@ def terminate_threads():
     recording = False
     running = False
 
+
 # Route for satellite to send data to the dashboard
+# TODO: Update to send buffer of 60hz telemetry data
 @app.route("/data")
 def satellite_api():
-    data = {"device_name": c.device_name,
-            "timestamps": time.time_ns(),
-            "sensors": []
-            }
+    data = {}
+    data["timestamps"] = []
 
     with diagnostic_data_lock:
+        diagnostic_data_copy = diagnostic_data.copy()
         # print("ROUTE AQUIRED LOCK")
-        data["sensors"] = list(diagnostic_data)
-    
+        # data["sensors"] = list(diagnostic_data)
+
+    diagnostic_data_copy_list = list(diagnostic_data_copy)
+
+    for i in range(len(diagnostic_data_copy_list)):
+        data["timestamps"].append(diagnostic_data_copy_list[i]["timestamp"])
+
     for i in range(len(data["sensors"])):
         data["sensors"][i] = int(data["sensors"][i])
 
     # print(f"json payload: {data}")
     return json.dumps(data)
-
 
 
 if __name__ == "__main__":

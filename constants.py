@@ -11,6 +11,10 @@ device_index = 0
 
 sleep_time = 1 / 10
 dtype = "int16"
+MIC_DIAGNOSTIC_FREQUENCY = 60
+MIC_DIAGNOSTIC_LENGTH = 10 * MIC_DIAGNOSTIC_FREQUENCY
+NUM_CHANNELS = 6
+
 
 file_name = "recording"
 file_directory = "recordings/"
