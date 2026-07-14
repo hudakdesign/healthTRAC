@@ -176,6 +176,7 @@ def terminate_threads():
 def satellite_api():
     data = {}
     data["timestamps"] = []
+    data["sensors"] = [[] for _ in range(c.NUM_MIC_CHANNELS)]
 
     with diagnostic_data_lock:
         diagnostic_data_copy = diagnostic_data.copy()
@@ -186,11 +187,10 @@ def satellite_api():
 
     for i in range(len(diagnostic_data_copy_list)):
         data["timestamps"].append(diagnostic_data_copy_list[i]["timestamp"])
+        
+        for j in range(c.NUM_MIC_CHANNELS):
+            data["sensors"][j].append(int(diagnostic_data_copy_list[i]["sensors"][j]))
 
-    for i in range(len(data["sensors"])):
-        data["sensors"][i] = int(data["sensors"][i])
-
-    # print(f"json payload: {data}")
     return json.dumps(data)
 
 
