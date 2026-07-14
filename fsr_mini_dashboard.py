@@ -68,16 +68,15 @@ def get_fsr_data():
 
     while running:
         # make request and get response from FSR_URL
-        r = requests.get(FSR_URL)
+        try:
+            r = requests.get(FSR_URL)
 
-        # turn json from request into dict
-        data = r.json()
+            # turn json from request into dict
+            data = r.json()
+        except:
+            print(f"Problem when requesting {FSR_URL}. Trying again")
 
-        # timer = time.time()
-        # turn this data into individual polls and put into queue
         queue_individual_polls(data)
-        # print how much time queueing these took
-        # print(f"Time to queue: {time.time() - timer}")
 
         # waits until its time to poll again
         time.sleep(TIME_BETWEEN_POLLS)
@@ -222,7 +221,7 @@ def fsr_api():
             new_json_dict["sensors"][5].append(fsr_data_buffer[i]["sensor5"])
             new_json_dict["sensors"][6].append(fsr_data_buffer[i]["sensor6"])
             new_json_dict["sensors"][7].append(fsr_data_buffer[i]["sensor7"])
-    
+
     new_json = json.dumps(new_json_dict)
     return new_json
 
