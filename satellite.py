@@ -1,219 +1,245 @@
-import numpy as np
-import sounddevice as sd
-import subprocess
-import sys
+# Imports
+import json
 import threading
 import time
-import wave
-import requests
-import constants as c
-from flask import Flask
-import json
-import collections
+import queue
+import sys
+import subprocess
 
+
+from flask import Flask
+import sounddevice as sd
+import soundfile as sf
+import numpy
+import requests
+
+assert numpy
+
+
+# Constants
+DEVICE_ID = 1
+NUM_CHANNELS = sd.query_devices(DEVICE_ID)["max_input_channels"]
+MICROPHONE_FREQUENCY = sd.query_devices(DEVICE_ID)["default_samplerate"]
+
+FILENAME = "test_recording.wav"
+HUB_API_URL = "http://127.0.0.1:8050/"
+SLEEP_TIME = 1
+TIMEOUT_TIME_SECONDS = (
+    4  # including sleep time, this means theres at most a 5 second delay before pausing
+)
+RECORDING_DIRECTORY = "recordings/"
+CHUNK_TIME_MINUTES = 1
+CHUNK_TIME_NS = (
+    CHUNK_TIME_MINUTES * 60 * 1e9
+)  # minutes * 60 (sec in minute) * 1e9 (ns in sec)
+# frequency is 16000hz, 1500 frames per chunk. taking a sample every 250 frames will yield a 64hz polling rate
+DIAGNOSTIC_SAMPLE_RATE = 250  # takes a sample every 250 frames
+FRAME_TIME_NS = int((1.0 / MICROPHONE_FREQUENCY) * 1e9)
+
+
+# Globals
 app = Flask(__name__)
 
-# Defaults
-file_path = f"{c.file_directory}{c.file_name}"
+audio_block_queue = (
+    queue.Queue()
+)  # used to queue up audio chunks from callback for writing
+diagnostic_frame_queue = (
+    queue.Queue()
+)  # used to queue up audio diagnostics data to share with the hub
 
-# Sets sample rate to default of default device
-sample_rate = sd.query_devices(c.device_index)["default_samplerate"]
-print(sd.query_devices(c.device_index))
-channels = sd.query_devices(c.device_index)["max_input_channels"]
-
-audio_frames = []
-recording = False
-hub_timestamp = 0
-
-# Buffers for diagnostic data sent to the dashboard
-# DONE: Update to rolling buffer of each channel amplitude value
-diagnostic_data = collections.deque(maxlen=c.MIC_DIAGNOSTIC_LENGTH)
-diagnostic_data_lock = threading.Lock()
-
-running = True
-next_poll_time = 0
+last_poll_time = 0  # used for poll timing
+last_poll_time_lock = threading.Lock()
+running = True  # controls if the whole system is running
+running_lock = threading.Lock()
+recording = True  # controls if the data recorder is recording
+recording_lock = threading.Lock()
 
 
-def callback(indata, frames, t_, status):
-    # Whenever callback is called, diagnostic data is updated with most recent audio data
-    global diagnostic_data
-    global next_poll_time
+# Tasks:
+# record audio data
+def audio_data_recorder():
+    # callback function used to process every block of audio data
+    # this is from a separate thread
+    # DONE: queue heavily downsampled data from each block
+    def callback(indata, frames, t_, status):
+        if status:
+            print(status, file=sys.stderr)
+        audio_block_queue.put(indata.copy())
 
-    if status:
-        print(status, file=sys.stderr)
-    audio_frames.append(indata.copy())
+        curr_time = time.time_ns()
 
-    # TODO: Update to save this poll every `polling_rate` ms
-    #
-    curr_time = time.time_ns()
-    if curr_time > next_poll_time:
-        # only tries to update the diagnostic data if it isnt locked
-        # this helps minimize some distortion from polling diagnostic data
-        # callback will only be "held up" if it is currently being moved
-        if not diagnostic_data_lock.locked():
-            with diagnostic_data_lock:
-                # prepare the entry to add to the buffer
-                diagnostic_entry = {}
-                diagnostic_entry["timestamp"] = time.time_ns() // 1_000_000
-                diagnostic_entry["sensors"] = indata[-1].copy()
+        # if a block is 1500 frames, and the sample rate is 16000hz,
+        # then when we get a block the start time is roughly (1500 / 16000) seconds before the current time
+        # this isnt perfectly accurate, but it should be good enough for diagnostics
+        # a frame represents audio from ((1 / MICROPHONE_FREQUENCY) * 1e9) nanoseconds
+        # the block should start at curr_time - frame_time_ns * frames (the number of frames)
 
-                # add the entry to the buffer
-                diagnostic_data.append(diagnostic_entry)
+        block_start_time = time.time_ns() - FRAME_TIME_NS * frames
+        # print("-" * 80)
+        # print(f"Callback called again after {(curr_time - get_last_poll_time()) / 1e6} milliseconds")
+        # print(f"Number of frames {frames}")
 
-        # sets next poll to occur after at least 1 sec of ns / frequency passes
-        next_poll_time = curr_time + 1_000_000_000 / c.MIC_DIAGNOSTIC_FREQUENCY
+        # DONE: collect diagnostic data at 64hz
+        # loop through indata with a step of `DIAGNOSTIC_SAMPLE_RATE`
+        # print("Frames in block")
+        for i in range(0, len(indata), DIAGNOSTIC_SAMPLE_RATE):
+            new_diagnostic_frame = {}
+            new_diagnostic_frame["timestamp"] = block_start_time + (
+                i * FRAME_TIME_NS
+            )  # calculates time at frame recording
+            new_diagnostic_frame["sensors"] = indata[i].copy()
+            diagnostic_frame_queue.put(new_diagnostic_frame)  # queue up the frame
 
+        #     print(f"Index {i}: {new_diagnostic_frame}")
+        # print("-" * 80)
 
-def create_recording():
-    # Log start time
-    start_time = time.time_ns()
+    # DONE: query device for sample rate and channel count
+    device_info = sd.query_devices(DEVICE_ID)
+    sample_rate = int(device_info["default_samplerate"])
+    channels = device_info["max_input_channels"]
 
-    # Start recording stream
-    with sd.InputStream(
-        samplerate=sample_rate, channels=channels, dtype=c.dtype, callback=callback
-    ):
-        global recording
-        while recording:
-            sd.sleep(100)
+    # DONE: record data to wav file
+    # DONE: update to change filename for each chunk
+    while get_running():
+        if get_recording():
+            # each time recording is restarted update the filename
+            file_path = f"{RECORDING_DIRECTORY}recording_{time.time_ns()}.wav"
+            next_chunk_time = time.time_ns() + CHUNK_TIME_NS
 
-    audio_data = np.concatenate(audio_frames)
+            with sf.SoundFile(
+                file_path, mode="x", samplerate=sample_rate, channels=channels
+            ) as file:
+                with sd.InputStream(
+                    samplerate=sample_rate,
+                    device=DEVICE_ID,
+                    channels=channels,
+                    callback=callback,
+                ):
+                    print("New recording started")
 
-    # Writes data to file timestamped with the start time
-    with wave.open(f"{file_path}_{start_time}.wav", "wb") as wav_file:
-        wav_file.setnchannels(channels)
-        wav_file.setsampwidth(np.dtype(c.dtype).itemsize)
-        wav_file.setframerate(sample_rate)
-        wav_file.writeframes(audio_data.tobytes())
-
-
-# Recording control thread
-# TODO: Update recording control to work off of hub status and simlify tui
-def recording_control():
-    global recording
-
-    # Function for checking with hub if it should be recording
-    # takes in hub address
-    def query_recording_status(address, port):
-        url = f"http://{address}:{port}/recording_flag"
-        response = requests.get(url)
-
-        if response.status_code == 200:
-            return response.json()
+                    while (
+                        get_recording()
+                        and get_running()
+                        and (time.time_ns() < next_chunk_time)
+                    ):
+                        # DONE: restart the recording after a set amount of time passes to help avoid corruption
+                        file.write(audio_block_queue.get())
         else:
-            return None
+            time.sleep(SLEEP_TIME)
 
-    # stores most recent hub status just in case connection is lost
-    most_recent_recording_status = {"time_ns": 0, "recording": False}
+    # DONE: stop and resume recording based on global recording flag
+    print("audio_data_recorder(): Shutting down")
 
-    while running:
-        # current timestamp on the satellite
-        satellite_timestamp = time.time_ns()
-        # status message for debugging
-        status_message = "Recording Control Dashboard\n"
 
-        # Attempt to call the API,
-        # Otherwise: we have the most recent timestamp
+# check recording flag
+def recording_flag_checker():
+    global recording
+    # DONE: poll hub to check if recording should be happening
+    # DONE: use a request timeout to pause recording if hub is down
+    # DONE (implemented mutex to be safe): determine if lock is necessary for running and recording
+    while get_running():
+        try:  # try to request the hub api
+            response = requests.get(HUB_API_URL, timeout=TIMEOUT_TIME_SECONDS)
 
-        try:
-            # if recording is true and
-            # the satellite timestamp is withing the hub timestamp + timeout
-            # then: recording is true
-            most_recent_recording_status = query_recording_status(
-                c.HUB_ADDRESS, c.HUB_PORT
-            )
-
-            status_message += "API: connected\n"
+            if response.json() == "True":
+                set_recording(True)
+            else:
+                set_recording(False)
         except:
-            status_message += "API: DISCONNECTED\n"
+            set_recording(False)
+            print("recording_flag_checker(): Exception when requesting hub")
 
-        if most_recent_recording_status["recording"] == False:
-            recording = False
-        elif satellite_timestamp > most_recent_recording_status["time_ns"] + c.timeout:
-            recording = False
-        else:
-            recording = True
-
-        if recording:
-            status_message += "Recording: recording\n"
-        else:
-            status_message += "Recording: NOT RECORDING\n"
-
-        status_message += "[Enter] to terminate\n"
-        status_message += "\n---DEBUG INFO---\n"
-
-        status_message += f"Satellite Timestamp: {satellite_timestamp}\n"
-        status_message += (
-            f"Hub Timestamp      : {most_recent_recording_status['time_ns']}\n"
-        )
-        status_message += f"Timeout            : {(satellite_timestamp - most_recent_recording_status['time_ns'])/1e9:.2f}/{c.timeout/1e9:.2f}s"
-
-        subprocess.run(["clear"])
-        print(status_message)
-        # waits sleep_time seconds to avoid busy waiting
-        time.sleep(c.sleep_time)
+        time.sleep(SLEEP_TIME)
+    print("recording_flag_checker(): Shutting down")
 
 
-# Flask api thread
-# Runs flask api on the satellite alongside everything else
-def flask_api_thread():
-    app.run(host="0.0.0.0", port=c.SATELLITE_PORT, debug=False)
+# diagnostics api (main)
+def diagnostics_api_server():
+    # DONE: host flask app making diagnostics data accessible at route
+    # consume items from the queue
+    @app.route("/")
+    def diagnostics_api():
+        # DONE: fill dictionary with diagnostics data from queue until queue is empty
+        # DONE: once the dictionary is ready, call json.dumps() and return it
+        response_dict = {
+            "timestamps": [],
+            "sensors": [[] for _ in range(NUM_CHANNELS)],
+        }  # temporarily stores response while it is being built
+
+        # while the queue isnt empty,
+        # get frames from it and add them to the response json
+        while not diagnostic_frame_queue.empty():
+            diagnostic_frame = diagnostic_frame_queue.get()
+            response_dict["timestamps"].append(diagnostic_frame["timestamp"])
+
+            # populate the sensors part of things
+            for channel_index in range(NUM_CHANNELS):
+                response_dict["sensors"][channel_index].append(
+                    float(diagnostic_frame["sensors"][channel_index])
+                )
+
+        # once the queue is emptied,
+        # turn it into json string and send it off
+        return json.dumps(response_dict)
+
+    app.run(port=8051, debug=False)
+
+    print("diagnostics_api_server(): Shutting down")
 
 
-# Thread for terminating the program
-# tells recording to stop when enter is pressed
-# then sets running to false to end all loophs
-def terminate_threads():
+def queue_tester():
+    while running:
+        diagnostic_frame = diagnostic_frame_queue.get(timeout=1)
+        print(f"queue_tester(): {diagnostic_frame}")
+
+    print("queue_tester(): Shutting down")
+
+
+# Utility functions:
+# gets recording in a thread-safe manner
+def get_recording():
+    with recording_lock:
+        return recording
+
+
+# sets recording in a thread-safe manner
+def set_recording(recording_state: bool):
     global recording
+
+    with recording_lock:
+        recording = recording_state
+
+
+# gets running in a thread-safe manner
+def get_running():
+    with running_lock:
+        return running
+
+
+# sets running in a thread-safe manner
+def set_running(running_state: bool):
     global running
 
-    input()
-    recording = False
-    running = False
-
-
-# Route for satellite to send data to the dashboard
-# TODO: Update to send buffer of 60hz telemetry data
-@app.route("/data")
-def satellite_api():
-    data = {}
-    data["timestamps"] = []
-    data["sensors"] = [[] for _ in range(c.NUM_MIC_CHANNELS)]
-
-    with diagnostic_data_lock:
-        diagnostic_data_copy = diagnostic_data.copy()
-        # print("ROUTE AQUIRED LOCK")
-        # data["sensors"] = list(diagnostic_data)
-
-    diagnostic_data_copy_list = list(diagnostic_data_copy)
-
-    for i in range(len(diagnostic_data_copy_list)):
-        data["timestamps"].append(diagnostic_data_copy_list[i]["timestamp"])
-        
-        for j in range(c.NUM_MIC_CHANNELS):
-            data["sensors"][j].append(int(diagnostic_data_copy_list[i]["sensors"][j]))
-
-    return json.dumps(data)
+    with running_lock:
+        running = running_state
 
 
 if __name__ == "__main__":
-    # create recordings directory if it doesnt exist
-    subprocess.run(["mkdir", "-p", c.file_directory])
+    # DONE: make sure that the recording directory is set up
+    subprocess.call(["mkdir", "-p", RECORDING_DIRECTORY])
 
-    recording_control_thread = threading.Thread(target=recording_control)
-    recording_control_thread.start()
+    recording_flag_checker_thread = threading.Thread(target=recording_flag_checker)
+    audio_data_recorder_thread = threading.Thread(target=audio_data_recorder)
+    # queue_tester_thread = threading.Thread(target=queue_tester)
 
-    termination_thread = threading.Thread(target=terminate_threads)
-    termination_thread.start()
+    recording_flag_checker_thread.start()
+    time.sleep(1)
+    audio_data_recorder_thread.start()
+    # queue_tester_thread.start()
 
-    # FIXME: flask server should be running in the main thread
-    # move recording creation logic to its own thread
-    api_thread = threading.Thread(target=flask_api_thread)
-    api_thread.start()
+    diagnostics_api_server()
 
-
-    while running:
-        # If recording is toggled on, retoggle it
-        if recording:
-            create_recording()
-        # Otherwise, sleep for a sleep_time
-        time.sleep(c.sleep_time)
+    # when the api server is closed
+    # shut down all the threads
+    print("main(): Shutting everything down")
+    set_running(False)

@@ -2,5 +2,6 @@ flask
 requests
 numpy
 sounddevice
+soundfile
 gpiozero
 pandas
