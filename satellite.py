@@ -25,6 +25,7 @@ MICROPHONE_FREQUENCY = sd.query_devices(DEVICE_ID)["default_samplerate"]
 
 FILENAME = "test_recording.wav"
 HUB_API_URL = "http://127.0.0.1:8050/"
+DIAGNOSTIC_API_PORT = 8051
 SLEEP_TIME = 1
 TIMEOUT_TIME_SECONDS = (
     4  # including sleep time, this means theres at most a 5 second delay before pausing
@@ -184,7 +185,7 @@ def diagnostics_api_server():
         # turn it into json string and send it off
         return json.dumps(response_dict)
 
-    app.run(port=8051, debug=False)
+    app.run(host="0.0.0.0", port=DIAGNOSTIC_API_PORT, debug=False)
 
     print("diagnostics_api_server(): Shutting down")
 
