@@ -43,7 +43,8 @@ void setup()
   pollQueue = xQueueCreate(POLL_QUEUE_LEN, sizeof(imuPoll));
 
   // start tasks
-  xTaskCreate(imuDataCollector, "IMU Data Collector", 1028, NULL, 1, &imuDataCollectorHandle);
+  xTaskCreate(imuDataCollector, "IMU Data Collector", 90, NULL, 1, &imuDataCollectorHandle); // stack calc: (1024 - 953) / 0.8 = 88.75
+  xTaskCreate(imuDataPrinter, "IMU Data Printer", 350, NULL, 1, &imuDataPrinterHandle); // stack calc (1024 - 749) / 0.8 = 343.75
 }
 
 // used for getting high watermarks
@@ -53,18 +54,18 @@ void loop()
   Serial.print(uxTaskGetStackHighWaterMark(imuDataCollectorHandle));
   Serial.println("|t");
 
+  Serial.print(">printingHighWaterMark:");
+  Serial.print(uxTaskGetStackHighWaterMark(imuDataPrinterHandle));
+  Serial.println("|t");
+
   vTaskDelay(pdMS_TO_TICKS(1000));
 }
 
 void imuDataCollector(void *parameters)
 {
-  vTaskDelay(pdMS_TO_TICKS(10000));
-  Serial.println("Data collection started");
-
   static imuPoll currPoll;
   while (1)
   {
-
     currPoll.timestamp = millis();
     currPoll.xAccel = myImu.readFloatAccelX();
     currPoll.yAccel = myImu.readFloatAccelY();
@@ -80,13 +81,22 @@ void imuDataCollector(void *parameters)
       digitalWrite(LED_RED, HIGH);
     }
 
-    Serial.print(">xAccel:");
-    Serial.println(currPoll.xAccel);
-    Serial.print(">yAccel:");
-    Serial.println(currPoll.yAccel);
-    Serial.print(">zAccel:");
-    Serial.println(currPoll.zAccel);
-
     vTaskDelay(pdMS_TO_TICKS(POLL_RATE_MS));
+  }
+}
+
+void imuDataPrinter(void *parameters) {
+  static imuPoll currPoll;
+  while (1) {
+    if (xQueueReceive(pollQueue, (void *)&currPoll, 0) == pdTRUE) {
+      Serial.print(">xAccel:");
+      Serial.println(currPoll.xAccel);
+      Serial.print(">yAccel:");
+      Serial.println(currPoll.yAccel);
+      Serial.print(">zAccel:");
+      Serial.println(currPoll.zAccel);
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(POLL_RATE_MS / 2));
   }
 }
