@@ -4,8 +4,8 @@
 #include "LSM6DS3.h"
 
 // Constants:
-static const int BAUD_RATE = 115200;
-static const int POLL_QUEUE_LEN = 100;
+static const uint32_t BAUD_RATE = 115200;
+static const int POLL_QUEUE_LEN = 1000;
 static const int POLL_RATE_HZ = 100;
 static const int POLL_RATE_MS = 1000 / POLL_RATE_HZ;
 
@@ -37,25 +37,34 @@ void setup()
 {
   Serial.begin(BAUD_RATE);
   pinMode(LED_RED, OUTPUT);
+  myImu.begin();
 
   // create queue for data polls
   pollQueue = xQueueCreate(POLL_QUEUE_LEN, sizeof(imuPoll));
 
   // start tasks
-  xTaskCreate(imuDataCollector, "IMU Data Collector", 256, NULL, 1, NULL);
+  xTaskCreate(imuDataCollector, "IMU Data Collector", 1028, NULL, 1, &imuDataCollectorHandle);
 }
 
 // used for getting high watermarks
 void loop()
 {
+  Serial.print(">collectionHighWaterMark:");
+  Serial.print(uxTaskGetStackHighWaterMark(imuDataCollectorHandle));
+  Serial.println("|t");
+
+  vTaskDelay(pdMS_TO_TICKS(1000));
 }
 
 void imuDataCollector(void *parameters)
 {
-  static imuPoll currPoll;
+  vTaskDelay(pdMS_TO_TICKS(10000));
+  Serial.println("Data collection started");
 
+  static imuPoll currPoll;
   while (1)
   {
+
     currPoll.timestamp = millis();
     currPoll.xAccel = myImu.readFloatAccelX();
     currPoll.yAccel = myImu.readFloatAccelY();
@@ -70,6 +79,13 @@ void imuDataCollector(void *parameters)
     {
       digitalWrite(LED_RED, HIGH);
     }
+
+    Serial.print(">xAccel:");
+    Serial.println(currPoll.xAccel);
+    Serial.print(">yAccel:");
+    Serial.println(currPoll.yAccel);
+    Serial.print(">zAccel:");
+    Serial.println(currPoll.zAccel);
 
     vTaskDelay(pdMS_TO_TICKS(POLL_RATE_MS));
   }
