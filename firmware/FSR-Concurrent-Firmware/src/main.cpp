@@ -15,9 +15,10 @@ static const int NUM_CHANNELS = 16;
 
 // Settings:
 static const int NUM_FSRS = 8;
-static const int POLL_RATE = 100;                                  // 100 hz
-static const int POLL_SECONDS_STORED = 20;                         // store up to 10 seconds of polls
-static const int POLL_QUEUE_LEN = POLL_RATE * POLL_SECONDS_STORED; // stores 10 seconds of polls at 100 hz
+static const int POLL_RATE_HZ = 100;                                               // 100 hz
+static const TickType_t POLL_FREQUENCY_TICKS = pdMS_TO_TICKS(1000 / POLL_RATE_HZ); // ticks between polls
+static const int POLL_SECONDS_STORED = 20;                                         // store up to 10 seconds of polls
+static const int POLL_QUEUE_LEN = POLL_RATE_HZ * POLL_SECONDS_STORED;              // stores 10 seconds of polls at 100 hz
 
 static const int PRODUCER_THREAD_STACK_SIZE = 2048;
 static const int BUFFER_STREAM_SIZE = 1024;
@@ -62,10 +63,16 @@ int getKBit(int, int);
 // Higher priority (this will always execute when it needs to)
 void collectSensorData(void *parameters)
 {
+  TickType_t collectionLastWakeTime;
+  BaseType_t collectionWasDelayed;
+
   struct dataPoll data; // initializes struct instance for thread
 
+  collectionLastWakeTime = xTaskGetTickCount();
   while (1)
   {
+    collectionWasDelayed = xTaskDelayUntil(&collectionLastWakeTime, POLL_FREQUENCY_TICKS);
+
     // get timestamp for when this poll is being taken
     data.timestamp = millis();
 
@@ -75,8 +82,8 @@ void collectSensorData(void *parameters)
       // get the value
 
       // store it in the data struct
-      data.sensorReadings[i] = getMuxOutput(i, MUX_OUTPUT_PIN);
-      // data.sensorReadings[i] = getSyntheticSensorValue(data.timestamp, i); // code for when no fsr attached
+      // data.sensorReadings[i] = getMuxOutput(i, MUX_OUTPUT_PIN);
+      data.sensorReadings[i] = getSyntheticSensorValue(data.timestamp, i); // code for when no fsr attached
       // Serial.print(data.sensor_readings[i]);
       // Serial.print(" ");
     }
@@ -93,8 +100,8 @@ void collectSensorData(void *parameters)
       digitalWrite(LED_RED, HIGH);
     }
 
-    // wait until it is time for the next poll
-    vTaskDelay(1000 / POLL_RATE / portTICK_PERIOD_MS); // 1000 / 100: 100hz (every 10 ms)
+    // wait until it is time for the next poll TODO: Delete me
+    // vTaskDelay(1000 / POLL_RATE_HZ / portTICK_PERIOD_MS); // 1000 / 100: 100hz (every 10 ms)
   }
 }
 
@@ -155,7 +162,7 @@ void setup()
                           "Collect Sensor Data",
                           PRODUCER_THREAD_STACK_SIZE,
                           NULL,
-                          1, // priority doesnt matter, this is the only thing running on procore
+                          2, // priority 2 to make sure it is running on time
                           NULL,
                           PRO_CPU);
 }
