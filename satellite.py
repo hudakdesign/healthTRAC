@@ -103,8 +103,8 @@ def audio_data_recorder():
 
     # DONE: record data to wav file
     # DONE: update to change filename for each chunk
-    while get_running():
-        if get_recording():
+    while get_running_state():
+        if get_recording_state():
             # each time recording is restarted update the filename
             file_path = f"{RECORDING_DIRECTORY}recording_{time.time_ns()}.wav"
             next_chunk_time = time.time_ns() + CHUNK_TIME_NS
@@ -121,8 +121,8 @@ def audio_data_recorder():
                     print("New recording started")
 
                     while (
-                        get_recording()
-                        and get_running()
+                        get_recording_state()
+                        and get_running_state()
                         and (time.time_ns() < next_chunk_time)
                     ):
                         # DONE: restart the recording after a set amount of time passes to help avoid corruption
@@ -140,16 +140,16 @@ def recording_flag_checker():
     # DONE: poll hub to check if recording should be happening
     # DONE: use a request timeout to pause recording if hub is down
     # DONE (implemented mutex to be safe): determine if lock is necessary for running and recording
-    while get_running():
+    while get_running_state():
         try:  # try to request the hub api
             response = requests.get(HUB_API_URL, timeout=TIMEOUT_TIME_SECONDS)
 
             if response.json() == "True":
-                set_recording(True)
+                set_recording_state(True)
             else:
-                set_recording(False)
+                set_recording_state(False)
         except:
-            set_recording(False)
+            set_recording_state(False)
             print("recording_flag_checker(): Exception when requesting hub")
 
         time.sleep(SLEEP_TIME)
@@ -200,13 +200,13 @@ def queue_tester():
 
 # Utility functions:
 # gets recording in a thread-safe manner
-def get_recording():
+def get_recording_state():
     with recording_lock:
         return recording
 
 
 # sets recording in a thread-safe manner
-def set_recording(recording_state: bool):
+def set_recording_state(recording_state: bool):
     global recording
 
     with recording_lock:
@@ -214,13 +214,13 @@ def set_recording(recording_state: bool):
 
 
 # gets running in a thread-safe manner
-def get_running():
+def get_running_state():
     with running_lock:
         return running
 
 
 # sets running in a thread-safe manner
-def set_running(running_state: bool):
+def set_running_state(running_state: bool):
     global running
 
     with running_lock:
@@ -245,4 +245,4 @@ if __name__ == "__main__":
     # when the api server is closed
     # shut down all the threads
     print("main(): Shutting everything down")
-    set_running(False)
+    set_running_state(False)
