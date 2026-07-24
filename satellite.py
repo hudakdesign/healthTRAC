@@ -109,6 +109,7 @@ def audio_data_recorder():
             file_path = f"{RECORDING_DIRECTORY}recording_{time.time_ns()}.wav"
             next_chunk_time = time.time_ns() + CHUNK_TIME_NS
 
+            # TODO: Look into modifying logic to avoid reopening the input stream / minimize data loss
             with sf.SoundFile(
                 file_path, mode="x", samplerate=sample_rate, channels=channels
             ) as file:
