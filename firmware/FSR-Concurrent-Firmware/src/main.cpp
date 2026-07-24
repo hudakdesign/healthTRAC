@@ -82,8 +82,8 @@ void collectSensorData(void *parameters)
       // get the value
 
       // store it in the data struct
-      // data.sensorReadings[i] = getMuxOutput(i, MUX_OUTPUT_PIN);
-      data.sensorReadings[i] = getSyntheticSensorValue(data.timestamp, i); // code for when no fsr attached
+      data.sensorReadings[i] = getMuxOutput(i, MUX_OUTPUT_PIN);
+      // data.sensorReadings[i] = getSyntheticSensorValue(data.timestamp, i); // code for when no fsr attached
       // Serial.print(data.sensor_readings[i]);
       // Serial.print(" ");
     }
