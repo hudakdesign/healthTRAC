@@ -261,8 +261,7 @@ void loop()
 // Return synthetic data output
 int getSyntheticSensorValue(int timestamp, int idx)
 {
-  return 16;
-  // return (int)((sin(timestamp * (idx + 1) * 0.01) + 1) * 4096 / 2); // returns int value simulating fsr output
+  return (int)((sin((timestamp * (idx + 1) * 0.0001) + 1)) * 4096 / 2); // returns int value simulating fsr output
 }
 
 // sets selection pins to tell mux which channel to provide
