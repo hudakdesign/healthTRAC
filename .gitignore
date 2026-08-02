@@ -9,3 +9,4 @@ logs*
 testing/
 recordings/
 *test.*
+network_credentials.h
