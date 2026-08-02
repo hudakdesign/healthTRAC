@@ -3,6 +3,9 @@
 #include <ArduinoJson.h>
 #include <StreamUtils.h>
 
+// Configure to use synthetic data or not
+#define USE_SYNTHETIC_DATA true
+
 // Configure cores:
 static const BaseType_t PRO_CPU = 0;
 static const BaseType_t APP_CPU = 1;
@@ -79,11 +82,15 @@ void collectSensorData(void *parameters)
     // loop through each sensor checking their values
     for (int i = 0; i < NUM_FSRS; i++)
     {
-      // get the value
+// get the value
 
-      // store it in the data struct
+// store it in the data struct
+#if USE_SYNTHETIC_DATA:
+      data.sensorReadings[i] = getSyntheticSensorValue(data.timestamp, i); // code for when no fsr attached
+#else:
       data.sensorReadings[i] = getMuxOutput(i, MUX_OUTPUT_PIN);
-      // data.sensorReadings[i] = getSyntheticSensorValue(data.timestamp, i); // code for when no fsr attached
+#endif
+
       // Serial.print(data.sensor_readings[i]);
       // Serial.print(" ");
     }
