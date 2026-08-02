@@ -69,7 +69,7 @@ def get_fsr_data():
     while running:
         # make request and get response from FSR_URL
         try:
-            r = requests.get(FSR_URL)
+            r = requests.get(FSR_URL, timeout=1)
 
             # turn json from request into dict
             data = r.json()
@@ -80,6 +80,8 @@ def get_fsr_data():
 
         # waits until its time to poll again
         time.sleep(TIME_BETWEEN_POLLS)
+        
+    print("get_fsr_data(): shut down")
 
 
 # consumer:
@@ -147,6 +149,7 @@ def process_fsr_data():
                         # fsr_data_buffer.append(pd_formatted_datapoll)
             except:
                 continue
+        print("process_fsr_data(): shut down")
 
 
 # TODO: webserver:
@@ -248,6 +251,7 @@ def main():
 
     # stop when the server is closed
     serve_flask_app()
+    print("main(): shut down")
     running = False
 
 
