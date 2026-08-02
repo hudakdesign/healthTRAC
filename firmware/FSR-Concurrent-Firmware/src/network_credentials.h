@@ -1,2 +1,0 @@
-const char *SSID = "PLACEHOLDER_SSID";
-const char *PASSWORD = "PLACEHOLDER_PASSWORD";
