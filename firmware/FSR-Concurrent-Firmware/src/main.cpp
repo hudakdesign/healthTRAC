@@ -2,6 +2,7 @@
 #include <WiFi.h>
 #include <ArduinoJson.h>
 #include <StreamUtils.h>
+#include "network_credentials.h"
 
 // Configure to use synthetic data or not
 #define USE_SYNTHETIC_DATA true
@@ -29,9 +30,7 @@ static const int MONITOR_SPEED = 115200;
 static const int START_DELAY = 2000;
 static const int BLINK_RATE = 250;
 
-// network credentials:
-const char *SSID = "CBI IoT";
-const char *PASSWORD = "cbir00lz";
+// network hostname
 const char *HOSTNAME = "fsr-alpha";
 
 // server settings:
