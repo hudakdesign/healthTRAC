@@ -85,9 +85,9 @@ void collectSensorData(void *parameters)
 // get the value
 
 // store it in the data struct
-#if USE_SYNTHETIC_DATA:
+#if USE_SYNTHETIC_DATA
       data.sensorReadings[i] = getSyntheticSensorValue(data.timestamp, i); // code for when no fsr attached
-#else:
+#else
       data.sensorReadings[i] = getMuxOutput(i, MUX_OUTPUT_PIN);
 #endif
 
