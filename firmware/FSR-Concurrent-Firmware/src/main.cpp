@@ -5,7 +5,7 @@
 #include "network_credentials.h"
 
 // Configure to use synthetic data or not
-#define USE_SYNTHETIC_DATA true
+#define USE_SYNTHETIC_DATA false
 
 // Configure cores:
 static const BaseType_t PRO_CPU = 0;
