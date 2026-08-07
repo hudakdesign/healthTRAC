@@ -8,6 +8,7 @@ const char *DEVICE_NAME = "IMU-XIAO";
 const char *SERVICE_UUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E";
 const char *CHARACTERISTIC_UUID = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E";
 const int8_t POWER_LEVEL = 8;
+const TickType_t POLL_FREQUENCY = pdMS_TO_TICKS(10);
 
 // Globals
 NimBLEStreamServer bleStream;
@@ -124,14 +125,45 @@ void setup()
 void loop()
 {
   // wait until time for next poll
+  // set last wake time for polling
+  static TickType_t lastWakeTime = xTaskGetTickCount();
+  vTaskDelayUntil(&lastWakeTime, POLL_FREQUENCY);
 
   // handle receive buffer overflows
+  static uint32_t lastDroppedOld = 0;
+  static uint32_t lastDroppedNew = 0;
+  if (g_rxOverflowStats.droppedOld != lastDroppedOld || g_rxOverflowStats.droppedNew != lastDroppedNew)
+  {
+    lastDroppedOld = g_rxOverflowStats.droppedOld;
+    lastDroppedNew = g_rxOverflowStats.droppedNew;
+    Serial.printf("RX overflow handled (drop-old=%lu, drop-new=%lu)\n", lastDroppedOld, lastDroppedNew);
+  }
 
   // check if a client is subscribed {
+  if (bleStream.ready())
+  {
+    // populate DataPoll with current sensor data
+    DataPoll dataPoll;
+    dataPoll.timestamp = millis();
+    dataPoll.accelX = myImu.readFloatAccelX();
+    dataPoll.accelY = myImu.readFloatAccelY();
+    dataPoll.accelZ = myImu.readFloatAccelZ();
 
-  // populate DataPoll with current sensor data
+    // FIXME: for now just send as strings to be printed
+    bleStream.print(">timestamp:");
+    bleStream.print(dataPoll.timestamp);
+    bleStream.println("|t");
 
-  // convert to array of bytes
+    bleStream.print(">accelX:");
+    bleStream.println(dataPoll.accelX, 3);
+    bleStream.print(">accelY:");
+    bleStream.println(dataPoll.accelY, 3);
+    bleStream.print(">accelZ:");
+    bleStream.println(dataPoll.accelZ, 3);
 
-  // print byte array over bleStream }
+    // TODO: Convert to byte array
+    // // convert to array of bytes
+
+    // // print byte array over bleStream }
+  }
 }
