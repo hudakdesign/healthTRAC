@@ -18,6 +18,7 @@ struct RxOverflowStats
 } g_rxOverflowStats;
 
 // Callback declarations
+// overflow callback
 NimBLEStream::RxOverflowAction onRxOverflow(const uint8_t *data, size_t len, void *userArg)
 {
   auto *stats = static_cast<RxOverflowStats *>(userArg);
@@ -31,6 +32,27 @@ NimBLEStream::RxOverflowAction onRxOverflow(const uint8_t *data, size_t len, voi
   (void)len;
   return NimBLEStream::DROP_OLDER_DATA;
 }
+
+// server callbacks
+class ServerCallbacks : public NimBLEServerCallbacks
+{
+  void onConnect(NimBLEServer *pServer, NimBLEConnInfo &connInfo) override
+  {
+    Serial.printf("Client connected: %s\n", connInfo.getAddress().toString().c_str());
+    // TEST: update connection parameters for better throughput
+    pServer->updateConnParams(connInfo.getConnHandle(), 12, 24, 0, 200);
+  }
+
+  void onDisconnect(NimBLEServer *pServer, NimBLEConnInfo &connInfo, int reason) override {
+    Serial.printf("Client disconnected: (reason: %d) restarting advertising\n", reason);
+    NimBLEDevice::startAdvertising();
+  }
+
+  void onMTUChange(uint16_t MTU, NimBLEConnInfo &connInfo) override {
+    Serial.printf("MTU updated: %u for connection ID: %u\n", MTU, connInfo.getConnHandle());
+  }
+
+} serverCallbacks;
 
 void setup()
 {
