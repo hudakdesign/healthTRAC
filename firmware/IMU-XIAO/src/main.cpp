@@ -1,18 +1,38 @@
 #include <Arduino.h>
+#include <DataPoll.h>
 
-// put function declarations here:
-int myFunction(int, int);
+// Constants
+
+// Globals
+
+// Callback declarations
 
 void setup() {
-  // put your setup code here, to run once:
-  int result = myFunction(2, 3);
+  // initialize serial
+
+  // initialize imu
+
+  // initialize NimBLE
+
+  // set power level
+
+  // create ble server and set its callbacks
+
+  // intialize stream server and set overflow callback
+
+  // create advertising instance
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-}
+  // wait until time for next poll
 
-// put function definitions here:
-int myFunction(int x, int y) {
-  return x + y;
+  // handle receive buffer overflows
+
+  // check if a client is subscribed
+
+    // populate DataPoll with current sensor data
+
+    // convert to array of bytes
+
+    // print byte array over bleStream
 }
