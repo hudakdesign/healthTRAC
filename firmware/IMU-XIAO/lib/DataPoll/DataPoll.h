@@ -39,7 +39,7 @@ public:
   // Encodes data as bytes and stores it in buffer that is passed by reference
   // Example:
   //   ```
-  //   DataPoll myDataPoll = DataPoll(123456789, 0.05, -0.12, 1.14);
+  //   DataPoll myDataPoll = DataPoll(123, 0.05, -0.12, 1.14);
   //   char encodedDataBuffer[sizeof(myDataPoll.data)];
   //   myDataPoll.encodeDataPoll((char *)&encodedDataBuffer);
   //   ```
