@@ -142,28 +142,19 @@ void loop()
   // check if a client is subscribed {
   if (bleStream.ready())
   {
-    // populate DataPoll with current sensor data
-    DataPoll dataPoll;
-    dataPoll.timestamp = millis();
-    dataPoll.accelX = myImu.readFloatAccelX();
-    dataPoll.accelY = myImu.readFloatAccelY();
-    dataPoll.accelZ = myImu.readFloatAccelZ();
+    // TEST: Should convert to array of bytes and send it over bleStream
+    // Collects data and uses it to construct a DataPoll object
+    long currTimestamp = millis();
+    float currAccelX = myImu.readFloatAccelX();
+    float currAccelY = myImu.readFloatAccelY();
+    float currAccelZ = myImu.readFloatAccelZ();
+    DataPoll dataPoll = DataPoll(currTimestamp, currAccelX, currAccelY, currAccelZ);
 
-    // FIXME: for now just send as strings to be printed
-    bleStream.print(">timestamp:");
-    bleStream.print(dataPoll.timestamp);
-    bleStream.println("|t");
+    // Creates buffer for encoding poll data, then encodes poll data
+    char encodedDataBuffer[sizeof(dataPoll.data)];
+    dataPoll.encodeDataPoll((char *)&encodedDataBuffer);
 
-    bleStream.print(">accelX:");
-    bleStream.println(dataPoll.accelX, 3);
-    bleStream.print(">accelY:");
-    bleStream.println(dataPoll.accelY, 3);
-    bleStream.print(">accelZ:");
-    bleStream.println(dataPoll.accelZ, 3);
-
-    // TODO: Convert to byte array
-    // // convert to array of bytes
-
-    // // print byte array over bleStream }
+    // Sends the encoded data over bleStream
+    bleStream.println(encodedDataBuffer);
   }
 }
