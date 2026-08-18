@@ -19,37 +19,31 @@ MAX_QUEUE_LEN = (
 )  # do normal calculations and adjust for using aggregate values
 
 # Globals
+# Controls if the threads are running or not
 running = True
+
+# Stores fsr data as it comes in before it is processed
 fsr_data_queue = queue.Queue(maxsize=MAX_QUEUE_LEN)
 
-# rolling buffer for storing recent values
-fsr_data_buffer = collections.deque(
-    maxlen=MAX_QUEUE_LEN // AGGREGATE_CHUNK_LEN
-)  # DONE: change this to a better value
+# Stores processed fsr data for displaying on the dashboard
+fsr_data_buffer = collections.deque(maxlen=MAX_QUEUE_LEN // AGGREGATE_CHUNK_LEN)
+
+# Locks the fsr data buffer to prevent race conditions
 fsr_data_buffer_lock = threading.Lock()
 
+# Creates the flask server
 app = Flask(__name__)
 
-# Architecture:
-# Threads:
-# producer:
-#   makes requests to fsr-subsystem at a fixed rate. parses responses and puts them into a queue
-#
-# consumer:
-#   1. takes data out of the queue, saves it to the db
-#   2. next load data into a pandas df
-#   3. extract aggregate data from this df (averages for every half second maybe...)
-#   4. push aggregate data to rolling buffer
-#
-# webserver:
-#   1. serves dashboard with charts displaying aggregate data from rolling buffers
-#   2. serves different debug data pertaining to other subsystems
+# Threads
 
 
-# producer:
-#   makes requests to fsr-subsystem at a fixed rate. parses responses and puts them into a queue
-# DONE
+# ## Producer Thread:
+#     Requests the fsr subsystem at a fixed rate, then parses the
+#     responses and puts them into `fsr_data_queue`
 def get_fsr_data():
+    # ## Queue Polls in Serial:
+    #     Takes in a json file with an array of polls, then loops through the
+    #     array of polls queueing each of them into `fsr_data_queue`
     def queue_individual_polls(data_polls):
         for i in range(len(data_polls["timestamps"])):
             # stores each new data poll to be put in the queue
@@ -73,22 +67,22 @@ def get_fsr_data():
 
             # turn json from request into dict
             data = r.json()
-            
+
             queue_individual_polls(data)
         except:
             print(f"Problem when requesting {FSR_URL}. Trying again")
 
         # waits until its time to poll again
         time.sleep(TIME_BETWEEN_POLLS)
-        
+
     print("get_fsr_data(): shut down")
 
 
-# consumer:
-#   1. takes data out of the queue, saves it to the db DONE
-#   2. DONE: next save it to a temporary buffer which fills up and
-#            which when full is used to get an aggregate value
-#   3. DONE: send the aggregate value of that chunk to the rolling buffer
+# ## Consumer Thread:
+#     Takes data out of the queue and inserts it into the database. Next,
+#     formats data for pandas and appends to `incoming_datapoints`. Once the
+#     incoming datapoints list reaches a certain point, it is aggregated, and
+#     pushed to the `fsr_data_buffer`.
 def process_fsr_data():
     def add_fsr_data(conn, fsr_data):
         sql = """INSERT INTO fsr_one(timestamp, sensor0, sensor1, sensor2, sensor3, sensor4, sensor5, sensor6, sensor7)
@@ -152,13 +146,17 @@ def process_fsr_data():
         print("process_fsr_data(): shut down")
 
 
-# TODO: webserver:
+# ## Web Server:
+#     Serves the dashboard with charts displaying aggregate data from
+#     `fsr_data_buffer`
 def serve_flask_app():
     app.run(host="0.0.0.0", port=8050, debug=False)
 
 
-# utility task
-# periodically display buffer contents
+# Utility Tasks
+
+
+# Displays buffer contents every second
 def periodically_display_buffer_contents():
     while running:
         # lock the buffer
@@ -172,8 +170,7 @@ def periodically_display_buffer_contents():
         time.sleep(1)
 
 
-# gets a datapoint which represents the aggregate of a chunk of data
-# for now just returns the last value from the chunk (very basic downsampling)
+# Gets an aggregate datapoint from the list of datapoints
 # TODO: implement better aggregate function
 def get_aggregate_datapoint(incoming_datapoints):
     return incoming_datapoints[-1]
@@ -202,12 +199,13 @@ def create_database():
 
 
 # Routes:
-# dashboard (index)
+# Endpoint for the actual dashboard
 @app.route("/")
 def index():
     return render_template("fsr_dashboard.html")
 
 
+# Endpoint used to access data from `fsr_data_buffer`
 @app.route("/api/fsr")
 def fsr_api():
     new_json_dict = {"timestamps": [], "sensors": [[] for _ in range(NUM_FSRS)]}
