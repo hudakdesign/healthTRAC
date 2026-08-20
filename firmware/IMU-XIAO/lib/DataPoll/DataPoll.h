@@ -11,8 +11,8 @@ public:
   // Stores poll data for the DataPoll object
   struct
   {
-    long timestamp;
-    float accelX, accelY, accelZ;
+    uint32_t timestamp;
+    int16_t accelX, accelY, accelZ;
   } data;
 
   // Creates DataPoll object with provided parameters
