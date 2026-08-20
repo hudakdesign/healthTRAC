@@ -16,7 +16,7 @@ public:
   } data;
 
   // Creates DataPoll object with provided parameters
-  DataPoll(long timestamp, float accelX, float accelY, float accelZ)
+  DataPoll(uint32_t timestamp, int16_t accelX, int16_t accelY, int16_t accelZ)
   {
     data.timestamp = timestamp;
     data.accelX = accelX;
