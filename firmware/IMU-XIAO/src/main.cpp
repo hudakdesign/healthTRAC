@@ -142,12 +142,12 @@ void loop()
   // check if a client is subscribed {
   if (bleStream.ready())
   {
-    // TEST: Should convert to array of bytes and send it over bleStream
-    // Collects data and uses it to construct a DataPoll object
-    long currTimestamp = millis();
-    float currAccelX = myImu.readFloatAccelX();
-    float currAccelY = myImu.readFloatAccelY();
-    float currAccelZ = myImu.readFloatAccelZ();
+    // Collect timestamp and raw accel values
+    // (convert raw values on the esp after transmission)
+    uint32_t currTimestamp = millis();
+    int16_t currAccelX = myImu.readRawAccelX();
+    int16_t currAccelY = myImu.readRawAccelY();
+    int16_t currAccelZ = myImu.readRawAccelZ();
     DataPoll dataPoll = DataPoll(currTimestamp, currAccelX, currAccelY, currAccelZ);
 
     // Creates buffer for encoding poll data, then encodes poll data
