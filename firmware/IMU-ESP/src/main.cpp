@@ -255,6 +255,7 @@ void loop()
       {
         char c = bleStream.read();
         encodedDataBuffer[i] = c;
+        i++;
       }
 
       while (bleStream.available() && (bleStream.read() != '\n')) {
