@@ -11,6 +11,7 @@
 #include <NimBLEDevice.h>
 #include <WiFi.h>
 #include <DataPoll.h>
+#include "network_credentials.h"
 
 // Constants
 const char* HOSTNAME = "imu-alpha";
