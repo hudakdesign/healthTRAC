@@ -14,8 +14,6 @@
 
 // Constants
 const char* HOSTNAME = "imu-alpha";
-const char* SSID = "PLACEHOLDER";
-const char* PASSWORD = "PLACEHOLDER";
 const int BLINK_RATE = 500;
 const int POLL_QUEUE_LEN = 1000;
 
