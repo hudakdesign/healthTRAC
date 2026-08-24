@@ -144,10 +144,17 @@ void loop()
   {
     // Collect timestamp and raw accel values
     // (convert raw values on the esp after transmission)
-    uint32_t currTimestamp = millis();
-    int16_t currAccelX = myImu.readRawAccelX();
-    int16_t currAccelY = myImu.readRawAccelY();
-    int16_t currAccelZ = myImu.readRawAccelZ();
+    // uint32_t currTimestamp = millis();
+    // int16_t currAccelX = myImu.readRawAccelX();
+    // int16_t currAccelY = myImu.readRawAccelY();
+    // int16_t currAccelZ = myImu.readRawAccelZ();
+    // DataPoll dataPoll = DataPoll(currTimestamp, currAccelX, currAccelY, currAccelZ);
+
+    // DEBUGGING ONLY
+    uint32_t currTimestamp = 4278190080;
+    int16_t currAccelX = 0;
+    int16_t currAccelY = 288;
+    int16_t currAccelZ = 32767;
     DataPoll dataPoll = DataPoll(currTimestamp, currAccelX, currAccelY, currAccelZ);
 
     // Creates buffer for encoding poll data, then encodes poll data
@@ -155,6 +162,47 @@ void loop()
     dataPoll.encodeDataPoll((char *)&encodedDataBuffer);
 
     // Sends the encoded data over bleStream
-    bleStream.println(encodedDataBuffer);
+    // bleStream.println(encodedDataBuffer);
+    // DEBUG: send dummy bytes to see if they transmit
+
+    // Test 1 (do arbitrary bytes send?)
+    char dummyBuffer[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+    bleStream.println(dummyBuffer);
+
+    // Test 2 (does a normal string send?)
+    char otherDummyBuffer[] = "This is a test";
+    bleStream.println(otherDummyBuffer);
+
+
+
+    // Print out the bytes for debugging
+    // Print individual bytes as numeric representation
+    Serial.print("Bytes to send as uint8s: ");
+    for (int i = 0; i < sizeof(encodedDataBuffer); i++)
+    {
+      u_int8_t currByte = encodedDataBuffer[i];
+      Serial.print((uint)currByte);
+      Serial.print(' ');
+    }
+    Serial.println();
+
+    dataPoll = DataPoll(encodedDataBuffer);
+
+    // Print out the contents
+    Serial.print("timestamp:");
+    Serial.print(dataPoll.data.timestamp);
+    Serial.print(", ");
+
+    Serial.print("accelX: ");
+    Serial.print(dataPoll.data.accelX);
+    Serial.print(", ");
+
+    Serial.print("accelY: ");
+    Serial.print(dataPoll.data.accelY);
+    Serial.print(", ");
+
+    Serial.print("accelZ: ");
+    Serial.print(dataPoll.data.accelZ);
+    Serial.println();
   }
 }

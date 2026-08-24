@@ -1,286 +1,293 @@
-/**
- *  NimBLE_Stream_Client Example:
+
+/** NimBLE_Client Demo:
  *
- *  Demonstrates using NimBLEStreamClient to connect to a BLE GATT server
- *  and communicate using the Arduino Stream interface.
+ *  Demonstrates many of the available features of the NimBLE client library.
  *
- *  This allows you to use familiar methods like print(), println(),
- *  read(), and available() over BLE, similar to how you would use Serial.
- *
- *  This example connects to the NimBLE_Stream_Server example.
- *
- *  Created: November 2025
- *      Author: NimBLE-Arduino Contributors
+ *  Created: on March 24 2020
+ *      Author: H2zero
  */
 
 #include <Arduino.h>
 #include <NimBLEDevice.h>
 #include <DataPoll.h>
 
-// Service and Characteristic UUIDs (must match the server)
-#define SERVICE_UUID "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
-#define CHARACTERISTIC_UUID "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
+static const NimBLEAdvertisedDevice* advDevice;
+static bool                          doConnect  = false;
+static uint32_t                      scanTimeMs = 5000; /** scan time in milliseconds, 0 = scan forever */
 
-// Create the stream client instance
-NimBLEStreamClient bleStream;
+/**  None of these are required as they will be handled by the library with defaults. **
+ **                       Remove as you see fit for your needs                        */
 
-struct RxOverflowStats
-{
-  uint32_t droppedOld{0};
-  uint32_t droppedNew{0};
-};
-
-RxOverflowStats g_rxOverflowStats;
-uint32_t scanTime = 5000; // Scan duration in milliseconds
-
-DataPoll myDataPoll = DataPoll(0, 0, 0, 0);
-
-NimBLEStream::RxOverflowAction onRxOverflow(const uint8_t *data, size_t len, void *userArg)
-{
-  auto *stats = static_cast<RxOverflowStats *>(userArg);
-  if (stats)
-  {
-    stats->droppedOld++;
-  }
-
-  // For status/telemetry streams, prioritize newest packets.
-  (void)data;
-  (void)len;
-  return NimBLEStream::DROP_OLDER_DATA;
-}
-
-// Connection state variables
-static bool doConnect = false;
-static bool connected = false;
-static const NimBLEAdvertisedDevice *pServerDevice = nullptr;
-static NimBLEClient *pClient = nullptr;
-
-/** Scan callbacks to find the server */
-class ScanCallbacks : public NimBLEScanCallbacks
-{
-  void onResult(const NimBLEAdvertisedDevice *advertisedDevice) override
-  {
-    Serial.printf("Advertised Device: %s\n", advertisedDevice->toString().c_str());
-
-    // Check if this device advertises our service
-    if (advertisedDevice->isAdvertisingService(NimBLEUUID(SERVICE_UUID)))
-    {
-      Serial.println("Found our stream server!");
-      pServerDevice = advertisedDevice;
-      NimBLEDevice::getScan()->stop();
-      doConnect = true;
+/** Define a class to handle the callbacks when scan events are received */
+class ScanCallbacks : public NimBLEScanCallbacks {
+    void onResult(const NimBLEAdvertisedDevice* advertisedDevice) override {
+        Serial.printf("Advertised Device found: %s\n", advertisedDevice->toString().c_str());
+        if (advertisedDevice->isAdvertisingService(NimBLEUUID("BAAD"))) {
+            Serial.printf("Found Our Service\n");
+            /** stop scan before connecting */
+            NimBLEDevice::getScan()->stop();
+            /** Save the device reference in a global for the client to use*/
+            advDevice = advertisedDevice;
+            /** Ready to connect now */
+            doConnect = true;
+        }
     }
-  }
 
-  void onScanEnd(const NimBLEScanResults &results, int reason) override
-  {
-    Serial.println("Scan ended");
-    if (!doConnect && !connected)
-    {
-      Serial.println("Server not found, restarting scan...");
-      NimBLEDevice::getScan()->start(scanTime, false, true);
+    /** Callback to process the results of the completed scan or restart it */
+    void onScanEnd(const NimBLEScanResults& results, int reason) override {
+        Serial.printf("Scan Ended, reason: %d, device count: %d; Restarting scan\n", reason, results.getCount());
+        NimBLEDevice::getScan()->start(scanTimeMs, false, true);
     }
-  }
 } scanCallbacks;
 
-/** Client callbacks for connection/disconnection events */
-class ClientCallbacks : public NimBLEClientCallbacks
-{
-  void onConnect(NimBLEClient *pClient) override
-  {
-    Serial.println("Connected to server");
-    // Update connection parameters for better throughput
-    pClient->updateConnParams(12, 24, 0, 200);
-  }
+/** Notification / Indication receiving handler callback */
+void notifyCB(NimBLERemoteCharacteristic* pRemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify) {
+    std::string str  = (isNotify == true) ? "Notification" : "Indication";
+    str             += " from ";
+    str             += pRemoteCharacteristic->getClient()->getPeerAddress().toString();
+    str             += ": Service = " + pRemoteCharacteristic->getRemoteService()->getUUID().toString();
+    str             += ", Characteristic = " + pRemoteCharacteristic->getUUID().toString();
+    str             += ", Value = " + std::string((char*)pData, length);
+    Serial.printf("%s\n", str.c_str());
 
-  void onDisconnect(NimBLEClient *pClient, int reason) override
-  {
-    Serial.printf("Disconnected from server, reason: %d\n", reason);
-    connected = false;
-    bleStream.end();
+    // Decode pData and plot the decoded data
+    Serial.printf("RX BYTES LENGTH: %d\n", length);
 
-    // Restart scanning
-    Serial.println("Restarting scan...");
-    NimBLEDevice::getScan()->start(scanTime, false, true);
-  }
-} clientCallbacks;
-
-/** Connect to the BLE Server and set up the stream */
-bool connectToServer()
-{
-  Serial.printf("Connecting to: %s\n", pServerDevice->getAddress().toString().c_str());
-
-  // Create or reuse a client
-  pClient = NimBLEDevice::getClientByPeerAddress(pServerDevice->getAddress());
-  if (!pClient)
-  {
-    pClient = NimBLEDevice::createClient();
-    if (!pClient)
-    {
-      Serial.println("Failed to create client");
-      return false;
+    // if the right amount of bytes were sent then decode the message
+    // otherwise print an error message
+    if (length == 12) {
+      // Decode bytes in pData
+      DataPoll incomingDataPoll(pData);
+      Serial.println();
+      Serial.printf(">timestamp: %d|t\n", incomingDataPoll.data.timestamp);
+      Serial.printf(">accelX: %d\n", incomingDataPoll.data.accelX);
+      Serial.printf(">accelY: %d\n", incomingDataPoll.data.accelY);
+      Serial.printf(">accelZ: %d\n", incomingDataPoll.data.accelZ);
+    } else {
+      Serial.printf("ERROR: Incorrect number of bytes in notification (expected: 12; actual: %d)", length);
     }
-    pClient->setClientCallbacks(&clientCallbacks, false);
-    pClient->setConnectionParams(12, 24, 0, 200);
-    pClient->setConnectTimeout(5000);
-  }
+    // DataPoll incomingDataPoll(pData);
 
-  // Connect to the remote BLE Server
-  if (!pClient->connect(pServerDevice))
-  {
-    Serial.println("Failed to connect to server");
-    return false;
-  }
-
-  Serial.println("Connected! Discovering services...");
-
-  // Get the service and characteristic
-  NimBLERemoteService *pRemoteService = pClient->getService(SERVICE_UUID);
-  if (!pRemoteService)
-  {
-    Serial.println("Failed to find our service UUID");
-    pClient->disconnect();
-    return false;
-  }
-  Serial.println("Found the stream service");
-
-  NimBLERemoteCharacteristic *pRemoteCharacteristic = pRemoteService->getCharacteristic(CHARACTERISTIC_UUID);
-  if (!pRemoteCharacteristic)
-  {
-    Serial.println("Failed to find our characteristic UUID");
-    pClient->disconnect();
-    return false;
-  }
-  Serial.println("Found the stream characteristic");
-
-  /**
-   * Initialize the stream client with the remote characteristic
-   * subscribeNotify=true means we'll receive notifications in the RX buffer
-   */
-  if (!bleStream.begin(pRemoteCharacteristic, true))
-  {
-    Serial.println("Failed to initialize BLE stream!");
-    pClient->disconnect();
-    return false;
-  }
-
-  bleStream.setRxOverflowCallback(onRxOverflow, &g_rxOverflowStats);
-
-  Serial.println("BLE Stream initialized successfully!");
-  connected = true;
-  return true;
 }
 
-void blinkAndWait(int numSeconds)
-{
-  pinMode(LED_RED, OUTPUT);
+/** Handles the provisioning of clients and connects / interfaces with the server */
+bool connectToServer() {
+    NimBLEClient* pClient = nullptr;
 
-  for (int i = 0; i < numSeconds; i++)
-  {
-    digitalWrite(LED_RED, LOW);
-    delay(500);
-    digitalWrite(LED_RED, HIGH);
-    delay(500);
-  }
+    /** Check if we have a client we should reuse first **/
+    if (NimBLEDevice::getCreatedClientCount()) {
+        /**
+         *  Special case when we already know this device, we send false as the
+         *  second argument in connect() to prevent refreshing the service database.
+         *  This saves considerable time and power.
+         */
+        pClient = NimBLEDevice::getClientByPeerAddress(advDevice->getAddress());
+        if (pClient) {
+            if (!pClient->connect(advDevice, false)) {
+                Serial.printf("Reconnect failed\n");
+                return false;
+            }
+            Serial.printf("Reconnected client\n");
+        } else {
+            /**
+             *  We don't already have a client that knows this device,
+             *  check for a client that is disconnected that we can use.
+             */
+            pClient = NimBLEDevice::getDisconnectedClient();
+        }
+    }
+
+    /** No client to reuse? Create a new one. */
+    if (!pClient) {
+        if (NimBLEDevice::getCreatedClientCount() >= MYNEWT_VAL(BLE_MAX_CONNECTIONS)) {
+            Serial.printf("Max clients reached - no more connections available\n");
+            return false;
+        }
+
+        pClient = NimBLEDevice::createClient();
+
+        Serial.printf("New client created\n");
+
+        /**
+         *  Set initial connection parameters:
+         *  These settings are safe for 3 clients to connect reliably, can go faster if you have less
+         *  connections. Timeout should be a multiple of the interval, minimum is 100ms.
+         *  Min interval: 12 * 1.25ms = 15, Max interval: 12 * 1.25ms = 15, 0 latency, 150 * 10ms = 1500ms timeout
+         */
+        pClient->setConnectionParams(12, 12, 0, 150);
+
+        /** Set how long we are willing to wait for the connection to complete (milliseconds), default is 30000. */
+        pClient->setConnectTimeout(5 * 1000);
+
+        if (!pClient->connect(advDevice)) {
+            /** Created a client but failed to connect, don't need to keep it as it has no data */
+            NimBLEDevice::deleteClient(pClient);
+            Serial.printf("Failed to connect, deleted client\n");
+            return false;
+        }
+    }
+
+    if (!pClient->isConnected()) {
+        if (!pClient->connect(advDevice)) {
+            Serial.printf("Failed to connect\n");
+            return false;
+        }
+    }
+
+    Serial.printf("Connected to: %s RSSI: %d\n", pClient->getPeerAddress().toString().c_str(), pClient->getRssi());
+
+    /** Now we can read/write/subscribe the characteristics of the services we are interested in */
+    NimBLERemoteService*        pSvc = nullptr;
+    NimBLERemoteCharacteristic* pChr = nullptr;
+    NimBLERemoteDescriptor*     pDsc = nullptr;
+
+    pSvc = pClient->getService("DEAD");
+    if (pSvc) {
+        pChr = pSvc->getCharacteristic("BEEF");
+    }
+
+    if (pChr) {
+        if (pChr->canRead()) {
+            Serial.printf("%s Value: %s\n", pChr->getUUID().toString().c_str(), pChr->readValue().c_str());
+        }
+
+        if (pChr->canWrite()) {
+            if (pChr->writeValue("Tasty")) {
+                Serial.printf("Wrote new value to: %s\n", pChr->getUUID().toString().c_str());
+            } else {
+                pClient->disconnect();
+                return false;
+            }
+
+            if (pChr->canRead()) {
+                Serial.printf("The value of: %s is now: %s\n", pChr->getUUID().toString().c_str(), pChr->readValue().c_str());
+            }
+        }
+
+        if (pChr->canNotify()) {
+            if (!pChr->subscribe(true, notifyCB)) {
+                pClient->disconnect();
+                return false;
+            }
+        } else if (pChr->canIndicate()) {
+            /** Send false as first argument to subscribe to indications instead of notifications */
+            if (!pChr->subscribe(false, notifyCB)) {
+                pClient->disconnect();
+                return false;
+            }
+        }
+    } else {
+        Serial.printf("DEAD service not found.\n");
+    }
+
+    pSvc = pClient->getService("BAAD");
+    if (pSvc) {
+        pChr = pSvc->getCharacteristic("F00D");
+        if (pChr) {
+            if (pChr->canRead()) {
+                Serial.printf("%s Value: %s\n", pChr->getUUID().toString().c_str(), pChr->readValue().c_str());
+            }
+
+            pDsc = pChr->getDescriptor(NimBLEUUID("C01D"));
+            if (pDsc) {
+                Serial.printf("Descriptor: %s  Value: %s\n", pDsc->getUUID().toString().c_str(), pDsc->readValue().c_str());
+            }
+
+            if (pChr->canWrite()) {
+                if (pChr->writeValue("No tip!")) {
+                    Serial.printf("Wrote new value to: %s\n", pChr->getUUID().toString().c_str());
+                } else {
+                    pClient->disconnect();
+                    return false;
+                }
+
+                if (pChr->canRead()) {
+                    Serial.printf("The value of: %s is now: %s\n",
+                                  pChr->getUUID().toString().c_str(),
+                                  pChr->readValue().c_str());
+                }
+            }
+
+            if (pChr->canNotify()) {
+                if (!pChr->subscribe(true, notifyCB)) {
+                    pClient->disconnect();
+                    return false;
+                }
+            } else if (pChr->canIndicate()) {
+                /** Send false as first argument to subscribe to indications instead of notifications */
+                if (!pChr->subscribe(false, notifyCB)) {
+                    pClient->disconnect();
+                    return false;
+                }
+            }
+        }
+    } else {
+        Serial.printf("BAAD service not found.\n");
+    }
+
+    Serial.printf("Done with this device!\n");
+    return true;
 }
 
-void setup()
-{
-  Serial.begin(115200);
-  blinkAndWait(10);
+void setup() {
+    Serial.begin(115200);
+    Serial.printf("Starting NimBLE Client\n");
 
-  Serial.println("Starting NimBLE Stream Client");
+    /** Initialize NimBLE and set the device name */
+    NimBLEDevice::init("NimBLE-Client");
 
-  /** Initialize NimBLE */
-  NimBLEDevice::init("NimBLE-StreamClient");
+    /**
+     * Set the IO capabilities of the device, each option will trigger a different pairing method.
+     *  BLE_HS_IO_KEYBOARD_ONLY   - Passkey pairing
+     *  BLE_HS_IO_DISPLAY_YESNO   - Numeric comparison pairing
+     *  BLE_HS_IO_NO_INPUT_OUTPUT - DEFAULT setting - just works pairing
+     */
+    // NimBLEDevice::setSecurityIOCap(BLE_HS_IO_KEYBOARD_ONLY); // use passkey
+    // NimBLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_YESNO); //use numeric comparison
 
-  /**
-   * Create the BLE scan instance and set callbacks
-   * Configure scan parameters
-   */
-  NimBLEScan *pScan = NimBLEDevice::getScan();
-  pScan->setScanCallbacks(&scanCallbacks, false);
-  pScan->setActiveScan(true);
+    /**
+     * 2 different ways to set security - both calls achieve the same result.
+     *  no bonding, no man in the middle protection, BLE secure connections.
+     *  These are the default values, only shown here for demonstration.
+     */
+    // NimBLEDevice::setSecurityAuth(false, false, true);
+    // NimBLEDevice::setSecurityAuth(BLE_SM_PAIR_AUTHREQ_BOND | BLE_SM_PAIR_AUTHREQ_MITM | BLE_SM_PAIR_AUTHREQ_SC);
 
-  /** Start scanning for the server */
-  Serial.println("Scanning for BLE Stream Server...");
-  pScan->start(scanTime, false, true);
+    /** Optional: set the transmit power */
+    NimBLEDevice::setPower(3); /** 3dbm */
+    NimBLEScan* pScan = NimBLEDevice::getScan();
+
+    /** Set the callbacks to call when scan events occur, no duplicates */
+    pScan->setScanCallbacks(&scanCallbacks, false);
+
+    /** Set scan interval (how often) and window (how long) in milliseconds */
+    pScan->setInterval(100);
+    pScan->setWindow(100);
+
+    /**
+     * Active scan will gather scan response data from advertisers
+     *  but will use more energy from both devices
+     */
+    pScan->setActiveScan(true);
+
+    /** Start scanning for advertisers */
+    pScan->start(scanTimeMs);
+    Serial.printf("Scanning for peripherals\n");
 }
 
-void loop()
-{
-  static uint32_t lastDroppedOld = 0;
-  static uint32_t lastDroppedNew = 0;
-  if (g_rxOverflowStats.droppedOld != lastDroppedOld || g_rxOverflowStats.droppedNew != lastDroppedNew)
-  {
-    lastDroppedOld = g_rxOverflowStats.droppedOld;
-    lastDroppedNew = g_rxOverflowStats.droppedNew;
-    Serial.printf("RX overflow handled (drop-old=%lu, drop-new=%lu)\n", lastDroppedOld, lastDroppedNew);
-  }
+void loop() {
+    /** Loop here until we find a device we want to connect to */
+    delay(10);
 
-  // If we found a server, try to connect
-  if (doConnect)
-  {
-    doConnect = false;
-    if (connectToServer())
-    {
-      Serial.println("Stream ready for communication!");
+    if (doConnect) {
+        doConnect = false;
+        /** Found a device we want to connect to, do it now */
+        if (connectToServer()) {
+            Serial.printf("Success! we should now be getting notifications, scanning for more!\n");
+        } else {
+            Serial.printf("Failed to connect, starting scan\n");
+        }
+
+        NimBLEDevice::getScan()->start(scanTimeMs, false, true);
     }
-    else
-    {
-      Serial.println("Failed to connect to server, restarting scan...");
-      pServerDevice = nullptr;
-      NimBLEDevice::getScan()->start(scanTime, false, true);
-    }
-  }
-
-  // If we're connected, demonstrate the stream interface
-  if (connected && bleStream)
-  {
-    // Check if we received any data from the server
-    if (bleStream.available())
-    {
-      // Read bytes from stream until buffer is full
-      // When buffer is full, wait for a newline before
-      // decoding the buffer and printing the contents
-
-      // FIXME: Bug likely involving encoding / decoding after stream
-      // Timestamp decodes but is wrong, accel values are all zero
-
-      char encodedDataBuffer[sizeof(myDataPoll.data)];
-
-      // While the stream is available and within the buffer
-      int i = 0;
-      while (bleStream.available() && (i < sizeof(encodedDataBuffer) / sizeof(char)))
-      {
-        char c = bleStream.read();
-        encodedDataBuffer[i] = c;
-        i++;
-      }
-
-      while (bleStream.available() && (bleStream.read() != '\n')) {
-        // Throw out stream values before and including the newline
-        // after the buffer fills
-      }
-
-      // Decode the data buffer into a DataPoll object
-      myDataPoll = DataPoll((char *)&encodedDataBuffer);
-
-      // Print out the contents
-      Serial.print(">timestamp:");
-      Serial.print(myDataPoll.data.timestamp);
-      Serial.println("|t");
-
-      Serial.print(">accelX: ");
-      Serial.println(myDataPoll.data.accelX);
-
-      Serial.print(">accelY: ");
-      Serial.println(myDataPoll.data.accelY);
-
-      Serial.print(">accelZ: ");
-      Serial.println(myDataPoll.data.accelZ);
-    }
-  }
-
-  delay(10);
 }
