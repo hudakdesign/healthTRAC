@@ -10,6 +10,8 @@
 #include <Arduino.h>
 #include <NimBLEDevice.h>
 #include <WiFi.h>
+#include <ArduinoJson.h>
+#include <StreamUtils.h>
 #include <DataPoll.h>
 #include "network_credentials.h"
 
@@ -17,6 +19,8 @@
 const char* HOSTNAME = "imu-alpha";
 const int BLINK_RATE = 500;
 const int POLL_QUEUE_LEN = 1000;
+const int SERVER_PORT = 80;
+const int BUFFER_STREAM_SIZE = 1024;
 
 // Globals
 static const NimBLEAdvertisedDevice* advDevice;
@@ -25,6 +29,9 @@ static uint32_t                      scanTimeMs = 5000; /** scan time in millise
 
 // queue for storing DataPolls
 static QueueHandle_t pollQueue;
+
+// used for managing webserver
+WiFiServer server(SERVER_PORT);
 
 /**  None of these are required as they will be handled by the library with defaults. **
  **                       Remove as you see fit for your needs                        */
@@ -74,6 +81,15 @@ void notifyCB(NimBLERemoteCharacteristic* pRemoteCharacteristic, uint8_t* pData,
       Serial.printf(">accelX: %d\n", incomingDataPoll.data.accelX);
       Serial.printf(">accelY: %d\n", incomingDataPoll.data.accelY);
       Serial.printf(">accelZ: %d\n", incomingDataPoll.data.accelZ);
+
+      // send object to the queue for being shared with the webserver
+      if (xQueueSend(pollQueue, (void *)&incomingDataPoll, 0) != pdTRUE) {
+        // if the queue is full then turn on the red led
+        digitalWrite(LED_RED, LOW);
+      } else {
+        // otherwise turn it off
+        digitalWrite(LED_RED, HIGH);
+      }
     } else {
       Serial.printf("ERROR: Incorrect number of bytes in notification (expected: 12; actual: %d)", length);
     }
@@ -242,6 +258,7 @@ bool connectToServer() {
 
 void setup() {
     Serial.begin(115200);
+    pinMode(LED_BUILTIN, OUTPUT);
     pinMode(LED_RED, OUTPUT);
     pinMode(LED_GREEN, OUTPUT);
     pinMode(LED_BLUE, OUTPUT);
@@ -308,12 +325,18 @@ void setup() {
       Serial.print(".");
     }
 
+    // start up the webserver
+    server.begin();
+
 }
 
 void loop() {
     /** Loop here until we find a device we want to connect to */
-    delay(10);
+    static DataPoll currDataPoll(0, 0, 0, 0);
 
+    // delay(10);
+
+    // Manage bluetooth:
     if (doConnect) {
         doConnect = false;
         /** Found a device we want to connect to, do it now */
@@ -325,4 +348,63 @@ void loop() {
 
         NimBLEDevice::getScan()->start(scanTimeMs, false, true);
     }
+
+    // Manage webserver
+    WiFiClient wifiClient = server.available();
+
+    // if a client connects then prepare and send a response
+    if (wifiClient) {
+
+    Serial.println("New client");
+
+    // When a new client connects: turn led on
+    digitalWrite(LED_BUILTIN, HIGH);
+
+    while (wifiClient.available()) {
+      wifiClient.read();
+    }
+
+    // Create and format json document for sending values
+    JsonDocument doc;
+    JsonArray timestamps = doc["timestamps"].to<JsonArray>();
+
+    // create array for sensor readings
+    JsonArray sensors = doc["sensors"].to<JsonArray>();
+
+    // create array entry for each sensor
+    JsonArray sensors0 = sensors.add<JsonArray>();
+    JsonArray sensors1 = sensors.add<JsonArray>();
+    JsonArray sensors2 = sensors.add<JsonArray>();
+
+    int counter = 0;
+    // read in values from the queue
+    // append them to their corresponding json arrays
+    // increment the counter to avoid potential memory leak
+    while ((xQueueReceive(pollQueue, (void *)&currDataPoll, 0) == pdTRUE) && counter < POLL_QUEUE_LEN) {
+      timestamps.add(currDataPoll.data.timestamp);
+      sensors0.add(currDataPoll.data.accelX);
+      sensors1.add(currDataPoll.data.accelY);
+      sensors2.add(currDataPoll.data.accelZ);
+
+      counter++;
+    }
+
+    // Write response headers
+    wifiClient.println("HTTP/1.0 200 OK");
+    wifiClient.println("Content-Type: application/json");
+    wifiClient.println("Connection: close");
+    wifiClient.print("Content-Length: ");
+    wifiClient.println(measureJson(doc));
+    wifiClient.println();
+
+    // Write buffered doc
+    WriteBufferingStream bufferedWiFiClient(wifiClient, BUFFER_STREAM_SIZE);
+    serializeJson(doc, bufferedWiFiClient);
+    bufferedWiFiClient.flush();
+
+    wifiClient.stop();
+
+    // when the client disconnects: turn off the led
+    digitalWrite(LED_BUILTIN, LOW);
+  }
 }
