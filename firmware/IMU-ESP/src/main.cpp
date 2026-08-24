@@ -9,11 +9,23 @@
 
 #include <Arduino.h>
 #include <NimBLEDevice.h>
+#include <WiFi.h>
 #include <DataPoll.h>
 
+// Constants
+const char* HOSTNAME = "imu-alpha";
+const char* SSID = "PLACEHOLDER";
+const char* PASSWORD = "PLACEHOLDER";
+const int BLINK_RATE = 500;
+const int POLL_QUEUE_LEN = 1000;
+
+// Globals
 static const NimBLEAdvertisedDevice* advDevice;
 static bool                          doConnect  = false;
 static uint32_t                      scanTimeMs = 5000; /** scan time in milliseconds, 0 = scan forever */
+
+// queue for storing DataPolls
+static QueueHandle_t pollQueue;
 
 /**  None of these are required as they will be handled by the library with defaults. **
  **                       Remove as you see fit for your needs                        */
@@ -231,7 +243,13 @@ bool connectToServer() {
 
 void setup() {
     Serial.begin(115200);
+    pinMode(LED_RED, OUTPUT);
+    pinMode(LED_GREEN, OUTPUT);
+    pinMode(LED_BLUE, OUTPUT);
+
     Serial.printf("Starting NimBLE Client\n");
+
+    pollQueue = xQueueCreate(POLL_QUEUE_LEN, sizeof(DataPoll));
 
     /** Initialize NimBLE and set the device name */
     NimBLEDevice::init("NimBLE-Client");
@@ -273,6 +291,24 @@ void setup() {
     /** Start scanning for advertisers */
     pScan->start(scanTimeMs);
     Serial.printf("Scanning for peripherals\n");
+
+    // TODO: Configure wifi 
+    Serial.println("Wifi Setup");
+    Serial.print("Connecting to ");
+    Serial.println(SSID);
+    WiFi.setHostname(HOSTNAME);
+    WiFi.begin(SSID, PASSWORD);
+    while (WiFi.status() != WL_CONNECTED)
+    {
+      // blinky and print .
+      digitalWrite(LED_GREEN, LOW);
+      vTaskDelay(pdMS_TO_TICKS(BLINK_RATE));
+      digitalWrite(LED_GREEN, HIGH);
+      vTaskDelay(pdMS_TO_TICKS(BLINK_RATE));
+
+      Serial.print(".");
+    }
+
 }
 
 void loop() {
