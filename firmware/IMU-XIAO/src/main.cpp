@@ -4,6 +4,12 @@
 #include <LSM6DS3.h>
 #include <DataPoll.h>
 
+// sleep related includes
+#include <Adafruit_SPIFlash.h>
+#include <LSM6DS3.h>
+#include <nrf52840.h>
+#include <Wire.h>
+
 // Constants
 const TickType_t POLL_FREQUENCY = pdMS_TO_TICKS(10);
 const int INACTIVITY_THRESHOLD = 10;
@@ -15,6 +21,8 @@ BLECharacteristic imuCharacteristic("547af7ac-aa68-47eb-a0df-d827e39615bf");
 BLEDis bledis;
 
 LSM6DS3 myImu;
+
+Adafruit_FlashTransport_QSPI flashTransport;
 
 // Helpers
 void setupBluetooth() {
@@ -73,13 +81,13 @@ bool checkForInactivity(DataPoll newDataPoll) {
   int accelYDifference = abs(newDataPoll.data.accelY - prevDataPoll.data.accelY);
   int accelZDifference = abs(newDataPoll.data.accelZ - prevDataPoll.data.accelZ);
 
-  Serial.printf("Prev accel: {%d, %d, %d}\n", prevDataPoll.data.accelX, prevDataPoll.data.accelY, prevDataPoll.data.accelZ);
-  Serial.printf("New  accel: {%d, %d, %d}\n", newDataPoll.data.accelX, newDataPoll.data.accelY, newDataPoll.data.accelZ);
+  // Serial.printf("Prev accel: {%d, %d, %d}\n", prevDataPoll.data.accelX, prevDataPoll.data.accelY, prevDataPoll.data.accelZ);
+  // Serial.printf("New  accel: {%d, %d, %d}\n", newDataPoll.data.accelX, newDataPoll.data.accelY, newDataPoll.data.accelZ);
 
   // update previous to current
   prevDataPoll = newDataPoll;
 
-  Serial.printf("Accel differences: {%d, %d, %d}\n", accelXDifference, accelYDifference, accelZDifference);
+  // Serial.printf("Accel differences: {%d, %d, %d}\n", accelXDifference, accelYDifference, accelZDifference);
 
   // if the accel values are close enough (within threshold)
   // then the imu probably isnt moving
@@ -107,15 +115,43 @@ bool checkForInactivity(DataPoll newDataPoll) {
   
   // if the counter reaches a certain number then return true
   if (inactivityCounter >= INACTIVE_POLLS_BEFORE_SLEEP) {
-    Serial.print("currently inactive. polls inactive: ");
-    Serial.println(inactivityCounter);
+    // Serial.print("currently inactive. polls inactive: ");
+    // Serial.println(inactivityCounter);
     return true;
   }
 
   // otherwise return false
-  Serial.print("currently active. polls inactive: ");
-  Serial.println(inactivityCounter);
+  // Serial.print("currently active. polls inactive: ");
+  // Serial.println(inactivityCounter);
   return false;
+}
+
+void QSPIF_sleep(void) {
+  flashTransport.begin();
+  flashTransport.runCommand(0xB9);
+  flashTransport.end();
+}
+
+void setupWakeUpInterrupt() {
+  myImu.settings.gyroEnabled = 0;
+  myImu.settings.accelEnabled = 0;
+  myImu.begin();
+
+  myImu.writeRegister(LSM6DS3_ACC_GYRO_WAKE_UP_DUR, 0x00); // No duration
+  myImu.writeRegister(LSM6DS3_ACC_GYRO_WAKE_UP_THS, 0x02); // Set wake-up threshold
+  myImu.writeRegister(LSM6DS3_ACC_GYRO_TAP_CFG1, 0x80);    // Enable interrupts and apply slope filter; latch mode disabled
+  myImu.writeRegister(LSM6DS3_ACC_GYRO_CTRL1_XL, 0x70);    // Turn on the accelerometer
+                                                           // ODR_XL = 833 Hz, FS_XL = ±2 g
+  delay(4);                                                // Delay time per application note
+  myImu.writeRegister(LSM6DS3_ACC_GYRO_CTRL1_XL, 0xB0);    // ODR_XL = 1.6 Hz
+  myImu.writeRegister(LSM6DS3_ACC_GYRO_CTRL6_G, 0x10);     // High-performance operating mode disabled for accelerometer
+  myImu.writeRegister(LSM6DS3_ACC_GYRO_MD1_CFG, 0x20);     // Wake-up interrupt driven to INT1 pin
+
+  // Set up the sense mechanism to generate the DETECT signal to wake from system_off
+  // No need to attach a handler, if just waking with the GPIO input.
+	pinMode(PIN_LSM6DS3TR_C_INT1, INPUT_PULLDOWN_SENSE);
+
+  return;
 }
 
 void setup() {
@@ -179,6 +215,14 @@ void loop() {
   // check for inactivity
   if (checkForInactivity(dataPoll)) {
     // if inactive then setup the wake interrupt
+    setupWakeUpInterrupt();
+
+    // make sure all leds are off
+    digitalWrite(LED_RED, HIGH);
+    digitalWrite(LED_GREEN, HIGH);
+    digitalWrite(LED_BLUE, HIGH);
+
     // and shutdown
+    NRF_POWER->SYSTEMOFF = 1;
   }
 }
