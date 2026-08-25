@@ -4,6 +4,9 @@
 #include <LSM6DS3.h>
 #include <DataPoll.h>
 
+// Constants
+const TickType_t POLL_FREQUENCY = pdMS_TO_TICKS(1000);
+
 // Globals
 BLEService imuService("88fc1bd0-8154-454a-b2bd-fe4cc329d1d5");
 BLECharacteristic imuCharacteristic("547af7ac-aa68-47eb-a0df-d827e39615bf");
@@ -95,27 +98,32 @@ void setup() {
 }
 
 void loop() {
-  // DEBUG BEGIN
-  delay(1000);
+  // vTaskDelayUntil time to poll again
+  static TickType_t lastWakeTime = xTaskGetTickCount();
+  vTaskDelayUntil(&lastWakeTime, POLL_FREQUENCY);
+  
+  // collect new poll data
+  uint32_t timestamp = millis();
+  int16_t accelX = myImu.readRawAccelX();
+  int16_t accelY = myImu.readRawAccelY();
+  int16_t accelZ = myImu.readRawAccelZ();
+
+  // encode new poll data
+  DataPoll dataPoll(timestamp, accelX, accelY, accelZ);
+  uint8_t encodedDataBuffer[sizeof(DataPoll)];
+  dataPoll.encodeDataPoll((uint8_t *)&encodedDataBuffer);
+
   if (Bluefruit.connected()) {
-    uint8_t imuData[12] = {0x01, 0x02, 0x03, 0x04,
-                           0x05, 0x06, 0x07, 0x08,
-                           0x09, 0x0A, 0x0B, 0x0C};
-    if (imuCharacteristic.notify(imuData, sizeof(imuData))) {
-      Serial.println("imu Characteristic updated");
+
+    // update characteristic with encoded data
+    // notify client
+    if (imuCharacteristic.notify(encodedDataBuffer, sizeof(encodedDataBuffer))) {
+      Serial.println("imu characteristic updated");
     } else {
       Serial.println("ERROR: something went wrong with sending notification");
     }
   }
-  // DEBUG END
-
-  // vTaskDelayUntil time to poll again
-  
-  
-  // collect new poll data
-  // encode new poll data
-  // update characteristic with encoded data
-  // notify client
+ 
 
   // check for inactivity
   // if inactive then setup the wake interrupt
