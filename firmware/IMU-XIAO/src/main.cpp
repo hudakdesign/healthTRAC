@@ -5,7 +5,9 @@
 #include <DataPoll.h>
 
 // Constants
-const TickType_t POLL_FREQUENCY = pdMS_TO_TICKS(1000);
+const TickType_t POLL_FREQUENCY = pdMS_TO_TICKS(10);
+const int INACTIVITY_THRESHOLD = 10;
+const int INACTIVE_POLLS_BEFORE_SLEEP = 1000;
 
 // Globals
 BLEService imuService("88fc1bd0-8154-454a-b2bd-fe4cc329d1d5");
@@ -15,10 +17,6 @@ BLEDis bledis;
 LSM6DS3 myImu;
 
 // Helpers
-bool checkForInactivity(DataPoll newDataPoll) {
-  return false;
-}
-
 void setupBluetooth() {
   Serial.println("Starting bluetooth");
   Bluefruit.begin();
@@ -64,6 +62,60 @@ void setupIMU() {
   } else {
     Serial.println("Initialize imu: ERROR");
   }
+}
+
+bool checkForInactivity(DataPoll newDataPoll) {
+  static DataPoll prevDataPoll(0, 0, 0, 0); // previous starts with zeroes for first interation
+  static int inactivityCounter = 0; // counts how many polls the imu has been inactive for
+
+  // check difference between current and previous accel values
+  int accelXDifference = abs(newDataPoll.data.accelX - prevDataPoll.data.accelX);
+  int accelYDifference = abs(newDataPoll.data.accelY - prevDataPoll.data.accelY);
+  int accelZDifference = abs(newDataPoll.data.accelZ - prevDataPoll.data.accelZ);
+
+  Serial.printf("Prev accel: {%d, %d, %d}\n", prevDataPoll.data.accelX, prevDataPoll.data.accelY, prevDataPoll.data.accelZ);
+  Serial.printf("New  accel: {%d, %d, %d}\n", newDataPoll.data.accelX, newDataPoll.data.accelY, newDataPoll.data.accelZ);
+
+  // update previous to current
+  prevDataPoll = newDataPoll;
+
+  Serial.printf("Accel differences: {%d, %d, %d}\n", accelXDifference, accelYDifference, accelZDifference);
+
+  // if the accel values are close enough (within threshold)
+  // then the imu probably isnt moving
+  // increment the a counter to indicate that it isnt moving
+  // if the accel values arent close enough (out of threshold)
+  // reset the counter
+  bool inThreshold = false;
+  if (accelXDifference < INACTIVITY_THRESHOLD) {
+    inThreshold = true;
+  }
+  if (accelYDifference < INACTIVITY_THRESHOLD) {
+    inThreshold = true;
+  }
+  if (accelZDifference < INACTIVITY_THRESHOLD) {
+    inThreshold = true;
+  }
+
+  // if its in the threshold then increment
+  if (inThreshold) {
+    inactivityCounter++;
+  } else {
+    // if it isnt then reset the counter
+    inactivityCounter = 0;
+  }
+  
+  // if the counter reaches a certain number then return true
+  if (inactivityCounter >= INACTIVE_POLLS_BEFORE_SLEEP) {
+    Serial.print("currently inactive. polls inactive: ");
+    Serial.println(inactivityCounter);
+    return true;
+  }
+
+  // otherwise return false
+  Serial.print("currently active. polls inactive: ");
+  Serial.println(inactivityCounter);
+  return false;
 }
 
 void setup() {
@@ -123,9 +175,10 @@ void loop() {
       Serial.println("ERROR: something went wrong with sending notification");
     }
   }
- 
 
   // check for inactivity
-  // if inactive then setup the wake interrupt
-  // and shutdown
+  if (checkForInactivity(dataPoll)) {
+    // if inactive then setup the wake interrupt
+    // and shutdown
+  }
 }
