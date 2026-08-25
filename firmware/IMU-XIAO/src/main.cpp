@@ -201,6 +201,7 @@ void loop() {
   uint8_t encodedDataBuffer[sizeof(DataPoll)];
   dataPoll.encodeDataPoll((uint8_t *)&encodedDataBuffer);
 
+  // TODO: Update this logic. Currently polls are being missed because it is taking too long to notify
   if (Bluefruit.connected()) {
 
     // update characteristic with encoded data

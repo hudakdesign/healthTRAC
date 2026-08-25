@@ -40,7 +40,7 @@ WiFiServer server(SERVER_PORT);
 class ScanCallbacks : public NimBLEScanCallbacks {
     void onResult(const NimBLEAdvertisedDevice* advertisedDevice) override {
         Serial.printf("Advertised Device found: %s\n", advertisedDevice->toString().c_str());
-        if (advertisedDevice->isAdvertisingService(NimBLEUUID("BAAD"))) {
+        if (advertisedDevice->isAdvertisingService(NimBLEUUID("88fc1bd0-8154-454a-b2bd-fe4cc329d1d5"))) {
             Serial.printf("Found Our Service\n");
             /** stop scan before connecting */
             NimBLEDevice::getScan()->stop();
@@ -250,6 +250,51 @@ bool connectToServer() {
         }
     } else {
         Serial.printf("BAAD service not found.\n");
+    }
+
+    pSvc = pClient->getService("88fc1bd0-8154-454a-b2bd-fe4cc329d1d5");
+    if (pSvc) {
+        pChr = pSvc->getCharacteristic("547af7ac-aa68-47eb-a0df-d827e39615bf");
+        if (pChr) {
+            if (pChr->canRead()) {
+                Serial.printf("%s Value: %s\n", pChr->getUUID().toString().c_str(), pChr->readValue().c_str());
+            }
+
+            // pDsc = pChr->getDescriptor(NimBLEUUID("C01D"));
+            // if (pDsc) {
+            //     Serial.printf("Descriptor: %s  Value: %s\n", pDsc->getUUID().toString().c_str(), pDsc->readValue().c_str());
+            // }
+
+            if (pChr->canWrite()) {
+                if (pChr->writeValue("No tip!")) {
+                    Serial.printf("Wrote new value to: %s\n", pChr->getUUID().toString().c_str());
+                } else {
+                    pClient->disconnect();
+                    return false;
+                }
+
+                if (pChr->canRead()) {
+                    Serial.printf("The value of: %s is now: %s\n",
+                                  pChr->getUUID().toString().c_str(),
+                                  pChr->readValue().c_str());
+                }
+            }
+
+            if (pChr->canNotify()) {
+                if (!pChr->subscribe(true, notifyCB)) {
+                    pClient->disconnect();
+                    return false;
+                }
+            } else if (pChr->canIndicate()) {
+                /** Send false as first argument to subscribe to indications instead of notifications */
+                if (!pChr->subscribe(false, notifyCB)) {
+                    pClient->disconnect();
+                    return false;
+                }
+            }
+        }
+    } else {
+        Serial.printf("88fc1bd0-8154-454a-b2bd-fe4cc329d1d5 service not found.\n");
     }
 
     Serial.printf("Done with this device!\n");
