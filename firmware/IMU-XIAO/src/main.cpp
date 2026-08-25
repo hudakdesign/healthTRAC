@@ -1,208 +1,29 @@
 #include <Arduino.h>
-#include <NimBLEDevice.h>
-#include <LSM6DS3.h>
 #include <DataPoll.h>
 
-// Constants
-const char *DEVICE_NAME = "IMU-XIAO";
-const char *SERVICE_UUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E";
-const char *CHARACTERISTIC_UUID = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E";
-const int8_t POWER_LEVEL = 8;
-const TickType_t POLL_FREQUENCY = pdMS_TO_TICKS(10);
-
-// Globals
-NimBLEStreamServer bleStream;
-LSM6DS3 myImu(I2C_MODE, 0x6A);
-
-struct RxOverflowStats
-{
-  uint32_t droppedOld{0};
-  uint32_t droppedNew{0};
-} g_rxOverflowStats;
-
-// Callback declarations
-// overflow callback
-NimBLEStream::RxOverflowAction onRxOverflow(const uint8_t *data, size_t len, void *userArg)
-{
-  auto *stats = static_cast<RxOverflowStats *>(userArg);
-  if (stats)
-  {
-    stats->droppedOld++;
-  }
-
-  // keep newest bytes
-  (void)data;
-  (void)len;
-  return NimBLEStream::DROP_OLDER_DATA;
+bool checkForInactivity(DataPoll newDataPoll) {
+  return false;
 }
 
-// server callbacks
-class ServerCallbacks : public NimBLEServerCallbacks
-{
-  void onConnect(NimBLEServer *pServer, NimBLEConnInfo &connInfo) override
-  {
-    Serial.printf("Client connected: %s\n", connInfo.getAddress().toString().c_str());
-    // TEST: update connection parameters for better throughput
-    pServer->updateConnParams(connInfo.getConnHandle(), 12, 24, 0, 200);
-  }
+void setup() {
+  // serial
 
-  void onDisconnect(NimBLEServer *pServer, NimBLEConnInfo &connInfo, int reason) override
-  {
-    Serial.printf("Client disconnected: (reason: %d) restarting advertising\n", reason);
-    NimBLEDevice::startAdvertising();
-  }
+  // leds
 
-  void onMTUChange(uint16_t MTU, NimBLEConnInfo &connInfo) override
-  {
-    Serial.printf("MTU updated: %u for connection ID: %u\n", MTU, connInfo.getConnHandle());
-  }
+  // bluefruit
 
-} serverCallbacks;
-
-void setup()
-{
-  int errorCount = 0;
-
-  // initialize serial
-  Serial.begin(115200);
-  delay(2000);
-  Serial.println("IMU-XIAO Setup");
-
-  // initialize imu
-  if (myImu.begin() == 0)
-  {
-    Serial.println("Initialize IMU: success");
-  }
-  else
-  {
-    Serial.println("Initialize IMU: ERROR");
-    errorCount++;
-  }
-
-  // initialize NimBLE
-  NimBLEDevice::init(DEVICE_NAME);
-
-  // set power level
-  if (NimBLEDevice::setPower(POWER_LEVEL))
-  {
-    Serial.println("Set Power Level: success");
-  }
-  else
-  {
-    Serial.println("Set Power Level: ERROR");
-    errorCount++;
-  }
-
-  // create ble server and set its callbacks
-  NimBLEServer *pServer = NimBLEDevice::createServer();
-  pServer->setCallbacks(&serverCallbacks);
-
-  // intialize stream server and set overflow callback
-  if (bleStream.begin(NimBLEUUID(SERVICE_UUID),
-                      NimBLEUUID(CHARACTERISTIC_UUID),
-                      1024,
-                      1024,
-                      false))
-  {
-    Serial.println("Create BLE Stream: success");
-  }
-  else
-  {
-    Serial.println("Create BLE Stream: ERROR");
-    errorCount++;
-  }
-
-  // create advertising instance
-  NimBLEAdvertising *pAdvertising = NimBLEDevice::getAdvertising();
-  pAdvertising->addServiceUUID(SERVICE_UUID);
-  pAdvertising->setName(DEVICE_NAME);
-  pAdvertising->enableScanResponse(true);
-  pAdvertising->start();
-
-  Serial.printf("Setup completed with %d detected errors\n", errorCount);
+  // imu
 }
 
-void loop()
-{
-  // wait until time for next poll
-  // set last wake time for polling
-  static TickType_t lastWakeTime = xTaskGetTickCount();
-  vTaskDelayUntil(&lastWakeTime, POLL_FREQUENCY);
+void loop() {
+  // vTaskDelayUntil time to poll again
+  
+  // collect new poll data
+  // encode new poll data
+  // update characteristic with encoded data
+  // notify client
 
-  // handle receive buffer overflows
-  static uint32_t lastDroppedOld = 0;
-  static uint32_t lastDroppedNew = 0;
-  if (g_rxOverflowStats.droppedOld != lastDroppedOld || g_rxOverflowStats.droppedNew != lastDroppedNew)
-  {
-    lastDroppedOld = g_rxOverflowStats.droppedOld;
-    lastDroppedNew = g_rxOverflowStats.droppedNew;
-    Serial.printf("RX overflow handled (drop-old=%lu, drop-new=%lu)\n", lastDroppedOld, lastDroppedNew);
-  }
-
-  // check if a client is subscribed {
-  if (bleStream.ready())
-  {
-    // Collect timestamp and raw accel values
-    // (convert raw values on the esp after transmission)
-    // uint32_t currTimestamp = millis();
-    // int16_t currAccelX = myImu.readRawAccelX();
-    // int16_t currAccelY = myImu.readRawAccelY();
-    // int16_t currAccelZ = myImu.readRawAccelZ();
-    // DataPoll dataPoll = DataPoll(currTimestamp, currAccelX, currAccelY, currAccelZ);
-
-    // DEBUGGING ONLY
-    uint32_t currTimestamp = 4278190080;
-    int16_t currAccelX = 0;
-    int16_t currAccelY = 288;
-    int16_t currAccelZ = 32767;
-    DataPoll dataPoll = DataPoll(currTimestamp, currAccelX, currAccelY, currAccelZ);
-
-    // Creates buffer for encoding poll data, then encodes poll data
-    char encodedDataBuffer[sizeof(dataPoll.data)];
-    dataPoll.encodeDataPoll((char *)&encodedDataBuffer);
-
-    // Sends the encoded data over bleStream
-    // bleStream.println(encodedDataBuffer);
-    // DEBUG: send dummy bytes to see if they transmit
-
-    // Test 1 (do arbitrary bytes send?)
-    char dummyBuffer[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
-    bleStream.println(dummyBuffer);
-
-    // Test 2 (does a normal string send?)
-    char otherDummyBuffer[] = "This is a test";
-    bleStream.println(otherDummyBuffer);
-
-
-
-    // Print out the bytes for debugging
-    // Print individual bytes as numeric representation
-    Serial.print("Bytes to send as uint8s: ");
-    for (int i = 0; i < sizeof(encodedDataBuffer); i++)
-    {
-      u_int8_t currByte = encodedDataBuffer[i];
-      Serial.print((uint)currByte);
-      Serial.print(' ');
-    }
-    Serial.println();
-
-    dataPoll = DataPoll(encodedDataBuffer);
-
-    // Print out the contents
-    Serial.print("timestamp:");
-    Serial.print(dataPoll.data.timestamp);
-    Serial.print(", ");
-
-    Serial.print("accelX: ");
-    Serial.print(dataPoll.data.accelX);
-    Serial.print(", ");
-
-    Serial.print("accelY: ");
-    Serial.print(dataPoll.data.accelY);
-    Serial.print(", ");
-
-    Serial.print("accelZ: ");
-    Serial.print(dataPoll.data.accelZ);
-    Serial.println();
-  }
+  // check for inactivity
+  // if inactive then setup the wake interrupt
+  // and shutdown
 }
