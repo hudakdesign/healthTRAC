@@ -56,7 +56,11 @@ void setupBluetooth() {
 }
 
 void setupIMU() {
-  myImu.begin();
+  if (myImu.begin() == 0) {
+    Serial.println("Initialize imu: success");
+  } else {
+    Serial.println("Initialize imu: ERROR");
+  }
 }
 
 void setup() {
@@ -106,6 +110,7 @@ void loop() {
   // DEBUG END
 
   // vTaskDelayUntil time to poll again
+  
   
   // collect new poll data
   // encode new poll data

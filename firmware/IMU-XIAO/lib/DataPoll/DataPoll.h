@@ -27,11 +27,11 @@ public:
   // Decodes array of encoded data poll bytes into DataPoll object
   // Example:
   //   ```
-  //   char encodedDataBuffer[sizeof(myDataPoll.data)];
-  //   myDataPoll.encodeDataPoll((char *)&encodedDataBuffer);
+  //   uint8_t encodedDataBuffer[sizeof(myDataPoll.data)];
+  //   myDataPoll.encodeDataPoll((uint8_t *)&encodedDataBuffer);
   //   DataPoll receivedDataPoll = DataPoll(encodedDataBuffer);
   //   ```
-  DataPoll(char *encodedDataPoll)
+  DataPoll(uint8_t *encodedDataPoll)
   {
     std::memcpy(&data, encodedDataPoll, sizeof(data));
   }
@@ -40,10 +40,10 @@ public:
   // Example:
   //   ```
   //   DataPoll myDataPoll = DataPoll(123, 0.05, -0.12, 1.14);
-  //   char encodedDataBuffer[sizeof(myDataPoll.data)];
-  //   myDataPoll.encodeDataPoll((char *)&encodedDataBuffer);
+  //   uint8_t encodedDataBuffer[sizeof(myDataPoll.data)];
+  //   myDataPoll.encodeDataPoll((uint8_t *)&encodedDataBuffer);
   //   ```
-  int encodeDataPoll(char *encodedDataBuffer)
+  int encodeDataPoll(uint8_t *encodedDataBuffer)
   {
     std::memcpy(encodedDataBuffer, &data, sizeof(data));
     return 0;
