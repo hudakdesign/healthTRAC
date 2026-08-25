@@ -1,9 +1,12 @@
 #include <Arduino.h>
 #include <Adafruit_TinyUSB.h>
+#include <bluefruit.h>
 #include <LSM6DS3.h>
 #include <DataPoll.h>
 
 // Globals
+BLEService imuService("88fc1bd0-8154-454a-b2bd-fe4cc329d1d5");
+BLECharacteristic imuCharacteristic("547af7ac-aa68-47eb-a0df-d827e39615bf");
 
 bool checkForInactivity(DataPoll newDataPoll) {
   return false;
@@ -28,6 +31,7 @@ void setup() {
   digitalWrite(LED_BLUE, LOW);
   delay(1000);
   digitalWrite(LED_BLUE, HIGH);
+  Serial.println("---IMU Server---");
 
   // bluefruit
 
