@@ -1,5 +1,9 @@
 #include <Arduino.h>
+#include <Adafruit_TinyUSB.h>
+#include <LSM6DS3.h>
 #include <DataPoll.h>
+
+// Globals
 
 bool checkForInactivity(DataPoll newDataPoll) {
   return false;
@@ -7,10 +11,26 @@ bool checkForInactivity(DataPoll newDataPoll) {
 
 void setup() {
   // serial
+  Serial.begin(115200);
 
   // leds
+  pinMode(LED_RED, OUTPUT);
+  pinMode(LED_GREEN, OUTPUT);
+  pinMode(LED_BLUE, OUTPUT);
+
+  // wait for serial to initialize
+  digitalWrite(LED_RED, LOW);
+  delay(1000);
+  digitalWrite(LED_RED, HIGH);
+  digitalWrite(LED_GREEN, LOW);
+  delay(1000);
+  digitalWrite(LED_GREEN, HIGH);
+  digitalWrite(LED_BLUE, LOW);
+  delay(1000);
+  digitalWrite(LED_BLUE, HIGH);
 
   // bluefruit
+
 
   // imu
 }
