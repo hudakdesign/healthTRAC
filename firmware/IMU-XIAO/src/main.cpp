@@ -27,6 +27,7 @@ Adafruit_FlashTransport_QSPI flashTransport;
 // Helpers
 void setupBluetooth() {
   Serial.println("Starting bluetooth");
+  Bluefruit.configPrphBandwidth(BANDWIDTH_MAX);
   Bluefruit.begin();
 
   // set connect callbacks
@@ -201,7 +202,6 @@ void loop() {
   uint8_t encodedDataBuffer[sizeof(DataPoll)];
   dataPoll.encodeDataPoll((uint8_t *)&encodedDataBuffer);
 
-  // TODO: Update this logic. Currently polls are being missed because it is taking too long to notify
   if (Bluefruit.connected()) {
 
     // update characteristic with encoded data
