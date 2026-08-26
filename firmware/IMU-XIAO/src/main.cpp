@@ -18,61 +18,16 @@ const int INACTIVE_POLLS_BEFORE_SLEEP = 1000;
 // Globals
 BLEService imuService("88fc1bd0-8154-454a-b2bd-fe4cc329d1d5");
 BLECharacteristic imuCharacteristic("547af7ac-aa68-47eb-a0df-d827e39615bf");
-BLEDis bledis;
+BLEDis bledis; // Device Information Service
+// BLEBas blebas; // BAttery Service
 
 LSM6DS3 myImu;
 
 Adafruit_FlashTransport_QSPI flashTransport;
 
+TimerHandle_t pollTimer = NULL;
+
 // Helpers
-void setupBluetooth() {
-  Serial.println("Starting bluetooth");
-  Bluefruit.configPrphBandwidth(BANDWIDTH_MAX);
-  Bluefruit.begin();
-
-  // set connect callbacks
-  // TODO: add actual callbacks
-  Bluefruit.Periph.setConnectCallback(NULL);
-  Bluefruit.Periph.setDisconnectCallback(NULL);
-
-  // configure device information
-  bledis.setManufacturer("Seeed Studio");
-  bledis.setModel("XIAO nRF52840-Sense");
-  bledis.begin();
-
-  Serial.println("Starting IMU (bluetooth) service");
-  imuService.begin();
-
-  // configure the characteristic
-  imuCharacteristic.setProperties(CHR_PROPS_NOTIFY);
-  imuCharacteristic.setPermission(SECMODE_OPEN, SECMODE_NO_ACCESS);
-  imuCharacteristic.begin();
-
-  // configure and start advertising
-  // advertising packet
-  Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
-  Bluefruit.Advertising.addTxPower();
-
-  // include imu service uuid
-  Bluefruit.Advertising.addService(imuService);
-
-  Bluefruit.setName("XIAO");
-  Bluefruit.Advertising.addName();
-
-  Bluefruit.Advertising.restartOnDisconnect(true);
-  Bluefruit.Advertising.setInterval(32, 244);
-  Bluefruit.Advertising.setFastTimeout(30);
-  Bluefruit.Advertising.start(0);
-}
-
-void setupIMU() {
-  if (myImu.begin() == 0) {
-    Serial.println("Initialize imu: success");
-  } else {
-    Serial.println("Initialize imu: ERROR");
-  }
-}
-
 bool checkForInactivity(DataPoll newDataPoll) {
   static DataPoll prevDataPoll(0, 0, 0, 0); // previous starts with zeroes for first interation
   static int inactivityCounter = 0; // counts how many polls the imu has been inactive for
@@ -133,6 +88,58 @@ void QSPIF_sleep(void) {
   flashTransport.end();
 }
 
+void pollSensorTimerCallback(TimerHandle_t xTimer) {
+  Serial.printf("Polling sensor. time: %d\n", millis());
+}
+
+void setupBluetooth() {
+  Serial.println("Starting bluetooth");
+  Bluefruit.configPrphBandwidth(BANDWIDTH_MAX);
+  Bluefruit.begin();
+
+  // set connect callbacks
+  // TODO: add actual callbacks
+  Bluefruit.Periph.setConnectCallback(NULL);
+  Bluefruit.Periph.setDisconnectCallback(NULL);
+
+  // configure device information
+  bledis.setManufacturer("Seeed Studio");
+  bledis.setModel("XIAO nRF52840-Sense");
+  bledis.begin();
+
+  Serial.println("Starting IMU (bluetooth) service");
+  imuService.begin();
+
+  // configure the characteristic
+  imuCharacteristic.setProperties(CHR_PROPS_NOTIFY);
+  imuCharacteristic.setPermission(SECMODE_OPEN, SECMODE_NO_ACCESS);
+  imuCharacteristic.begin();
+
+  // configure and start advertising
+  // advertising packet
+  Bluefruit.Advertising.addFlags(BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE);
+  Bluefruit.Advertising.addTxPower();
+
+  // include imu service uuid
+  Bluefruit.Advertising.addService(imuService);
+
+  Bluefruit.setName("XIAO");
+  Bluefruit.Advertising.addName();
+
+  Bluefruit.Advertising.restartOnDisconnect(true);
+  Bluefruit.Advertising.setInterval(32, 244);
+  Bluefruit.Advertising.setFastTimeout(30);
+  Bluefruit.Advertising.start(0);
+}
+
+void setupIMU() {
+  if (myImu.begin() == 0) {
+    Serial.println("Initialize imu: success");
+  } else {
+    Serial.println("Initialize imu: ERROR");
+  }
+}
+
 void setupWakeUpInterrupt() {
   myImu.settings.gyroEnabled = 0;
   myImu.settings.accelEnabled = 0;
@@ -153,6 +160,18 @@ void setupWakeUpInterrupt() {
 	pinMode(PIN_LSM6DS3TR_C_INT1, INPUT_PULLDOWN_SENSE);
 
   return;
+}
+
+void setupPollTimer() {
+  pollTimer = xTimerCreate(
+    "Sensor Polling Timer",
+    pdMS_TO_TICKS(10),
+    pdTRUE,
+    (void *) 0,
+    pollSensorTimerCallback
+  );
+
+  xTimerStart(pollTimer, portMAX_DELAY);
 }
 
 void setup() {
@@ -181,6 +200,10 @@ void setup() {
 
   // imu
   setupIMU();
+
+  // poll timer
+  setupPollTimer();
+
 
   // indicate that setup finished
   Serial.println("Finished setup");
