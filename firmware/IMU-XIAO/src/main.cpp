@@ -14,6 +14,7 @@
 const TickType_t POLL_FREQUENCY = pdMS_TO_TICKS(10);
 const int INACTIVITY_THRESHOLD = 10;
 const int INACTIVE_POLLS_BEFORE_SLEEP = 1000;
+const int POLL_QUEUE_LEN = 100;
 
 // Globals
 BLEService imuService("88fc1bd0-8154-454a-b2bd-fe4cc329d1d5");
@@ -25,7 +26,8 @@ LSM6DS3 myImu;
 
 Adafruit_FlashTransport_QSPI flashTransport;
 
-TimerHandle_t pollTimer = NULL;
+static QueueHandle_t pollQueue;
+static TimerHandle_t pollTimer = NULL;
 
 // Helpers
 bool checkForInactivity(DataPoll newDataPoll) {
@@ -88,8 +90,61 @@ void QSPIF_sleep(void) {
   flashTransport.end();
 }
 
+void setupWakeUpInterrupt() {
+  myImu.settings.gyroEnabled = 0;
+  myImu.settings.accelEnabled = 0;
+  myImu.begin();
+
+  myImu.writeRegister(LSM6DS3_ACC_GYRO_WAKE_UP_DUR, 0x00); // No duration
+  myImu.writeRegister(LSM6DS3_ACC_GYRO_WAKE_UP_THS, 0x02); // Set wake-up threshold
+  myImu.writeRegister(LSM6DS3_ACC_GYRO_TAP_CFG1, 0x80);    // Enable interrupts and apply slope filter; latch mode disabled
+  myImu.writeRegister(LSM6DS3_ACC_GYRO_CTRL1_XL, 0x70);    // Turn on the accelerometer
+                                                           // ODR_XL = 833 Hz, FS_XL = ±2 g
+  delay(4);                                                // Delay time per application note
+  myImu.writeRegister(LSM6DS3_ACC_GYRO_CTRL1_XL, 0xB0);    // ODR_XL = 1.6 Hz
+  myImu.writeRegister(LSM6DS3_ACC_GYRO_CTRL6_G, 0x10);     // High-performance operating mode disabled for accelerometer
+  myImu.writeRegister(LSM6DS3_ACC_GYRO_MD1_CFG, 0x20);     // Wake-up interrupt driven to INT1 pin
+
+  // Set up the sense mechanism to generate the DETECT signal to wake from system_off
+  // No need to attach a handler, if just waking with the GPIO input.
+	pinMode(PIN_LSM6DS3TR_C_INT1, INPUT_PULLDOWN_SENSE);
+
+  return;
+}
+
 void pollSensorTimerCallback(TimerHandle_t xTimer) {
-  Serial.printf("Polling sensor. time: %d\n", millis());
+  // Collect sensor data, put it into DataPoll, and send to queue
+  // collect new poll data
+  uint32_t timestamp = millis();
+  int16_t accelX = myImu.readRawAccelX();
+  int16_t accelY = myImu.readRawAccelY();
+  int16_t accelZ = myImu.readRawAccelZ();
+
+  // encode new poll data
+  DataPoll dataPoll(timestamp, accelX, accelY, accelZ);
+
+  // send to queue
+  if (xQueueSend(pollQueue, (void *)&dataPoll, 0) != pdTRUE) {
+    // if the queue is full then turn on red led
+    digitalWrite(LED_RED, LOW);
+  } else {
+    // otherwise turn it off
+    digitalWrite(LED_RED, HIGH);
+  }
+
+  // check for inactivity
+  if (checkForInactivity(dataPoll)) {
+    // if inactive then setup the wake interrupt
+    setupWakeUpInterrupt();
+
+    // make sure all leds are off
+    digitalWrite(LED_RED, HIGH);
+    digitalWrite(LED_GREEN, HIGH);
+    digitalWrite(LED_BLUE, HIGH);
+
+    // and shutdown
+    NRF_POWER->SYSTEMOFF = 1;
+  }
 }
 
 void setupBluetooth() {
@@ -140,26 +195,8 @@ void setupIMU() {
   }
 }
 
-void setupWakeUpInterrupt() {
-  myImu.settings.gyroEnabled = 0;
-  myImu.settings.accelEnabled = 0;
-  myImu.begin();
-
-  myImu.writeRegister(LSM6DS3_ACC_GYRO_WAKE_UP_DUR, 0x00); // No duration
-  myImu.writeRegister(LSM6DS3_ACC_GYRO_WAKE_UP_THS, 0x02); // Set wake-up threshold
-  myImu.writeRegister(LSM6DS3_ACC_GYRO_TAP_CFG1, 0x80);    // Enable interrupts and apply slope filter; latch mode disabled
-  myImu.writeRegister(LSM6DS3_ACC_GYRO_CTRL1_XL, 0x70);    // Turn on the accelerometer
-                                                           // ODR_XL = 833 Hz, FS_XL = ±2 g
-  delay(4);                                                // Delay time per application note
-  myImu.writeRegister(LSM6DS3_ACC_GYRO_CTRL1_XL, 0xB0);    // ODR_XL = 1.6 Hz
-  myImu.writeRegister(LSM6DS3_ACC_GYRO_CTRL6_G, 0x10);     // High-performance operating mode disabled for accelerometer
-  myImu.writeRegister(LSM6DS3_ACC_GYRO_MD1_CFG, 0x20);     // Wake-up interrupt driven to INT1 pin
-
-  // Set up the sense mechanism to generate the DETECT signal to wake from system_off
-  // No need to attach a handler, if just waking with the GPIO input.
-	pinMode(PIN_LSM6DS3TR_C_INT1, INPUT_PULLDOWN_SENSE);
-
-  return;
+void setupPollQueue() {
+  pollQueue = xQueueCreate(POLL_QUEUE_LEN, sizeof(DataPoll));
 }
 
 void setupPollTimer() {
@@ -201,6 +238,9 @@ void setup() {
   // imu
   setupIMU();
 
+  // poll queue
+  setupPollQueue();
+
   // poll timer
   setupPollTimer();
 
@@ -210,43 +250,25 @@ void setup() {
 }
 
 void loop() {
-  // vTaskDelayUntil time to poll again
-  static TickType_t lastWakeTime = xTaskGetTickCount();
-  vTaskDelayUntil(&lastWakeTime, POLL_FREQUENCY);
-  
-  // collect new poll data
-  uint32_t timestamp = millis();
-  int16_t accelX = myImu.readRawAccelX();
-  int16_t accelY = myImu.readRawAccelY();
-  int16_t accelZ = myImu.readRawAccelZ();
-
-  // encode new poll data
-  DataPoll dataPoll(timestamp, accelX, accelY, accelZ);
-  uint8_t encodedDataBuffer[sizeof(DataPoll)];
-  dataPoll.encodeDataPoll((uint8_t *)&encodedDataBuffer);
+  static DataPoll currDataPoll(0, 0, 0, 0);
 
   if (Bluefruit.connected()) {
+    // if client is connected and a poll is ready
+    if (xQueueReceive(pollQueue, (void *)&currDataPoll, 0) == pdTRUE) {
+      // encode the poll for transmission
+      uint8_t encodedDataBuffer[sizeof(DataPoll)];
+      currDataPoll.encodeDataPoll((uint8_t *)&encodedDataBuffer);
 
-    // update characteristic with encoded data
-    // notify client
-    if (imuCharacteristic.notify(encodedDataBuffer, sizeof(encodedDataBuffer))) {
-      Serial.println("imu characteristic updated");
-    } else {
-      Serial.println("ERROR: something went wrong with sending notification");
+      // update characteristic with encoded data
+      // notify client
+      if (imuCharacteristic.notify(encodedDataBuffer, sizeof(encodedDataBuffer))) {
+        Serial.println("imu characteristic updated");
+      } else {
+        Serial.println("ERROR: something went wrong with sending notification");
+      }
     }
   }
 
-  // check for inactivity
-  if (checkForInactivity(dataPoll)) {
-    // if inactive then setup the wake interrupt
-    setupWakeUpInterrupt();
-
-    // make sure all leds are off
-    digitalWrite(LED_RED, HIGH);
-    digitalWrite(LED_GREEN, HIGH);
-    digitalWrite(LED_BLUE, HIGH);
-
-    // and shutdown
-    NRF_POWER->SYSTEMOFF = 1;
-  }
+  // block for 5ms to give other tasks a chance to run
+  vTaskDelay(pdMS_TO_TICKS(5));
 }
