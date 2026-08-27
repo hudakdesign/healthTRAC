@@ -220,16 +220,20 @@ void setup() {
   pinMode(LED_GREEN, OUTPUT);
   pinMode(LED_BLUE, OUTPUT);
 
-  // wait for serial to initialize
-  digitalWrite(LED_RED, LOW);
-  delay(1000);
-  digitalWrite(LED_RED, HIGH);
+  // // DEBUG: wait for serial to initialize
+  // digitalWrite(LED_RED, LOW);
+  // delay(100);
+  // digitalWrite(LED_RED, HIGH);
+  // digitalWrite(LED_GREEN, LOW);
+  // delay(100);
+  // digitalWrite(LED_GREEN, HIGH);
+  // digitalWrite(LED_BLUE, LOW);
+  // delay(100);
+  // digitalWrite(LED_BLUE, HIGH);
+
+  // turn on power led
   digitalWrite(LED_GREEN, LOW);
-  delay(1000);
-  digitalWrite(LED_GREEN, HIGH);
-  digitalWrite(LED_BLUE, LOW);
-  delay(1000);
-  digitalWrite(LED_BLUE, HIGH);
+
   Serial.println("---IMU Server---");
 
   // bluefruit
