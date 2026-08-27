@@ -431,6 +431,9 @@ void loop() {
       sensors1.add(currDataPoll.data.accelY);
       sensors2.add(currDataPoll.data.accelZ);
 
+      // set queue full led to off (this prevents led from staying on after imu sleeps and notify callbacks stop coming)
+      digitalWrite(LED_RED, HIGH);
+
       counter++;
     }
 
