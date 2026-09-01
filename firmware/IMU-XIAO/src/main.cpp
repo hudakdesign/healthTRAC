@@ -20,6 +20,8 @@ const int POLL_QUEUE_LEN = 100;
 BLEService imuService("88fc1bd0-8154-454a-b2bd-fe4cc329d1d5");
 BLECharacteristic imuCharacteristic("547af7ac-aa68-47eb-a0df-d827e39615bf");
 BLEDis bledis; // Device Information Service
+
+// TODO: Implement battery percent calculation and writing to BAS
 // BLEBas blebas; // BAttery Service
 
 LSM6DS3 myImu;
