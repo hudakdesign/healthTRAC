@@ -17,22 +17,22 @@
 
 // Constants
 // bluetooth
-const char* IMU_SERVICE_UUID = "88fc1bd0-8154-454a-b2bd-fe4cc329d1d5";
-const char* IMU_CHARACTERISTIC_UUID = "547af7ac-aa68-47eb-a0df-d827e39615bf";
+const char *IMU_SERVICE_UUID = "88fc1bd0-8154-454a-b2bd-fe4cc329d1d5";
+const char *IMU_CHARACTERISTIC_UUID = "547af7ac-aa68-47eb-a0df-d827e39615bf";
 const NimBLEUUID IMU_SERVICE(IMU_SERVICE_UUID);
 const NimBLEUUID IMU_CHARACTERISTIC(IMU_CHARACTERISTIC_UUID);
 
 // web server
-const char* HOSTNAME = "imu-alpha";
+const char *HOSTNAME = "imu-alpha";
 const int BLINK_RATE = 500;
 const int POLL_QUEUE_LEN = 1000;
 const int SERVER_PORT = 80;
 const int BUFFER_STREAM_SIZE = 1024;
 
 // Globals
-static const NimBLEAdvertisedDevice* advDevice;
-static bool                          doConnect  = false;
-static uint32_t                      scanTimeMs = 5000; /** scan time in milliseconds, 0 = scan forever */
+static const NimBLEAdvertisedDevice *advDevice;
+static bool doConnect = false;
+static uint32_t scanTimeMs = 5000; /** scan time in milliseconds, 0 = scan forever */
 
 // queue for storing DataPolls
 static QueueHandle_t pollQueue;
@@ -44,250 +44,287 @@ WiFiServer server(SERVER_PORT);
  **                       Remove as you see fit for your needs                        */
 
 /** Define a class to handle the callbacks when scan events are received */
-class ScanCallbacks : public NimBLEScanCallbacks {
-    void onResult(const NimBLEAdvertisedDevice* advertisedDevice) override {
-        Serial.printf("Advertised Device found: %s\n", advertisedDevice->toString().c_str());
-        if (advertisedDevice->isAdvertisingService(IMU_SERVICE)) {
-            Serial.printf("Found Our Service\n");
-            /** stop scan before connecting */
-            NimBLEDevice::getScan()->stop();
-            /** Save the device reference in a global for the client to use*/
-            advDevice = advertisedDevice;
-            /** Ready to connect now */
-            doConnect = true;
-        }
+class ScanCallbacks : public NimBLEScanCallbacks
+{
+  void onResult(const NimBLEAdvertisedDevice *advertisedDevice) override
+  {
+    Serial.printf("Advertised Device found: %s\n", advertisedDevice->toString().c_str());
+    if (advertisedDevice->isAdvertisingService(IMU_SERVICE))
+    {
+      Serial.printf("Found Our Service\n");
+      /** stop scan before connecting */
+      NimBLEDevice::getScan()->stop();
+      /** Save the device reference in a global for the client to use*/
+      advDevice = advertisedDevice;
+      /** Ready to connect now */
+      doConnect = true;
     }
+  }
 
-    /** Callback to process the results of the completed scan or restart it */
-    void onScanEnd(const NimBLEScanResults& results, int reason) override {
-        Serial.printf("Scan Ended, reason: %d, device count: %d; Restarting scan\n", reason, results.getCount());
-        NimBLEDevice::getScan()->start(scanTimeMs, false, true);
-    }
+  /** Callback to process the results of the completed scan or restart it */
+  void onScanEnd(const NimBLEScanResults &results, int reason) override
+  {
+    Serial.printf("Scan Ended, reason: %d, device count: %d; Restarting scan\n", reason, results.getCount());
+    NimBLEDevice::getScan()->start(scanTimeMs, false, true);
+  }
 } scanCallbacks;
 
 /** Notification / Indication receiving handler callback */
-void notifyCB(NimBLERemoteCharacteristic* pRemoteCharacteristic, uint8_t* pData, size_t length, bool isNotify) {
-    std::string str  = (isNotify == true) ? "Notification" : "Indication";
-    str             += " from ";
-    str             += pRemoteCharacteristic->getClient()->getPeerAddress().toString();
-    str             += ": Service = " + pRemoteCharacteristic->getRemoteService()->getUUID().toString();
-    str             += ", Characteristic = " + pRemoteCharacteristic->getUUID().toString();
-    str             += ", Value = " + std::string((char*)pData, length);
-    Serial.printf("%s\n", str.c_str());
+void notifyCB(NimBLERemoteCharacteristic *pRemoteCharacteristic, uint8_t *pData, size_t length, bool isNotify)
+{
+  std::string str = (isNotify == true) ? "Notification" : "Indication";
+  str += " from ";
+  str += pRemoteCharacteristic->getClient()->getPeerAddress().toString();
+  str += ": Service = " + pRemoteCharacteristic->getRemoteService()->getUUID().toString();
+  str += ", Characteristic = " + pRemoteCharacteristic->getUUID().toString();
+  str += ", Value = " + std::string((char *)pData, length);
+  Serial.printf("%s\n", str.c_str());
 
-    // Decode pData and plot the decoded data
-    Serial.printf("RX BYTES LENGTH: %d\n", length);
+  // Decode pData and plot the decoded data
+  Serial.printf("RX BYTES LENGTH: %d\n", length);
 
-    // if the right amount of bytes were sent then decode the message
-    // otherwise print an error message
-    if (length == 12) {
-      // Decode bytes in pData
-      DataPoll incomingDataPoll(pData);
-      Serial.println();
-      Serial.printf(">timestamp: %d|t\n", incomingDataPoll.data.timestamp);
-      Serial.printf(">accelX: %d\n", incomingDataPoll.data.accelX);
-      Serial.printf(">accelY: %d\n", incomingDataPoll.data.accelY);
-      Serial.printf(">accelZ: %d\n", incomingDataPoll.data.accelZ);
+  // if the right amount of bytes were sent then decode the message
+  // otherwise print an error message
+  if (length == 12)
+  {
+    // Decode bytes in pData
+    DataPoll incomingDataPoll(pData);
+    Serial.println();
+    Serial.printf(">timestamp: %d|t\n", incomingDataPoll.data.timestamp);
+    Serial.printf(">accelX: %d\n", incomingDataPoll.data.accelX);
+    Serial.printf(">accelY: %d\n", incomingDataPoll.data.accelY);
+    Serial.printf(">accelZ: %d\n", incomingDataPoll.data.accelZ);
 
-      // send object to the queue for being shared with the webserver
-      if (xQueueSend(pollQueue, (void *)&incomingDataPoll, 0) != pdTRUE) {
-        // if the queue is full then turn on the red led
-        digitalWrite(LED_RED, LOW);
-      } else {
-        // otherwise turn it off
-        digitalWrite(LED_RED, HIGH);
-      }
-    } else {
-      Serial.printf("ERROR: Incorrect number of bytes in notification (expected: 12; actual: %d)", length);
+    // send object to the queue for being shared with the webserver
+    if (xQueueSend(pollQueue, (void *)&incomingDataPoll, 0) != pdTRUE)
+    {
+      // if the queue is full then turn on the red led
+      digitalWrite(LED_RED, LOW);
     }
-    // DataPoll incomingDataPoll(pData);
-
+    else
+    {
+      // otherwise turn it off
+      digitalWrite(LED_RED, HIGH);
+    }
+  }
+  else
+  {
+    Serial.printf("ERROR: Incorrect number of bytes in notification (expected: 12; actual: %d)", length);
+  }
+  // DataPoll incomingDataPoll(pData);
 }
 
 /** Handles the provisioning of clients and connects / interfaces with the server */
-bool connectToServer() {
-    NimBLEClient* pClient = nullptr;
+bool connectToServer()
+{
+  NimBLEClient *pClient = nullptr;
 
-    /** Check if we have a client we should reuse first **/
-    if (NimBLEDevice::getCreatedClientCount()) {
-        /**
-         *  Special case when we already know this device, we send false as the
-         *  second argument in connect() to prevent refreshing the service database.
-         *  This saves considerable time and power.
-         */
-        pClient = NimBLEDevice::getClientByPeerAddress(advDevice->getAddress());
-        if (pClient) {
-            if (!pClient->connect(advDevice, false)) {
-                Serial.printf("Reconnect failed\n");
-                return false;
-            }
-            Serial.printf("Reconnected client\n");
-        } else {
-            /**
-             *  We don't already have a client that knows this device,
-             *  check for a client that is disconnected that we can use.
-             */
-            pClient = NimBLEDevice::getDisconnectedClient();
-        }
+  /** Check if we have a client we should reuse first **/
+  if (NimBLEDevice::getCreatedClientCount())
+  {
+    /**
+     *  Special case when we already know this device, we send false as the
+     *  second argument in connect() to prevent refreshing the service database.
+     *  This saves considerable time and power.
+     */
+    pClient = NimBLEDevice::getClientByPeerAddress(advDevice->getAddress());
+    if (pClient)
+    {
+      if (!pClient->connect(advDevice, false))
+      {
+        Serial.printf("Reconnect failed\n");
+        return false;
+      }
+      Serial.printf("Reconnected client\n");
+    }
+    else
+    {
+      /**
+       *  We don't already have a client that knows this device,
+       *  check for a client that is disconnected that we can use.
+       */
+      pClient = NimBLEDevice::getDisconnectedClient();
+    }
+  }
+
+  /** No client to reuse? Create a new one. */
+  if (!pClient)
+  {
+    if (NimBLEDevice::getCreatedClientCount() >= MYNEWT_VAL(BLE_MAX_CONNECTIONS))
+    {
+      Serial.printf("Max clients reached - no more connections available\n");
+      return false;
     }
 
-    /** No client to reuse? Create a new one. */
-    if (!pClient) {
-        if (NimBLEDevice::getCreatedClientCount() >= MYNEWT_VAL(BLE_MAX_CONNECTIONS)) {
-            Serial.printf("Max clients reached - no more connections available\n");
-            return false;
-        }
+    pClient = NimBLEDevice::createClient();
 
-        pClient = NimBLEDevice::createClient();
-
-        Serial.printf("New client created\n");
-
-        /**
-         *  Set initial connection parameters:
-         *  These settings are safe for 3 clients to connect reliably, can go faster if you have less
-         *  connections. Timeout should be a multiple of the interval, minimum is 100ms.
-         *  Min interval: 12 * 1.25ms = 15, Max interval: 12 * 1.25ms = 15, 0 latency, 150 * 10ms = 1500ms timeout
-         */
-        pClient->setConnectionParams(12, 12, 0, 150);
-
-        /** Set how long we are willing to wait for the connection to complete (milliseconds), default is 30000. */
-        pClient->setConnectTimeout(5 * 1000);
-
-        if (!pClient->connect(advDevice)) {
-            /** Created a client but failed to connect, don't need to keep it as it has no data */
-            NimBLEDevice::deleteClient(pClient);
-            Serial.printf("Failed to connect, deleted client\n");
-            return false;
-        }
-    }
-
-    if (!pClient->isConnected()) {
-        if (!pClient->connect(advDevice)) {
-            Serial.printf("Failed to connect\n");
-            return false;
-        }
-    }
-
-    Serial.printf("Connected to: %s RSSI: %d\n", pClient->getPeerAddress().toString().c_str(), pClient->getRssi());
-
-    /** Now we can read/write/subscribe the characteristics of the services we are interested in */
-    NimBLERemoteService*        pSvc = nullptr;
-    NimBLERemoteCharacteristic* pChr = nullptr;
-    NimBLERemoteDescriptor*     pDsc = nullptr;
-
-    pSvc = pClient->getService(IMU_SERVICE_UUID);
-    if (pSvc) {
-        pChr = pSvc->getCharacteristic(IMU_CHARACTERISTIC_UUID);
-        if (pChr) {
-            if (pChr->canNotify()) {
-                if (!pChr->subscribe(true, notifyCB)) {
-                    pClient->disconnect();
-                    return false;
-                }
-            } else if (pChr->canIndicate()) {
-                /** Send false as first argument to subscribe to indications instead of notifications */
-                if (!pChr->subscribe(false, notifyCB)) {
-                    pClient->disconnect();
-                    return false;
-                }
-            }
-        }
-    } else {
-        Serial.printf("%s service not found.\n", IMU_SERVICE_UUID);
-    }
-
-    Serial.printf("Done with this device!\n");
-    return true;
-}
-
-void setup() {
-    Serial.begin(115200);
-    pinMode(LED_BUILTIN, OUTPUT);
-    pinMode(LED_RED, OUTPUT);
-    pinMode(LED_GREEN, OUTPUT);
-    pinMode(LED_BLUE, OUTPUT);
-
-    Serial.printf("Starting NimBLE Client\n");
-
-    pollQueue = xQueueCreate(POLL_QUEUE_LEN, sizeof(DataPoll));
-
-    /** Initialize NimBLE and set the device name */
-    NimBLEDevice::init("NimBLE-Client");
-
-    /** Optional: set the transmit power */
-    NimBLEDevice::setPower(3); /** 3dbm */
-    NimBLEScan* pScan = NimBLEDevice::getScan();
-
-    /** Set the callbacks to call when scan events occur, no duplicates */
-    pScan->setScanCallbacks(&scanCallbacks, false);
-
-    /** Set scan interval (how often) and window (how long) in milliseconds */
-    pScan->setInterval(100);
-    pScan->setWindow(100);
+    Serial.printf("New client created\n");
 
     /**
-     * Active scan will gather scan response data from advertisers
-     *  but will use more energy from both devices
+     *  Set initial connection parameters:
+     *  These settings are safe for 3 clients to connect reliably, can go faster if you have less
+     *  connections. Timeout should be a multiple of the interval, minimum is 100ms.
+     *  Min interval: 12 * 1.25ms = 15, Max interval: 12 * 1.25ms = 15, 0 latency, 150 * 10ms = 1500ms timeout
      */
-    pScan->setActiveScan(true);
+    pClient->setConnectionParams(12, 12, 0, 150);
 
-    /** Start scanning for advertisers */
-    pScan->start(scanTimeMs);
-    Serial.printf("Scanning for peripherals\n");
+    /** Set how long we are willing to wait for the connection to complete (milliseconds), default is 30000. */
+    pClient->setConnectTimeout(5 * 1000);
 
-    // Configure wifi 
-    Serial.println("Wifi Setup");
-    Serial.print("Connecting to ");
-    Serial.println(SSID);
-    WiFi.setHostname(HOSTNAME);
-    WiFi.begin(SSID, PASSWORD);
-    while (WiFi.status() != WL_CONNECTED)
+    if (!pClient->connect(advDevice))
     {
-      // blinky and print .
-      digitalWrite(LED_GREEN, LOW);
-      vTaskDelay(pdMS_TO_TICKS(BLINK_RATE));
-      digitalWrite(LED_GREEN, HIGH);
-      vTaskDelay(pdMS_TO_TICKS(BLINK_RATE));
-
-      Serial.print(".");
+      /** Created a client but failed to connect, don't need to keep it as it has no data */
+      NimBLEDevice::deleteClient(pClient);
+      Serial.printf("Failed to connect, deleted client\n");
+      return false;
     }
+  }
 
-    // start up the webserver
-    server.begin();
+  if (!pClient->isConnected())
+  {
+    if (!pClient->connect(advDevice))
+    {
+      Serial.printf("Failed to connect\n");
+      return false;
+    }
+  }
 
+  Serial.printf("Connected to: %s RSSI: %d\n", pClient->getPeerAddress().toString().c_str(), pClient->getRssi());
+
+  /** Now we can read/write/subscribe the characteristics of the services we are interested in */
+  NimBLERemoteService *pSvc = nullptr;
+  NimBLERemoteCharacteristic *pChr = nullptr;
+  NimBLERemoteDescriptor *pDsc = nullptr;
+
+  pSvc = pClient->getService(IMU_SERVICE_UUID);
+  if (pSvc)
+  {
+    pChr = pSvc->getCharacteristic(IMU_CHARACTERISTIC_UUID);
+    if (pChr)
+    {
+      if (pChr->canNotify())
+      {
+        if (!pChr->subscribe(true, notifyCB))
+        {
+          pClient->disconnect();
+          return false;
+        }
+      }
+      else if (pChr->canIndicate())
+      {
+        /** Send false as first argument to subscribe to indications instead of notifications */
+        if (!pChr->subscribe(false, notifyCB))
+        {
+          pClient->disconnect();
+          return false;
+        }
+      }
+    }
+  }
+  else
+  {
+    Serial.printf("%s service not found.\n", IMU_SERVICE_UUID);
+  }
+
+  Serial.printf("Done with this device!\n");
+  return true;
 }
 
-void loop() {
-    /** Loop here until we find a device we want to connect to */
-    static DataPoll currDataPoll(0, 0, 0, 0);
+void setup()
+{
+  Serial.begin(115200);
+  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(LED_RED, OUTPUT);
+  pinMode(LED_GREEN, OUTPUT);
+  pinMode(LED_BLUE, OUTPUT);
 
-    // delay(10);
+  Serial.printf("Starting NimBLE Client\n");
 
-    // Manage bluetooth:
-    if (doConnect) {
-        doConnect = false;
-        /** Found a device we want to connect to, do it now */
-        if (connectToServer()) {
-            Serial.printf("Success! we should now be getting notifications, scanning for more!\n");
-        } else {
-            Serial.printf("Failed to connect, starting scan\n");
-        }
+  pollQueue = xQueueCreate(POLL_QUEUE_LEN, sizeof(DataPoll));
 
-        NimBLEDevice::getScan()->start(scanTimeMs, false, true);
+  /** Initialize NimBLE and set the device name */
+  NimBLEDevice::init("NimBLE-Client");
+
+  /** Optional: set the transmit power */
+  NimBLEDevice::setPower(3); /** 3dbm */
+  NimBLEScan *pScan = NimBLEDevice::getScan();
+
+  /** Set the callbacks to call when scan events occur, no duplicates */
+  pScan->setScanCallbacks(&scanCallbacks, false);
+
+  /** Set scan interval (how often) and window (how long) in milliseconds */
+  pScan->setInterval(100);
+  pScan->setWindow(100);
+
+  /**
+   * Active scan will gather scan response data from advertisers
+   *  but will use more energy from both devices
+   */
+  pScan->setActiveScan(true);
+
+  /** Start scanning for advertisers */
+  pScan->start(scanTimeMs);
+  Serial.printf("Scanning for peripherals\n");
+
+  // Configure wifi
+  Serial.println("Wifi Setup");
+  Serial.print("Connecting to ");
+  Serial.println(SSID);
+  WiFi.setHostname(HOSTNAME);
+  WiFi.begin(SSID, PASSWORD);
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    // blinky and print .
+    digitalWrite(LED_GREEN, LOW);
+    vTaskDelay(pdMS_TO_TICKS(BLINK_RATE));
+    digitalWrite(LED_GREEN, HIGH);
+    vTaskDelay(pdMS_TO_TICKS(BLINK_RATE));
+
+    Serial.print(".");
+  }
+
+  // start up the webserver
+  server.begin();
+}
+
+void loop()
+{
+  /** Loop here until we find a device we want to connect to */
+  static DataPoll currDataPoll(0, 0, 0, 0);
+
+  // delay(10);
+
+  // Manage bluetooth:
+  if (doConnect)
+  {
+    doConnect = false;
+    /** Found a device we want to connect to, do it now */
+    if (connectToServer())
+    {
+      Serial.printf("Success! we should now be getting notifications, scanning for more!\n");
+    }
+    else
+    {
+      Serial.printf("Failed to connect, starting scan\n");
     }
 
-    // Manage webserver
-    WiFiClient wifiClient = server.available();
+    NimBLEDevice::getScan()->start(scanTimeMs, false, true);
+  }
 
-    // if a client connects then prepare and send a response
-    if (wifiClient) {
+  // Manage webserver
+  WiFiClient wifiClient = server.available();
+
+  // if a client connects then prepare and send a response
+  if (wifiClient)
+  {
 
     Serial.println("New client");
 
     // When a new client connects: turn led on
     digitalWrite(LED_BUILTIN, HIGH);
 
-    while (wifiClient.available()) {
+    while (wifiClient.available())
+    {
       wifiClient.read();
     }
 
@@ -307,7 +344,8 @@ void loop() {
     // read in values from the queue
     // append them to their corresponding json arrays
     // increment the counter to avoid potential memory leak
-    while ((xQueueReceive(pollQueue, (void *)&currDataPoll, 0) == pdTRUE) && counter < POLL_QUEUE_LEN) {
+    while ((xQueueReceive(pollQueue, (void *)&currDataPoll, 0) == pdTRUE) && counter < POLL_QUEUE_LEN)
+    {
       timestamps.add(currDataPoll.data.timestamp);
       sensors0.add(currDataPoll.data.accelX);
       sensors1.add(currDataPoll.data.accelY);
