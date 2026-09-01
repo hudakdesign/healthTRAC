@@ -16,6 +16,13 @@
 #include "network_credentials.h"
 
 // Constants
+// bluetooth
+const char* IMU_SERVICE_UUID = "88fc1bd0-8154-454a-b2bd-fe4cc329d1d5";
+const char* IMU_CHARACTERISTIC_UUID = "547af7ac-aa68-47eb-a0df-d827e39615bf";
+const NimBLEUUID IMU_SERVICE(IMU_SERVICE_UUID);
+const NimBLEUUID IMU_CHARACTERISTIC(IMU_CHARACTERISTIC_UUID);
+
+// web server
 const char* HOSTNAME = "imu-alpha";
 const int BLINK_RATE = 500;
 const int POLL_QUEUE_LEN = 1000;
@@ -40,7 +47,7 @@ WiFiServer server(SERVER_PORT);
 class ScanCallbacks : public NimBLEScanCallbacks {
     void onResult(const NimBLEAdvertisedDevice* advertisedDevice) override {
         Serial.printf("Advertised Device found: %s\n", advertisedDevice->toString().c_str());
-        if (advertisedDevice->isAdvertisingService(NimBLEUUID("88fc1bd0-8154-454a-b2bd-fe4cc329d1d5"))) {
+        if (advertisedDevice->isAdvertisingService(IMU_SERVICE_UUID)) {
             Serial.printf("Found Our Service\n");
             /** stop scan before connecting */
             NimBLEDevice::getScan()->stop();
@@ -168,73 +175,10 @@ bool connectToServer() {
     NimBLERemoteCharacteristic* pChr = nullptr;
     NimBLERemoteDescriptor*     pDsc = nullptr;
 
-    pSvc = pClient->getService("DEAD");
+    pSvc = pClient->getService(IMU_SERVICE_UUID);
     if (pSvc) {
-        pChr = pSvc->getCharacteristic("BEEF");
-    }
-
-    if (pChr) {
-        if (pChr->canRead()) {
-            Serial.printf("%s Value: %s\n", pChr->getUUID().toString().c_str(), pChr->readValue().c_str());
-        }
-
-        if (pChr->canWrite()) {
-            if (pChr->writeValue("Tasty")) {
-                Serial.printf("Wrote new value to: %s\n", pChr->getUUID().toString().c_str());
-            } else {
-                pClient->disconnect();
-                return false;
-            }
-
-            if (pChr->canRead()) {
-                Serial.printf("The value of: %s is now: %s\n", pChr->getUUID().toString().c_str(), pChr->readValue().c_str());
-            }
-        }
-
-        if (pChr->canNotify()) {
-            if (!pChr->subscribe(true, notifyCB)) {
-                pClient->disconnect();
-                return false;
-            }
-        } else if (pChr->canIndicate()) {
-            /** Send false as first argument to subscribe to indications instead of notifications */
-            if (!pChr->subscribe(false, notifyCB)) {
-                pClient->disconnect();
-                return false;
-            }
-        }
-    } else {
-        Serial.printf("DEAD service not found.\n");
-    }
-
-    pSvc = pClient->getService("BAAD");
-    if (pSvc) {
-        pChr = pSvc->getCharacteristic("F00D");
+        pChr = pSvc->getCharacteristic(IMU_CHARACTERISTIC_UUID);
         if (pChr) {
-            if (pChr->canRead()) {
-                Serial.printf("%s Value: %s\n", pChr->getUUID().toString().c_str(), pChr->readValue().c_str());
-            }
-
-            pDsc = pChr->getDescriptor(NimBLEUUID("C01D"));
-            if (pDsc) {
-                Serial.printf("Descriptor: %s  Value: %s\n", pDsc->getUUID().toString().c_str(), pDsc->readValue().c_str());
-            }
-
-            if (pChr->canWrite()) {
-                if (pChr->writeValue("No tip!")) {
-                    Serial.printf("Wrote new value to: %s\n", pChr->getUUID().toString().c_str());
-                } else {
-                    pClient->disconnect();
-                    return false;
-                }
-
-                if (pChr->canRead()) {
-                    Serial.printf("The value of: %s is now: %s\n",
-                                  pChr->getUUID().toString().c_str(),
-                                  pChr->readValue().c_str());
-                }
-            }
-
             if (pChr->canNotify()) {
                 if (!pChr->subscribe(true, notifyCB)) {
                     pClient->disconnect();
@@ -249,52 +193,7 @@ bool connectToServer() {
             }
         }
     } else {
-        Serial.printf("BAAD service not found.\n");
-    }
-
-    pSvc = pClient->getService("88fc1bd0-8154-454a-b2bd-fe4cc329d1d5");
-    if (pSvc) {
-        pChr = pSvc->getCharacteristic("547af7ac-aa68-47eb-a0df-d827e39615bf");
-        if (pChr) {
-            if (pChr->canRead()) {
-                Serial.printf("%s Value: %s\n", pChr->getUUID().toString().c_str(), pChr->readValue().c_str());
-            }
-
-            // pDsc = pChr->getDescriptor(NimBLEUUID("C01D"));
-            // if (pDsc) {
-            //     Serial.printf("Descriptor: %s  Value: %s\n", pDsc->getUUID().toString().c_str(), pDsc->readValue().c_str());
-            // }
-
-            if (pChr->canWrite()) {
-                if (pChr->writeValue("No tip!")) {
-                    Serial.printf("Wrote new value to: %s\n", pChr->getUUID().toString().c_str());
-                } else {
-                    pClient->disconnect();
-                    return false;
-                }
-
-                if (pChr->canRead()) {
-                    Serial.printf("The value of: %s is now: %s\n",
-                                  pChr->getUUID().toString().c_str(),
-                                  pChr->readValue().c_str());
-                }
-            }
-
-            if (pChr->canNotify()) {
-                if (!pChr->subscribe(true, notifyCB)) {
-                    pClient->disconnect();
-                    return false;
-                }
-            } else if (pChr->canIndicate()) {
-                /** Send false as first argument to subscribe to indications instead of notifications */
-                if (!pChr->subscribe(false, notifyCB)) {
-                    pClient->disconnect();
-                    return false;
-                }
-            }
-        }
-    } else {
-        Serial.printf("88fc1bd0-8154-454a-b2bd-fe4cc329d1d5 service not found.\n");
+        Serial.printf("%s service not found.\n", IMU_SERVICE_UUID);
     }
 
     Serial.printf("Done with this device!\n");
@@ -314,23 +213,6 @@ void setup() {
 
     /** Initialize NimBLE and set the device name */
     NimBLEDevice::init("NimBLE-Client");
-
-    /**
-     * Set the IO capabilities of the device, each option will trigger a different pairing method.
-     *  BLE_HS_IO_KEYBOARD_ONLY   - Passkey pairing
-     *  BLE_HS_IO_DISPLAY_YESNO   - Numeric comparison pairing
-     *  BLE_HS_IO_NO_INPUT_OUTPUT - DEFAULT setting - just works pairing
-     */
-    // NimBLEDevice::setSecurityIOCap(BLE_HS_IO_KEYBOARD_ONLY); // use passkey
-    // NimBLEDevice::setSecurityIOCap(BLE_HS_IO_DISPLAY_YESNO); //use numeric comparison
-
-    /**
-     * 2 different ways to set security - both calls achieve the same result.
-     *  no bonding, no man in the middle protection, BLE secure connections.
-     *  These are the default values, only shown here for demonstration.
-     */
-    // NimBLEDevice::setSecurityAuth(false, false, true);
-    // NimBLEDevice::setSecurityAuth(BLE_SM_PAIR_AUTHREQ_BOND | BLE_SM_PAIR_AUTHREQ_MITM | BLE_SM_PAIR_AUTHREQ_SC);
 
     /** Optional: set the transmit power */
     NimBLEDevice::setPower(3); /** 3dbm */
@@ -353,7 +235,7 @@ void setup() {
     pScan->start(scanTimeMs);
     Serial.printf("Scanning for peripherals\n");
 
-    // TODO: Configure wifi 
+    // Configure wifi 
     Serial.println("Wifi Setup");
     Serial.print("Connecting to ");
     Serial.println(SSID);
