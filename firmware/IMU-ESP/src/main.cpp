@@ -1,11 +1,4 @@
-
-/** NimBLE_Client Demo:
- *
- *  Demonstrates many of the available features of the NimBLE client library.
- *
- *  Created: on March 24 2020
- *      Author: H2zero
- */
+// BLE Boilerplate comes from NimBLE_Client Demo by: H2zero
 
 #include <Arduino.h>
 #include <NimBLEDevice.h>
