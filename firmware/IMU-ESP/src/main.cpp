@@ -47,7 +47,7 @@ WiFiServer server(SERVER_PORT);
 class ScanCallbacks : public NimBLEScanCallbacks {
     void onResult(const NimBLEAdvertisedDevice* advertisedDevice) override {
         Serial.printf("Advertised Device found: %s\n", advertisedDevice->toString().c_str());
-        if (advertisedDevice->isAdvertisingService(IMU_SERVICE_UUID)) {
+        if (advertisedDevice->isAdvertisingService(IMU_SERVICE)) {
             Serial.printf("Found Our Service\n");
             /** stop scan before connecting */
             NimBLEDevice::getScan()->stop();
