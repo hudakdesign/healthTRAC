@@ -30,9 +30,10 @@ static QueueHandle_t pollQueue;
 static TimerHandle_t pollTimer = NULL;
 
 // Helpers
-bool checkForInactivity(DataPoll newDataPoll) {
+bool checkForInactivity(DataPoll newDataPoll)
+{
   static DataPoll prevDataPoll(0, 0, 0, 0); // previous starts with zeroes for first interation
-  static int inactivityCounter = 0; // counts how many polls the imu has been inactive for
+  static int inactivityCounter = 0;         // counts how many polls the imu has been inactive for
 
   // check difference between current and previous accel values
   int accelXDifference = abs(newDataPoll.data.accelX - prevDataPoll.data.accelX);
@@ -53,26 +54,33 @@ bool checkForInactivity(DataPoll newDataPoll) {
   // if the accel values arent close enough (out of threshold)
   // reset the counter
   bool inThreshold = false;
-  if (accelXDifference < INACTIVITY_THRESHOLD) {
+  if (accelXDifference < INACTIVITY_THRESHOLD)
+  {
     inThreshold = true;
   }
-  if (accelYDifference < INACTIVITY_THRESHOLD) {
+  if (accelYDifference < INACTIVITY_THRESHOLD)
+  {
     inThreshold = true;
   }
-  if (accelZDifference < INACTIVITY_THRESHOLD) {
+  if (accelZDifference < INACTIVITY_THRESHOLD)
+  {
     inThreshold = true;
   }
 
   // if its in the threshold then increment
-  if (inThreshold) {
+  if (inThreshold)
+  {
     inactivityCounter++;
-  } else {
+  }
+  else
+  {
     // if it isnt then reset the counter
     inactivityCounter = 0;
   }
-  
+
   // if the counter reaches a certain number then return true
-  if (inactivityCounter >= INACTIVE_POLLS_BEFORE_SLEEP) {
+  if (inactivityCounter >= INACTIVE_POLLS_BEFORE_SLEEP)
+  {
     // Serial.print("currently inactive. polls inactive: ");
     // Serial.println(inactivityCounter);
     return true;
@@ -84,13 +92,15 @@ bool checkForInactivity(DataPoll newDataPoll) {
   return false;
 }
 
-void QSPIF_sleep(void) {
+void QSPIF_sleep(void)
+{
   flashTransport.begin();
   flashTransport.runCommand(0xB9);
   flashTransport.end();
 }
 
-void setupWakeUpInterrupt() {
+void setupWakeUpInterrupt()
+{
   myImu.settings.gyroEnabled = 0;
   myImu.settings.accelEnabled = 0;
   myImu.begin();
@@ -107,12 +117,13 @@ void setupWakeUpInterrupt() {
 
   // Set up the sense mechanism to generate the DETECT signal to wake from system_off
   // No need to attach a handler, if just waking with the GPIO input.
-	pinMode(PIN_LSM6DS3TR_C_INT1, INPUT_PULLDOWN_SENSE);
+  pinMode(PIN_LSM6DS3TR_C_INT1, INPUT_PULLDOWN_SENSE);
 
   return;
 }
 
-void pollSensorTimerCallback(TimerHandle_t xTimer) {
+void pollSensorTimerCallback(TimerHandle_t xTimer)
+{
   // Collect sensor data, put it into DataPoll, and send to queue
   // collect new poll data
   uint32_t timestamp = millis();
@@ -124,16 +135,20 @@ void pollSensorTimerCallback(TimerHandle_t xTimer) {
   DataPoll dataPoll(timestamp, accelX, accelY, accelZ);
 
   // send to queue
-  if (xQueueSend(pollQueue, (void *)&dataPoll, 0) != pdTRUE) {
+  if (xQueueSend(pollQueue, (void *)&dataPoll, 0) != pdTRUE)
+  {
     // if the queue is full then turn on red led
     digitalWrite(LED_RED, LOW);
-  } else {
+  }
+  else
+  {
     // otherwise turn it off
     digitalWrite(LED_RED, HIGH);
   }
 
   // check for inactivity
-  if (checkForInactivity(dataPoll)) {
+  if (checkForInactivity(dataPoll))
+  {
     // if inactive then setup the wake interrupt
     setupWakeUpInterrupt();
 
@@ -147,15 +162,11 @@ void pollSensorTimerCallback(TimerHandle_t xTimer) {
   }
 }
 
-void setupBluetooth() {
+void setupBluetooth()
+{
   Serial.println("Starting bluetooth");
   Bluefruit.configPrphBandwidth(BANDWIDTH_MAX);
   Bluefruit.begin();
-
-  // set connect callbacks
-  // TODO: add actual callbacks
-  Bluefruit.Periph.setConnectCallback(NULL);
-  Bluefruit.Periph.setDisconnectCallback(NULL);
 
   // configure device information
   bledis.setManufacturer("Seeed Studio");
@@ -187,31 +198,37 @@ void setupBluetooth() {
   Bluefruit.Advertising.start(0);
 }
 
-void setupIMU() {
-  if (myImu.begin() == 0) {
+void setupIMU()
+{
+  if (myImu.begin() == 0)
+  {
     Serial.println("Initialize imu: success");
-  } else {
+  }
+  else
+  {
     Serial.println("Initialize imu: ERROR");
   }
 }
 
-void setupPollQueue() {
+void setupPollQueue()
+{
   pollQueue = xQueueCreate(POLL_QUEUE_LEN, sizeof(DataPoll));
 }
 
-void setupPollTimer() {
+void setupPollTimer()
+{
   pollTimer = xTimerCreate(
-    "Sensor Polling Timer",
-    pdMS_TO_TICKS(10),
-    pdTRUE,
-    (void *) 0,
-    pollSensorTimerCallback
-  );
+      "Sensor Polling Timer",
+      pdMS_TO_TICKS(10),
+      pdTRUE,
+      (void *)0,
+      pollSensorTimerCallback);
 
   xTimerStart(pollTimer, portMAX_DELAY);
 }
 
-void setup() {
+void setup()
+{
   // serial:
   Serial.begin(115200);
 
@@ -219,17 +236,6 @@ void setup() {
   pinMode(LED_RED, OUTPUT);
   pinMode(LED_GREEN, OUTPUT);
   pinMode(LED_BLUE, OUTPUT);
-
-  // // DEBUG: wait for serial to initialize
-  // digitalWrite(LED_RED, LOW);
-  // delay(100);
-  // digitalWrite(LED_RED, HIGH);
-  // digitalWrite(LED_GREEN, LOW);
-  // delay(100);
-  // digitalWrite(LED_GREEN, HIGH);
-  // digitalWrite(LED_BLUE, LOW);
-  // delay(100);
-  // digitalWrite(LED_BLUE, HIGH);
 
   // turn on power led
   digitalWrite(LED_GREEN, LOW);
@@ -248,26 +254,31 @@ void setup() {
   // poll timer
   setupPollTimer();
 
-
   // indicate that setup finished
   Serial.println("Finished setup");
 }
 
-void loop() {
+void loop()
+{
   static DataPoll currDataPoll(0, 0, 0, 0);
 
-  if (Bluefruit.connected()) {
+  if (Bluefruit.connected())
+  {
     // if client is connected and a poll is ready
-    if (xQueueReceive(pollQueue, (void *)&currDataPoll, 0) == pdTRUE) {
+    if (xQueueReceive(pollQueue, (void *)&currDataPoll, 0) == pdTRUE)
+    {
       // encode the poll for transmission
       uint8_t encodedDataBuffer[sizeof(DataPoll)];
       currDataPoll.encodeDataPoll((uint8_t *)&encodedDataBuffer);
 
       // update characteristic with encoded data
       // notify client
-      if (imuCharacteristic.notify(encodedDataBuffer, sizeof(encodedDataBuffer))) {
+      if (imuCharacteristic.notify(encodedDataBuffer, sizeof(encodedDataBuffer)))
+      {
         Serial.println("imu characteristic updated");
-      } else {
+      }
+      else
+      {
         Serial.println("ERROR: something went wrong with sending notification");
       }
     }
