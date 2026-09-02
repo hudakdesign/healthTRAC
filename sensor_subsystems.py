@@ -39,7 +39,6 @@ class Force_Sensitive_Resistor(Sensor_Subsystem):
         aggregate_data_polls_long: A ring buffer of very low frequency
             aggregate datapoints for display and debugging on the dashboard.
     """
-    
     pass
 
 class Inertial_Measurement_Unit(Sensor_Subsystem):
