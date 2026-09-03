@@ -11,7 +11,8 @@ class Sensor_Subsystem:
             used for display and debugging on the dashboard.
         aggregate_data_polls_long: A ring buffer of very low frequency
             aggregate datapoints for display and debugging on the dashboard.
-    
+        is_connected: A boolean value for if the subsystem is connected.
+            this is set if the request succeeds or not.
     """
     pass
 
@@ -25,6 +26,9 @@ class Microphone_Array(Sensor_Subsystem):
             used for display and debugging on the dashboard.
         aggregate_data_polls_long: A ring buffer of very low frequency
             aggregate datapoints for display and debugging on the dashboard.
+        is_connected: A boolean value for if the subsystem is connected.
+            this is set if the request succeeds or not.
+        is_muted: A boolean value for if the mic is currently muted.
     """
     pass
 
@@ -38,6 +42,8 @@ class Force_Sensitive_Resistor(Sensor_Subsystem):
             used for display and debugging on the dashboard.
         aggregate_data_polls_long: A ring buffer of very low frequency
             aggregate datapoints for display and debugging on the dashboard.
+        is_connected: A boolean value for if the subsystem is connected.
+            this is set if the request succeeds or not.        
     """
     pass
 
@@ -51,5 +57,11 @@ class Inertial_Measurement_Unit(Sensor_Subsystem):
             used for display and debugging on the dashboard.
         aggregate_data_polls_long: A ring buffer of very low frequency
             aggregate datapoints for display and debugging on the dashboard.
+        is_connected: A boolean value for if the subsystem is connected.
+            this is set if the request succeeds or not.
+        toothbrush_is_connected: A boolean value for if the toothbrush is
+            currently connected or not.
+        toothbrush_battery_percent: An integer value for how much charge is
+            left on the toothbrush out of 100
     """
     pass
