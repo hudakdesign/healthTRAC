@@ -2,6 +2,8 @@
 
 # Imports:
 import collections
+import sqlite3
+import subprocess
 
 import requests
 import pandas as pd
@@ -16,6 +18,7 @@ class Sensor_Subsystem:
     """Generic parent class for retrieving data from sensor subsystems
 
     Attributes:
+        database_name: The filename for the database
         subsystem_url: The URL for accessing the microphone array.
         raw_data_polls: A dataframe for containing received raw data polls.
         aggregate_data_polls_short: A ring buffer of aggregate datapoints
@@ -26,7 +29,11 @@ class Sensor_Subsystem:
             this is set if the request succeeds or not.
     """
 
-    def __init__(self, subsystem_url):
+    def __init__(self, database_name, subsystem_url):
+        # Check that the data directory exists
+        subprocess.run(["mkdir", "-p", "data"])
+        
+        self.con = sqlite3.connect(f"data/{database_name}")
         self.subsystem_url = subsystem_url
         self.raw_data_polls = None
         self.aggregate_data_polls_short = collections.deque(
@@ -57,6 +64,16 @@ class Sensor_Subsystem:
         # if the response came though then
         self.is_connected = True
         return response.json()
+    
+    def _save_data_to_database(self, poll_df):
+        """Inserts the incoming poll dataframe into the database
+        
+        Creates an insert statement and uses it to insert to insert the raw
+        poll data into the database.
+        """
+        
+        poll_df
+        
 
     def _update_aggregate_data(self):
         """Updates aggregate data buffers using data from `raw_data_polls`
@@ -70,7 +87,7 @@ class Sensor_Subsystem:
         
         pass
 
-    def update_raw_data(self):
+    def _update_raw_data(self):
         """Updates `raw_data_polls` with response data from subsystem
 
         Polls the subsystem, takes the dictionary and uses it to update
@@ -103,9 +120,9 @@ class Sensor_Subsystem:
         1. Polls the subsystem, checks if it was successful.
         2. Parses it into a dataframe.
         3. Saves the raw data to the database.
-        4. Aggregates the data with bins for short and long buffers.
+        4. Updates the raw data buffer
+        5. Aggregates the data with bins for short and long buffers.
         """
-        
         
         pass
 
