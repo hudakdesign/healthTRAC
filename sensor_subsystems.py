@@ -58,6 +58,18 @@ class Sensor_Subsystem:
         self.is_connected = True
         return response.json()
 
+    def _update_aggregate_data(self):
+        """Updates aggregate data buffers using data from `raw_data_polls`
+        
+        Averages the data over second sized chunks and puts the results into
+        `aggregate_data_polls_short`. Then averages data over larger chunks
+        from `aggregate_data_polls_short` and puts them into
+        `aggregate_data_polls_long`. Also ensures that both buffers are at or
+        below the maximum length.
+        """
+        
+        pass
+
     def update_raw_data(self):
         """Updates `raw_data_polls` with response data from subsystem
 
@@ -84,6 +96,18 @@ class Sensor_Subsystem:
             return True
         else:
             return False
+        
+    def update_data(self):
+        """Handles polling, storing, and aggregating data
+        
+        1. Polls the subsystem, checks if it was successful.
+        2. Parses it into a dataframe.
+        3. Saves the raw data to the database.
+        4. Aggregates the data with bins for short and long buffers.
+        """
+        
+        
+        pass
 
 
 class Microphone_Array(Sensor_Subsystem):
