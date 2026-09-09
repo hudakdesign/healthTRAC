@@ -201,27 +201,31 @@ void loop()
   // allocate temporary json document
   JsonDocument doc; // TODO: switch to static json document (come back to me)
 
-  // creates portion for timestamps
-  JsonArray timestamps = doc["timestamps"].to<JsonArray>();
+  // adding subsystem type to allow additional validation that the correct
+  // subsystem is being accessed
+  doc["subsystemType"] = "FSR";
 
-  // creates portion for sensors
-  JsonArray sensors = doc["sensors"].to<JsonArray>();
+  // create object for storing different poll values
+  JsonObject dataPolls = doc["dataPolls"].to<JsonObject>();
 
-  // create an array entry for each sensor
-  JsonArray sensors0 = sensors.add<JsonArray>();
-  JsonArray sensors1 = sensors.add<JsonArray>();
-  JsonArray sensors2 = sensors.add<JsonArray>();
-  JsonArray sensors3 = sensors.add<JsonArray>();
-  JsonArray sensors4 = sensors.add<JsonArray>();
-  JsonArray sensors5 = sensors.add<JsonArray>();
-  JsonArray sensors6 = sensors.add<JsonArray>();
-  JsonArray sensors7 = sensors.add<JsonArray>();
+  // creates arrays for each set of poll values
+  JsonArray timestamps = dataPolls["timestamps"].to<JsonArray>();
+  JsonArray sensors0 = dataPolls["sensors0"].to<JsonArray>();
+  JsonArray sensors1 = dataPolls["sensors1"].to<JsonArray>();
+  JsonArray sensors2 = dataPolls["sensors2"].to<JsonArray>();
+  JsonArray sensors3 = dataPolls["sensors3"].to<JsonArray>();
+  JsonArray sensors4 = dataPolls["sensors4"].to<JsonArray>();
+  JsonArray sensors5 = dataPolls["sensors5"].to<JsonArray>();
+  JsonArray sensors6 = dataPolls["sensors6"].to<JsonArray>();
+  JsonArray sensors7 = dataPolls["sensors7"].to<JsonArray>();
 
-  int counter = 0;
+  // lastly add the timestamp for when this is being sent
+  doc["timeSent"] = millis();
 
-  // // read in values from the queue
+    // // read in values from the queue
   // // append them to their corresponding json arrays
   // // increment the counter to avoid potential memory leak
+  int counter = 0;
   while ((xQueueReceive(pollQueue, (void *)&newData, 0) == pdTRUE) && counter < POLL_QUEUE_LEN)
   { // while an item is successfully received and less than set amount of entries are stored
     // add them to the json arrays
