@@ -96,7 +96,7 @@ class Sensor_Subsystem:
         """
         # updates the dataframe with the incoming data
         # special case for if this is the first poll
-        if self.raw_data_polls == None:
+        if self.raw_data_polls is None:
             self.raw_data_polls = poll_df
         else:
             self.raw_data_polls = pd.concat(
