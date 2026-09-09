@@ -4,6 +4,7 @@
 import collections
 import sqlite3
 import subprocess
+import threading
 
 import requests
 import pandas as pd
@@ -18,9 +19,11 @@ class Sensor_Subsystem:
     """Generic parent class for retrieving data from sensor subsystems
 
     Attributes:
-        database_name: The filename for the database
+        database_name: The filename for the database.
+        con: The database connection object.
         subsystem_url: The URL for accessing the microphone array.
         raw_data_polls: A dataframe for containing received raw data polls.
+        raw_data_polls_lock: A lock for protecting raw_data_polls
         aggregate_data_polls_short: A ring buffer of aggregate datapoints
             used for display and debugging on the dashboard.
         aggregate_data_polls_long: A ring buffer of very low frequency
@@ -33,9 +36,11 @@ class Sensor_Subsystem:
         # Check that the data directory exists
         subprocess.run(["mkdir", "-p", "data"])
 
-        self.con = sqlite3.connect(f"data/{database_name}")
+        self.database_name = database_name
+        self.con = None # this should get set on first save to db
         self.subsystem_url = subsystem_url
         self.raw_data_polls = None
+        self.raw_data_polls_lock = threading.Lock()
         self.aggregate_data_polls_short = collections.deque(
             maxlen=DATA_POLL_QUEUE_LENGTH
         )
@@ -73,6 +78,9 @@ class Sensor_Subsystem:
 
     def _save_data_to_database(self, poll_df):
         """Inserts the incoming poll dataframe into the database"""
+        
+        if self.con is None:
+            self.con = sqlite3.connect(f"data/{self.database_name}")
 
         poll_df.to_sql(name="data_polls", con=self.con, if_exists="append")
 
@@ -95,13 +103,15 @@ class Sensor_Subsystem:
         dataframe.
         """
         # updates the dataframe with the incoming data
-        # special case for if this is the first poll
-        if self.raw_data_polls is None:
-            self.raw_data_polls = poll_df
-        else:
-            self.raw_data_polls = pd.concat(
-                [self.raw_data_polls, poll_df], ignore_index=True
-            )
+        # uses lock to prevent race condition
+        with self.raw_data_polls_lock:
+            # special case for if this is the first poll
+            if self.raw_data_polls is None:
+                self.raw_data_polls = poll_df
+            else:
+                self.raw_data_polls = pd.concat(
+                    [self.raw_data_polls, poll_df], ignore_index=True
+                )
 
     def update_data(self):
         """Handles polling, storing, and aggregating data
@@ -124,6 +134,15 @@ class Sensor_Subsystem:
         self._save_data_to_database(poll_df)
 
         self._update_raw_data(poll_df)
+        
+        self._update_aggregate_data()
+        
+    def get_raw_data(self):
+        """Handles getting raw data in a thread-safe manner"""
+        
+        with self.raw_data_polls_lock:
+            return self.raw_data_polls
+        
 
 
 class Microphone_Array(Sensor_Subsystem):
