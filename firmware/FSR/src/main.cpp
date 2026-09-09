@@ -199,7 +199,7 @@ void loop()
 
   // NOTE: only fill up to certain point to avoid memory leak
   // allocate temporary json document
-  JsonDocument doc; // TODO: switch to static json document (come back to me)
+  JsonDocument doc;
 
   // adding subsystem type to allow additional validation that the correct
   // subsystem is being accessed
@@ -222,7 +222,7 @@ void loop()
   // lastly add the timestamp for when this is being sent
   doc["timeSent"] = millis();
 
-    // // read in values from the queue
+  // // read in values from the queue
   // // append them to their corresponding json arrays
   // // increment the counter to avoid potential memory leak
   int counter = 0;

@@ -323,26 +323,31 @@ void loop()
 
     // Create and format json document for sending values
     JsonDocument doc;
-    JsonArray timestamps = doc["timestamps"].to<JsonArray>();
 
-    // create array for sensor readings
-    JsonArray sensors = doc["sensors"].to<JsonArray>();
+    doc["subsystemType"] = "IMU";
 
-    // create array entry for each sensor
-    JsonArray sensors0 = sensors.add<JsonArray>();
-    JsonArray sensors1 = sensors.add<JsonArray>();
-    JsonArray sensors2 = sensors.add<JsonArray>();
+    JsonObject dataPolls = doc["dataPolls"].to<JsonObject>();
 
-    int counter = 0;
+    JsonArray timestamps = dataPolls["timestamps"].to<JsonArray>();
+
+    // add each accel value
+    JsonArray accelX = dataPolls["accelX"].to<JsonArray>();
+    JsonArray accelY = dataPolls["accelY"].to<JsonArray>();
+    JsonArray accelZ = dataPolls["accelZ"].to<JsonArray>();
+
+    // lastly add the timestamp for when this is being sent
+    doc["timeSent"] = millis();
+
     // read in values from the queue
     // append them to their corresponding json arrays
     // increment the counter to avoid potential memory leak
+    int counter = 0;
     while ((xQueueReceive(pollQueue, (void *)&currDataPoll, 0) == pdTRUE) && counter < POLL_QUEUE_LEN)
     {
       timestamps.add(currDataPoll.data.timestamp);
-      sensors0.add(currDataPoll.data.accelX);
-      sensors1.add(currDataPoll.data.accelY);
-      sensors2.add(currDataPoll.data.accelZ);
+      accelX.add(currDataPoll.data.accelX);
+      accelY.add(currDataPoll.data.accelY);
+      accelZ.add(currDataPoll.data.accelZ);
 
       // set queue full led to off (this prevents led from staying on after imu sleeps and notify callbacks stop coming)
       digitalWrite(LED_RED, HIGH);
