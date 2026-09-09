@@ -32,7 +32,7 @@ class Sensor_Subsystem:
     def __init__(self, database_name, subsystem_url):
         # Check that the data directory exists
         subprocess.run(["mkdir", "-p", "data"])
-        
+
         self.con = sqlite3.connect(f"data/{database_name}")
         self.subsystem_url = subsystem_url
         self.raw_data_polls = None
@@ -64,59 +64,48 @@ class Sensor_Subsystem:
         # if the response came though then
         self.is_connected = True
         return response.json()
-    
+
+    def _load_response_to_df(self, response):
+        """Loads response into a dataframe and returns it"""
+
+        poll_df = pd.DataFrame(response["dataPolls"])
+        return poll_df
+
     def _save_data_to_database(self, poll_df):
-        """Inserts the incoming poll dataframe into the database
-        
-        Creates an insert statement and uses it to insert to insert the raw
-        poll data into the database.
-        """
-        
-        poll_df
-        
+        """Inserts the incoming poll dataframe into the database"""
+
+        poll_df.to_sql(name="data_polls", con=self.con, if_exists="append")
 
     def _update_aggregate_data(self):
         """Updates aggregate data buffers using data from `raw_data_polls`
-        
+
         Averages the data over second sized chunks and puts the results into
         `aggregate_data_polls_short`. Then averages data over larger chunks
         from `aggregate_data_polls_short` and puts them into
         `aggregate_data_polls_long`. Also ensures that both buffers are at or
         below the maximum length.
         """
-        
+
         pass
 
-    def _update_raw_data(self):
-        """Updates `raw_data_polls` with response data from subsystem
+    def _update_raw_data(self, poll_df):
+        """Updates `raw_data_polls` with poll data
 
-        Polls the subsystem, takes the dictionary and uses it to update
-        `raw_data_polls`. Returns `True` if successful, and `False` if anything
-        went wrong.
+        Updates raw data buffer with the contents of the received poll
+        dataframe.
         """
-
-        # poll the subsystem
-        response = self._poll_subsystem()
-
-        # check that the poll was successful
-        if response:
-            incoming_raw_data = pd.DataFrame(response["dataPolls"])
-
-            # updates the dataframe with the incoming data
-            # special case for if this is the first poll
-            if self.raw_data_polls == None:
-                self.raw_data_polls = incoming_raw_data
-            else:
-                self.raw_data_polls = pd.concat(
-                    [self.raw_data_polls, incoming_raw_data], ignore_index=True
-                )
-            return True
+        # updates the dataframe with the incoming data
+        # special case for if this is the first poll
+        if self.raw_data_polls == None:
+            self.raw_data_polls = poll_df
         else:
-            return False
-        
+            self.raw_data_polls = pd.concat(
+                [self.raw_data_polls, poll_df], ignore_index=True
+            )
+
     def update_data(self):
         """Handles polling, storing, and aggregating data
-        
+
         1. Polls the subsystem, checks if it was successful.
         2. Parses it into a dataframe.
         3. Saves the raw data to the database.
@@ -124,7 +113,17 @@ class Sensor_Subsystem:
         5. Aggregates the data with bins for short and long buffers.
         """
         
-        pass
+        response = self._poll_subsystem()
+        
+        # return False if the poll failed
+        if not response:
+            return False
+            
+        poll_df = self._load_response_to_df(response)
+
+        self._save_data_to_database(poll_df)
+
+        self._update_raw_data(poll_df)
 
 
 class Microphone_Array(Sensor_Subsystem):
