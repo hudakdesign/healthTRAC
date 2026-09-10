@@ -5,6 +5,7 @@ import collections
 import sqlite3
 import subprocess
 import threading
+import time
 
 import requests
 import pandas as pd
@@ -12,6 +13,7 @@ import pandas as pd
 # Constants:
 DATA_POLL_QUEUE_LENGTH = 1000
 REQUEST_TIMEOUT_SECONDS = 1
+SUBSYSTEM_POLL_FREQUENCY_SECONDS = 1
 
 
 # Classes:
@@ -28,6 +30,8 @@ class Sensor_Subsystem:
             used for display and debugging on the dashboard.
         aggregate_data_polls_long: A ring buffer of very low frequency
             aggregate datapoints for display and debugging on the dashboard.
+        updater_thread: A thread which is used for continuously updating the
+            data at a given frequency.
         is_connected: A boolean value for if the subsystem is connected.
             this is set if the request succeeds or not.
     """
@@ -37,7 +41,7 @@ class Sensor_Subsystem:
         subprocess.run(["mkdir", "-p", "data"])
 
         self.database_name = database_name
-        self.con = None # this should get set on first save to db
+        self.con = None  # this should get set on first save to db
         self.subsystem_url = subsystem_url
         self.raw_data_polls = None
         self.raw_data_polls_lock = threading.Lock()
@@ -47,6 +51,8 @@ class Sensor_Subsystem:
         self.aggregate_data_polls_long = collections.deque(
             maxlen=DATA_POLL_QUEUE_LENGTH
         )
+        self.updater_thread = None
+        self.is_updating = False
         self.is_connected = False
 
     def _poll_subsystem(self):
@@ -78,7 +84,7 @@ class Sensor_Subsystem:
 
     def _save_data_to_database(self, poll_df):
         """Inserts the incoming poll dataframe into the database"""
-        
+
         if self.con is None:
             self.con = sqlite3.connect(f"data/{self.database_name}")
 
@@ -122,27 +128,48 @@ class Sensor_Subsystem:
         4. Updates the raw data buffer
         5. Aggregates the data with bins for short and long buffers.
         """
-        
+
         response = self._poll_subsystem()
-        
+
         # return False if the poll failed
         if not response:
             return False
-            
+
         poll_df = self._load_response_to_df(response)
 
         self._save_data_to_database(poll_df)
 
         self._update_raw_data(poll_df)
-        
+
         self._update_aggregate_data()
-        
+
+    def data_updater(self):
+        """Updater thread which polls subsystem every fixed amount of time"""
+
+        while self.is_updating:
+            self.update_data()
+            time.sleep(SUBSYSTEM_POLL_FREQUENCY_SECONDS)
+
     def get_raw_data(self):
         """Handles getting raw data in a thread-safe manner"""
-        
+
         with self.raw_data_polls_lock:
             return self.raw_data_polls
+
+    def start_updating(self):
+        """Starts the updater thread for polling the subsystem"""
+
+        if self.updater_thread is not None and self.is_updating:
+            print("Subsystem is already updating")
+        else:
+            self.is_updating = True
+            self.updater_thread = threading.Thread(target=self.data_updater)
+            self.updater_thread.start()
+
+    def stop_updating(self):
+        """Signals the updater thread to stop"""
         
+        self.is_updating = False
 
 
 class Microphone_Array(Sensor_Subsystem):
