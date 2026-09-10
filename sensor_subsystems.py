@@ -99,12 +99,50 @@ class Sensor_Subsystem:
         been aggregated.
         """
 
-        # take out every `AGGREGATE_SHORT_FREQUENCY_INDICES` from raw data
-        new_aggregate_data_short = self.raw_data_polls.iloc[::AGGREGATE_SHORT_FREQUENCY_INDICES]
-        
-        new_aggregate_data_short_len = len(new_aggregate_data_short)
-        
-        # new_aggregate_data_short = new_aggregate_data_short.drop()
+        # takes out the data to be aggregated from raw_data_polls
+        with self.raw_data_polls_lock:
+            # number of polls that cant yet be aggregated
+            num_polls_outside_bin = (
+                len(self.raw_data_polls) % AGGREGATE_SHORT_FREQUENCY_INDICES
+            )
+            # the length of the data that will be aggregated
+            data_to_aggregate_len = len(self.raw_data_polls) - num_polls_outside_bin
+
+            # make sure all of the polls fit into the bin
+            data_to_aggregate = self.raw_data_polls.iloc[:data_to_aggregate_len]
+
+            # remove the polls that have been taken out to aggregate
+            self.raw_data_polls = self.raw_data_polls.iloc[len(data_to_aggregate) :]
+
+            # reset the index and get rid of the old one
+            self.raw_data_polls = self.raw_data_polls.reset_index()
+            self.raw_data_polls = self.raw_data_polls.drop(columns=["index"])
+
+        # take out every n polls to use as aggregate values
+        new_aggregate_data = data_to_aggregate.iloc[::AGGREGATE_SHORT_FREQUENCY_INDICES]
+
+        # lock the aggregate data polls
+        # add this aggregate data to the existing data if it exists
+        # if it exists then concatenate
+        with self.aggregate_data_polls_short_lock:
+            if self.aggregate_data_polls_short is not None:
+                new_aggregate_data = pd.concat(
+                    [self.aggregate_data_polls_short, new_aggregate_data],
+                    ignore_index=True,
+                )
+            # if it doesnt then just use it as is
+            # and reset the indices either way
+            new_aggregate_data = new_aggregate_data.reset_index()
+            new_aggregate_data = new_aggregate_data.drop(columns=["index"])
+
+            # remove old data to make it the correct size
+            num_polls_to_drop = len(new_aggregate_data) - AGGREGATE_SHORT_LENGTH
+            new_aggregate_data = new_aggregate_data.iloc[num_polls_to_drop:]
+            new_aggregate_data = new_aggregate_data.reset_index()
+            new_aggregate_data = new_aggregate_data.drop(columns=["index"])
+
+            # set aggregate data polls to the new dataframe
+            self.aggregate_data_polls_short = new_aggregate_data
 
     def _update_raw_data(self, poll_df):
         """Updates `raw_data_polls` with poll data
@@ -159,6 +197,12 @@ class Sensor_Subsystem:
 
         with self.raw_data_polls_lock:
             return self.raw_data_polls
+        
+    def get_aggregate_data_polls_short(self):
+        """Safely gets aggregate data from the short term dataframe"""
+        
+        with self.aggregate_data_polls_short_lock:
+            return self.aggregate_data_polls_short
 
     def start_updating(self):
         """Starts the updater thread for polling the subsystem"""
