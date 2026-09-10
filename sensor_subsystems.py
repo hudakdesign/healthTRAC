@@ -11,9 +11,10 @@ import requests
 import pandas as pd
 
 # Constants:
-DATA_POLL_QUEUE_LENGTH = 1000
 REQUEST_TIMEOUT_SECONDS = 1
 SUBSYSTEM_POLL_FREQUENCY_SECONDS = 1
+AGGREGATE_SHORT_LENGTH = 120
+AGGREGATE_SHORT_FREQUENCY_INDICES = 25  # every n indices
 
 
 # Classes:
@@ -25,11 +26,13 @@ class Sensor_Subsystem:
         con: The database connection object.
         subsystem_url: The URL for accessing the microphone array.
         raw_data_polls: A dataframe for containing received raw data polls.
-        raw_data_polls_lock: A lock for protecting raw_data_polls
-        aggregate_data_polls_short: A ring buffer of aggregate datapoints
-            used for display and debugging on the dashboard.
-        aggregate_data_polls_long: A ring buffer of very low frequency
-            aggregate datapoints for display and debugging on the dashboard.
+        raw_data_polls_lock: A lock for protecting raw_data_polls.
+        aggregate_data_polls_short: A short term dataframe of aggregate data
+            polls.
+        aggregate_data_polls_short_lock: A lock for protecting the short term
+            dataframe.
+        aggregate_data_polls_long: A long term dataframe of aggregate data
+            polls.
         updater_thread: A thread which is used for continuously updating the
             data at a given frequency.
         is_connected: A boolean value for if the subsystem is connected.
@@ -45,12 +48,9 @@ class Sensor_Subsystem:
         self.subsystem_url = subsystem_url
         self.raw_data_polls = None
         self.raw_data_polls_lock = threading.Lock()
-        self.aggregate_data_polls_short = collections.deque(
-            maxlen=DATA_POLL_QUEUE_LENGTH
-        )
-        self.aggregate_data_polls_long = collections.deque(
-            maxlen=DATA_POLL_QUEUE_LENGTH
-        )
+        self.aggregate_data_polls_short = None
+        self.aggregate_data_polls_short_lock = threading.Lock()
+        self.aggregate_data_polls_long = None
         self.updater_thread = None
         self.is_updating = False
         self.is_connected = False
@@ -93,14 +93,18 @@ class Sensor_Subsystem:
     def _update_aggregate_data(self):
         """Updates aggregate data buffers using data from `raw_data_polls`
 
-        Averages the data over second sized chunks and puts the results into
-        `aggregate_data_polls_short`. Then averages data over larger chunks
-        from `aggregate_data_polls_short` and puts them into
-        `aggregate_data_polls_long`. Also ensures that both buffers are at or
-        below the maximum length.
+        Takes every set number of data polls and puts them into
+        `raw_data_polls`. Drops oldest rows that are outside of the allowed
+        length. Also consume / remove the rows of `raw_data_polls` that have
+        been aggregated.
         """
 
-        pass
+        # take out every `AGGREGATE_SHORT_FREQUENCY_INDICES` from raw data
+        new_aggregate_data_short = self.raw_data_polls.iloc[::AGGREGATE_SHORT_FREQUENCY_INDICES]
+        
+        new_aggregate_data_short_len = len(new_aggregate_data_short)
+        
+        # new_aggregate_data_short = new_aggregate_data_short.drop()
 
     def _update_raw_data(self, poll_df):
         """Updates `raw_data_polls` with poll data
@@ -119,7 +123,7 @@ class Sensor_Subsystem:
                     [self.raw_data_polls, poll_df], ignore_index=True
                 )
 
-    def update_data(self):
+    def _update_data(self):
         """Handles polling, storing, and aggregating data
 
         1. Polls the subsystem, checks if it was successful.
@@ -143,11 +147,11 @@ class Sensor_Subsystem:
 
         self._update_aggregate_data()
 
-    def data_updater(self):
+    def _data_updater(self):
         """Updater thread which polls subsystem every fixed amount of time"""
 
         while self.is_updating:
-            self.update_data()
+            self._update_data()
             time.sleep(SUBSYSTEM_POLL_FREQUENCY_SECONDS)
 
     def get_raw_data(self):
@@ -163,12 +167,12 @@ class Sensor_Subsystem:
             print("Subsystem is already updating")
         else:
             self.is_updating = True
-            self.updater_thread = threading.Thread(target=self.data_updater)
+            self.updater_thread = threading.Thread(target=self._data_updater)
             self.updater_thread.start()
 
     def stop_updating(self):
         """Signals the updater thread to stop"""
-        
+
         self.is_updating = False
 
 
