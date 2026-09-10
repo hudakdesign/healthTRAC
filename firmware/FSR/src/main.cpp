@@ -210,14 +210,14 @@ void loop()
 
   // creates arrays for each set of poll values
   JsonArray timestamps = dataPolls["timestamps"].to<JsonArray>();
-  JsonArray sensors0 = dataPolls["sensors0"].to<JsonArray>();
-  JsonArray sensors1 = dataPolls["sensors1"].to<JsonArray>();
-  JsonArray sensors2 = dataPolls["sensors2"].to<JsonArray>();
-  JsonArray sensors3 = dataPolls["sensors3"].to<JsonArray>();
-  JsonArray sensors4 = dataPolls["sensors4"].to<JsonArray>();
-  JsonArray sensors5 = dataPolls["sensors5"].to<JsonArray>();
-  JsonArray sensors6 = dataPolls["sensors6"].to<JsonArray>();
-  JsonArray sensors7 = dataPolls["sensors7"].to<JsonArray>();
+  JsonArray fsr0 = dataPolls["fsr0"].to<JsonArray>();
+  JsonArray fsr1 = dataPolls["fsr1"].to<JsonArray>();
+  JsonArray fsr2 = dataPolls["fsr2"].to<JsonArray>();
+  JsonArray fsr3 = dataPolls["fsr3"].to<JsonArray>();
+  JsonArray fsr4 = dataPolls["fsr4"].to<JsonArray>();
+  JsonArray fsr5 = dataPolls["fsr5"].to<JsonArray>();
+  JsonArray fsr6 = dataPolls["fsr6"].to<JsonArray>();
+  JsonArray fsr7 = dataPolls["fsr7"].to<JsonArray>();
 
   // lastly add the timestamp for when this is being sent
   doc["timeSent"] = millis();
@@ -230,14 +230,14 @@ void loop()
   { // while an item is successfully received and less than set amount of entries are stored
     // add them to the json arrays
     timestamps.add(newData.timestamp);
-    sensors0.add(newData.sensorReadings[0]);
-    sensors1.add(newData.sensorReadings[1]);
-    sensors2.add(newData.sensorReadings[2]);
-    sensors3.add(newData.sensorReadings[3]);
-    sensors4.add(newData.sensorReadings[4]);
-    sensors5.add(newData.sensorReadings[5]);
-    sensors6.add(newData.sensorReadings[6]);
-    sensors7.add(newData.sensorReadings[7]);
+    fsr0.add(newData.sensorReadings[0]);
+    fsr1.add(newData.sensorReadings[1]);
+    fsr2.add(newData.sensorReadings[2]);
+    fsr3.add(newData.sensorReadings[3]);
+    fsr4.add(newData.sensorReadings[4]);
+    fsr5.add(newData.sensorReadings[5]);
+    fsr6.add(newData.sensorReadings[6]);
+    fsr7.add(newData.sensorReadings[7]);
 
     counter++;
   }
