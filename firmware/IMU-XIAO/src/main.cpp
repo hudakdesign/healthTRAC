@@ -34,7 +34,7 @@ static TimerHandle_t pollTimer = NULL;
 // Helpers
 bool checkForInactivity(DataPoll newDataPoll)
 {
-  static DataPoll prevDataPoll(0, 0, 0, 0); // previous starts with zeroes for first interation
+  static DataPoll prevDataPoll(0, 0, 0, 0, 0); // previous starts with zeroes for first interation
   static int inactivityCounter = 0;         // counts how many polls the imu has been inactive for
 
   // check difference between current and previous accel values
@@ -94,6 +94,38 @@ bool checkForInactivity(DataPoll newDataPoll)
   return false;
 }
 
+int voltageToPercent(int voltage)
+{
+  // parameters for the voltage curve
+  float a, b, c;
+  a = 2.8810738340463713;
+  b = -0.0008760497222444208;
+  c = -2267.7352906787;
+
+  // calculates the percent along the curve
+  float chargePercent = a * voltage + b * (voltage * voltage) + c;
+
+  // if percent reads over 95 then say its 100 (full)
+  if (chargePercent > 95)
+  {
+    return 100;
+  }
+  // if percent reads below 5 then say that its 0 (dead)
+  else if (chargePercent < 5)
+  {
+    return 0;
+  }
+  else
+  {
+    return (int)chargePercent;
+  }
+}
+
+uint16_t getBatteryPercent() {
+  int batteryVoltage = analogRead(PIN_VBAT);
+  return (uint16_t)voltageToPercent(batteryVoltage);
+}
+
 void QSPIF_sleep(void)
 {
   flashTransport.begin();
@@ -133,8 +165,10 @@ void pollSensorTimerCallback(TimerHandle_t xTimer)
   int16_t accelY = myImu.readRawAccelY();
   int16_t accelZ = myImu.readRawAccelZ();
 
+  int16_t batteryPercent = getBatteryPercent();
+
   // encode new poll data
-  DataPoll dataPoll(timestamp, accelX, accelY, accelZ);
+  DataPoll dataPoll(timestamp, accelX, accelY, accelZ, batteryPercent);
 
   // send to queue
   if (xQueueSend(pollQueue, (void *)&dataPoll, 0) != pdTRUE)
@@ -162,6 +196,19 @@ void pollSensorTimerCallback(TimerHandle_t xTimer)
     // and shutdown
     NRF_POWER->SYSTEMOFF = 1;
   }
+}
+
+void setupBattery() {
+  // set up pins
+  pinMode(VBAT_ENABLE, OUTPUT);
+  pinMode(PIN_VBAT, INPUT);
+  
+  // enable reading battery voltage
+  digitalWrite(VBAT_ENABLE, LOW);
+
+  // set up analog reading
+  analogReference(AR_DEFAULT);
+  analogReadResolution(12);
 }
 
 void setupBluetooth()
@@ -244,6 +291,9 @@ void setup()
 
   Serial.println("---IMU Server---");
 
+  // battery voltage measurement
+  setupBattery();
+
   // bluefruit
   setupBluetooth();
 
@@ -262,7 +312,7 @@ void setup()
 
 void loop()
 {
-  static DataPoll currDataPoll(0, 0, 0, 0);
+  static DataPoll currDataPoll(0, 0, 0, 0, 0);
 
   if (Bluefruit.connected())
   {
