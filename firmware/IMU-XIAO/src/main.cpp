@@ -105,13 +105,13 @@ int voltageToPercent(int voltage)
   // calculates the percent along the curve
   float chargePercent = a * voltage + b * (voltage * voltage) + c;
 
-  // if percent reads over 95 then say its 100 (full)
-  if (chargePercent > 95)
+  // if percent reads over 100 then say its 100 (full)
+  if (chargePercent > 100)
   {
     return 100;
   }
-  // if percent reads below 5 then say that its 0 (dead)
-  else if (chargePercent < 5)
+  // if percent reads below 0 then say that its 0 (dead)
+  else if (chargePercent < 0)
   {
     return 0;
   }

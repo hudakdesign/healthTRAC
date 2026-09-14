@@ -87,6 +87,7 @@ void notifyCB(NimBLERemoteCharacteristic *pRemoteCharacteristic, uint8_t *pData,
     Serial.printf(">accelX: %d\n", incomingDataPoll.data.accelX);
     Serial.printf(">accelY: %d\n", incomingDataPoll.data.accelY);
     Serial.printf(">accelZ: %d\n", incomingDataPoll.data.accelZ);
+    Serial.printf(">batteryPercent: %d|t\n", incomingDataPoll.data.batteryPercent);
 
     // send object to the queue for being shared with the webserver
     if (xQueueSend(pollQueue, (void *)&incomingDataPoll, 0) != pdTRUE)
@@ -283,7 +284,7 @@ void setup()
 void loop()
 {
   /** Loop here until we find a device we want to connect to */
-  static DataPoll currDataPoll(0, 0, 0, 0);
+  static DataPoll currDataPoll(0, 0, 0, 0, 0);
 
   // delay(10);
 
@@ -334,6 +335,7 @@ void loop()
     JsonArray accelX = dataPolls["accelX"].to<JsonArray>();
     JsonArray accelY = dataPolls["accelY"].to<JsonArray>();
     JsonArray accelZ = dataPolls["accelZ"].to<JsonArray>();
+    JsonArray batteryPercent = dataPolls["batteryPercent"].to<JsonArray>();
 
     // lastly add the timestamp for when this is being sent
     doc["timeSent"] = millis();
@@ -348,6 +350,7 @@ void loop()
       accelX.add(currDataPoll.data.accelX);
       accelY.add(currDataPoll.data.accelY);
       accelZ.add(currDataPoll.data.accelZ);
+      batteryPercent.add(currDataPoll.data.batteryPercent);
 
       // set queue full led to off (this prevents led from staying on after imu sleeps and notify callbacks stop coming)
       digitalWrite(LED_RED, HIGH);
