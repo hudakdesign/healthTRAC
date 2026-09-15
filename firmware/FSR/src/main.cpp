@@ -141,7 +141,18 @@ void setup()
   Serial.print("Connecting to ");
   Serial.println(SSID);
   WiFi.setHostname(HOSTNAME);
+
+  // initiate the connection
   WiFi.begin(SSID, PASSWORD);
+
+  // configure the static ip
+  IPAddress ipAddress, gatewayAddress, subnetMask;
+  ipAddress.fromString(IP_ADDRESS);
+  gatewayAddress.fromString(GATEWAY_ADDRESS);
+  subnetMask.fromString(SUBNET_MASK);
+  WiFi.config(ipAddress, gatewayAddress, subnetMask);
+
+  // wait for wifi to connect
   while (WiFi.status() != WL_CONNECTED)
   {
     // blinky and print .
