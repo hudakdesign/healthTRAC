@@ -90,10 +90,9 @@ class Sensor_Subsystem:
         if self.con is None:
             self.con = sqlite3.connect(f"data/{self.database_name}")
 
-        poll_df = poll_df.insert(
-            -1, "receiveTime", self.last_receive_time // 1e6
-        )  # rx time ms
-        poll_df.to_sql(name="data_polls", con=self.con, if_exists="append")
+        df_to_save = poll_df.copy()
+        df_to_save.insert(0, "receiveTime", self.last_receive_time // 1e6)  # rx time ms
+        df_to_save.to_sql(name="data_polls", con=self.con, if_exists="append")
 
     def _update_aggregate_data(self):
         """Updates aggregate data buffers using data from `raw_data_polls`
