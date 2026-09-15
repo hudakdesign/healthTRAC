@@ -54,6 +54,7 @@ class Sensor_Subsystem:
         self.updater_thread = None
         self.is_updating = False
         self.is_connected = False
+        self.last_receive_time = 0
 
     def _poll_subsystem(self):
         """Request data from `subsystem_url` and return it as a dict
@@ -67,6 +68,7 @@ class Sensor_Subsystem:
         try:
             # tries to get the data from the `subsystem_url`
             response = requests.get(self.subsystem_url, timeout=REQUEST_TIMEOUT_SECONDS)
+            self.last_receive_time = time.time_ns()
         except:
             # if something goes wrong, then `is_connected` should be `False`
             self.is_connected = False
@@ -88,6 +90,7 @@ class Sensor_Subsystem:
         if self.con is None:
             self.con = sqlite3.connect(f"data/{self.database_name}")
 
+        poll_df["receiveTime"] = self.last_receive_time // 1e6  # rx time ms
         poll_df.to_sql(name="data_polls", con=self.con, if_exists="append")
 
     def _update_aggregate_data(self):
@@ -197,10 +200,10 @@ class Sensor_Subsystem:
 
         with self.raw_data_polls_lock:
             return self.raw_data_polls
-        
+
     def get_aggregate_data_polls_short(self):
         """Safely gets aggregate data from the short term dataframe"""
-        
+
         with self.aggregate_data_polls_short_lock:
             return self.aggregate_data_polls_short
 
