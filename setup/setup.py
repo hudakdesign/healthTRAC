@@ -16,19 +16,59 @@ def wifi_setup() -> dict:
 def subsystem_setup() -> dict:
     """Gets subsystem info from user and returns config for each subsystem"""
 
+    MAX_SENSORS = 16
+    STARTING_ADDRESS_OCTET = 100
+    suffix_list = ["alpha", "beta", "gamma", "delta", "epsilon"]
+    base_address = "10.42.0."
+
+    def get_notes() -> str:
+        """Gets notes from user and returns them"""
+
+        return input("Notes: ")
+
+    def get_num_sensors() -> int:
+        """Gets number of sensor from user, validates and returns them"""
+
+        valid_number = False
+        num_sensors = input("Number of sensors: ")
+
+        try:
+            num_sensors = int(num_sensors)
+            if MAX_SENSORS >= num_sensors and num_sensors > 0:
+                return num_sensors
+        except KeyboardInterrupt:
+            exit()
+        except:
+            print(f"INVALID INPUT. Please enter integer from 1-16")
+            return get_num_sensors()
+
     def fsr_setup() -> dict:
         """Helps generate config for fsr"""
-        return {"type": "fsr"}
+
+        fsr_config = {}
+        fsr_config["type"] = "fsr"
+        fsr_config["numSensors"] = get_num_sensors()
+        fsr_config["notes"] = get_notes()
+
+        return fsr_config
 
     def imu_setup() -> dict:
         """Helps generate config for imu"""
-        return {"type": "imu"}
+
+        imu_config = {}
+        imu_config["type"] = "imu"
+        imu_config["notes"] = get_notes()
+
+        return imu_config
 
     def mic_setup() -> dict:
         """Helps generate config for mic array"""
-        return {"type": "mic"}
 
-    suffix_list = ["alpha", "beta", "gamma", "delta", "epsilon"]
+        mic_config = {}
+        mic_config["type"] = "mic"
+        mic_config["notes"] = get_notes()
+
+        return mic_config
 
     print("---Subsystem Setup---")
 
@@ -58,6 +98,12 @@ def subsystem_setup() -> dict:
                 currently_configuring = False
             case _:
                 print("INVALID INPUT. Make sure to enter a digit")
+
+    # set ip addresses to incrementing values
+    address_last_octet = STARTING_ADDRESS_OCTET
+    for config in subsystem_config.values():
+        config["address"] = base_address + str(address_last_octet)
+        address_last_octet += 1
 
     return subsystem_config
 
