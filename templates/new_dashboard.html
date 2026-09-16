@@ -1,11 +1,57 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
+  <meta charset="UTF-8">
+  <title>HealthTRAC Dashboard</title>
+  <!-- <link rel="stylesheet" href="{{ url_for('static', filename'css/style.css') }}"> -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
-<h1>New HealthTRAC Dashboard Placeholder</h1>
+  <h1>New HealthTRAC Dashboard Placeholder</h1>
+
+  <div class="card">
+    <h2>fsr-alpha</h2>
+    <canvas id="fsrDiagnostics" class="diagnostic-chart"></canvas>
+  </div>
+
+  <div class="card">
+    <h2>fsr-alpha</h2>
+    <canvas id="fsrDiagnostics" class="diagnostic-chart"></canvas>
+  </div>
+
+  <script>
+    let hubConfig = {
+      "subsytems": {
+        "fsr-alpha": {
+          "type": "FSR",
+          "data": {
+            "timestamps": [0, 1, 2],
+            "fsr0": [0, 100, 200],
+            "fsr1": [200, 100, 0],
+            "fsr2": [50, 150, 50]
+          },
+          "timeSinceSeen": 0
+        },
+        "imu-alpha": {
+          "type": "IMU",
+          "data": {
+            "timestamps": [0, 1, 2],
+            "accelX": [0, 200, 400],
+            "accelY": [100, 200, 300],
+            "accelZ": [200, 300, 200]
+          },
+          "peripheral": {
+            "batteryPercent": 95,
+            "isCharging": false,
+            "timeSinceSeen": 0
+          },
+          "timeSinceSeen": 0
+        }
+      }
+    }
+  </script>
 </body>
 
 </html>
