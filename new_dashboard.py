@@ -86,7 +86,7 @@ if __name__ == "__main__":
         subsystem_notes = subsystem_config["notes"]
 
         subsystems[subsystem_name] = sensor_subsystems.Sensor_Subsystem(
-            f"{subsystem_name}.db", subsystem_address
+            f"{subsystem_name}.db", subsystem_address, subsystem_notes
         )
 
     # Start the subsystems

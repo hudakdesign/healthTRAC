@@ -15,7 +15,7 @@ REQUEST_TIMEOUT_SECONDS = 1
 SUBSYSTEM_POLL_FREQUENCY_SECONDS = 1
 AGGREGATE_SHORT_LENGTH = 120
 AGGREGATE_SHORT_FREQUENCY_INDICES = 25  # every n indices
-ONLINE_THRESHOLD_MS = 2000 # num of ms until a subsystem is considered offline
+ONLINE_THRESHOLD_MS = 2000  # num of ms until a subsystem is considered offline
 
 
 # Classes:
