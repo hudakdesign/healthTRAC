@@ -15,6 +15,7 @@ REQUEST_TIMEOUT_SECONDS = 1
 SUBSYSTEM_POLL_FREQUENCY_SECONDS = 1
 AGGREGATE_SHORT_LENGTH = 120
 AGGREGATE_SHORT_FREQUENCY_INDICES = 25  # every n indices
+ONLINE_THRESHOLD_MS = 2000 # num of ms until a subsystem is considered offline
 
 
 # Classes:
@@ -39,7 +40,7 @@ class Sensor_Subsystem:
             this is set if the request succeeds or not.
     """
 
-    def __init__(self, database_name, subsystem_url):
+    def __init__(self, database_name, subsystem_url, notes):
         # Check that the data directory exists
         subprocess.run(["mkdir", "-p", "data"])
 
@@ -55,6 +56,7 @@ class Sensor_Subsystem:
         self.is_updating = False
         self.is_connected = False
         self.last_receive_time = 0
+        self.notes = notes
 
     def _poll_subsystem(self):
         """Request data from `subsystem_url` and return it as a dict
@@ -202,6 +204,24 @@ class Sensor_Subsystem:
         with self.raw_data_polls_lock:
             return self.raw_data_polls
 
+    def get_notes(self):
+        """Returns the notes on the subsystem"""
+
+        return self.notes
+
+    def get_time_since_online_ms(self):
+        """Returns how long since the subsystem was online"""
+
+        time_since_online = time.time_ns() - self.last_receive_time
+        time_since_online_ms = time_since_online // 1e6
+
+        # if time since online is below the threshold
+        # then return 0 indicating that it is online
+        if time_since_online_ms < ONLINE_THRESHOLD_MS:
+            return 0
+
+        return time_since_online_ms
+
     def get_aggregate_data_polls_short(self):
         """Safely gets aggregate data from the short term dataframe"""
 
@@ -239,7 +259,9 @@ class Microphone_Array(Sensor_Subsystem):
         is_muted: A boolean value for if the mic is currently muted.
     """
 
-    pass
+    def get_subsystem_type(self):
+        """Returns the subsystem type"""
+        return "mic"
 
 
 class Force_Sensitive_Resistor(Sensor_Subsystem):
@@ -256,7 +278,9 @@ class Force_Sensitive_Resistor(Sensor_Subsystem):
             this is set if the request succeeds or not.
     """
 
-    pass
+    def get_subsystem_type(self):
+        """Returns the subsystem type"""
+        return "fsr"
 
 
 class Inertial_Measurement_Unit(Sensor_Subsystem):
@@ -277,4 +301,6 @@ class Inertial_Measurement_Unit(Sensor_Subsystem):
             left on the toothbrush out of 100
     """
 
-    pass
+    def get_subsystem_type(self):
+        """Returns the subsystem type"""
+        return "imu"
