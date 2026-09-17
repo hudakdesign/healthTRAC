@@ -1,3 +1,4 @@
+import time
 import json
 
 from flask import Flask, render_template
@@ -5,6 +6,8 @@ import sensor_subsystems
 
 # Constants
 CONFIG_FILE_PATH = "config_test.json"
+SYSTEM_ID = "hub-alpha"
+NOTES = "In the CBI"
 
 # Globals
 app = Flask(__name__)
@@ -28,9 +31,32 @@ def index():
 
 @app.route("/data")
 def get_data():
-    """Route for getting all of the aggregate data for the dashboard"""
+    """Route for getting all of the data needed for the dashboard"""
 
-    return "Not yet implemented"
+    dashboard_data = {}
+
+    dashboard_data["systemId"] = SYSTEM_ID
+    dashboard_data["uptimeMs"] = (time.time_ns() - start_time) // 1e6
+    dashboard_data["notes"] = NOTES
+
+    subsystems_data = {}
+    # loop through all subsystems getting and saving aggregate data to send
+    for subsystem_name, subsystem in subsystems.items():
+        # create dict for data about the subsystem for the dashboard
+        subsystem_data = {}
+
+        subsystem_data["type"] = subsystem.get_subsystem_type()
+        subsystem_data["notes"] = subsystem.get_notes()
+        subsystem_data["lastOnline"] = subsystem.get_last_online()
+
+        # get the aggregate data for the subsystem and add it to the dict
+        subsystem_aggregate_data = subsystem.get_aggregate_data_short()
+        subsystem_data["data"] = subsystem_aggregate_data
+
+        subsystems_data[subsystem_name] = subsystem_data
+    dashboard_data["subsystems"] = subsystems_data
+
+    return json.dumps(dashboard_data)
 
 
 @app.route("/recording")
@@ -41,6 +67,8 @@ def recording_status():
 
 
 if __name__ == "__main__":
+    start_time = time.time_ns()
+
     # Load config file
     hub_config = load_configuration(CONFIG_FILE_PATH)
 
