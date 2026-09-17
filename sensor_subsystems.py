@@ -69,7 +69,9 @@ class Sensor_Subsystem:
 
         try:
             # tries to get the data from the `subsystem_url`
-            response = requests.get(self.subsystem_url, timeout=REQUEST_TIMEOUT_SECONDS)
+            response = requests.get(
+                f"http://{self.subsystem_url}/", timeout=REQUEST_TIMEOUT_SECONDS
+            )
             self.last_receive_time = time.time_ns()
         except:
             # if something goes wrong, then `is_connected` should be `False`
@@ -90,7 +92,7 @@ class Sensor_Subsystem:
         """Inserts the incoming poll dataframe into the database"""
 
         if self.con is None:
-            self.con = sqlite3.connect(f"data/{self.database_name}")
+            self.con = sqlite3.connect(f"data/{self.database_name}.db")
 
         df_to_save = poll_df.copy()
         df_to_save.insert(0, "receiveTime", self.last_receive_time // 1e6)  # rx time ms
@@ -222,11 +224,13 @@ class Sensor_Subsystem:
 
         return time_since_online_ms
 
-    def get_aggregate_data_polls_short(self):
+    def get_aggregate_data_short(self):
         """Safely gets aggregate data from the short term dataframe"""
 
         with self.aggregate_data_polls_short_lock:
-            return self.aggregate_data_polls_short
+            if self.aggregate_data_polls_short is not None:
+                return self.aggregate_data_polls_short.to_json()
+            return None
 
     def start_updating(self):
         """Starts the updater thread for polling the subsystem"""

@@ -74,9 +74,8 @@ if __name__ == "__main__":
 
     # Initialize subsystems
     subsystems = {}
-    for subsystem_config in hub_config["subsystems"]:
+    for subsystem_name, subsystem_config in hub_config["subsystems"].items():
         # load in attributes
-        subsystem_name = subsystem_config["name"]
         subsystem_address = subsystem_config["address"]
         # this is unused for now
         # later use it for selecting type of subsystem object
@@ -85,9 +84,24 @@ if __name__ == "__main__":
         # include it in data sent to hub
         subsystem_notes = subsystem_config["notes"]
 
-        subsystems[subsystem_name] = sensor_subsystems.Sensor_Subsystem(
-            f"{subsystem_name}.db", subsystem_address, subsystem_notes
-        )
+        # use the correct object for each type
+        match subsystem_type:
+            case "fsr":
+                subsystems[subsystem_name] = sensor_subsystems.Force_Sensitive_Resistor(
+                    subsystem_name, subsystem_address, subsystem_notes
+                )
+            case "imu":
+                subsystems[subsystem_name] = (
+                    sensor_subsystems.Inertial_Measurement_Unit(
+                        subsystem_name, subsystem_address, subsystem_notes
+                    )
+                )
+            case "mic":
+                subsystems[subsystem_name] = sensor_subsystems.Microphone_Array(
+                    subsystem_name, subsystem_address, subsystem_notes
+                )
+            case _:
+                raise "Missing subsystem type"
 
     # Start the subsystems
     for subsystem_name in subsystems.keys():
