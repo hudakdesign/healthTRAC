@@ -98,9 +98,9 @@ int voltageToPercent(int voltage)
 {
   // parameters for the voltage curve
   float a, b, c;
-  a = 2.8810738340463713;
-  b = -0.0008760497222444208;
-  c = -2267.7352906787;
+  a = 7.165958999213756;
+  b = -0.002256493538236537;
+  c = -5589.17943906102;
 
   // calculates the percent along the curve
   float chargePercent = a * voltage + b * (voltage * voltage) + c;
