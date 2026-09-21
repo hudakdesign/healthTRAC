@@ -82,6 +82,10 @@ void notifyCB(NimBLERemoteCharacteristic *pRemoteCharacteristic, uint8_t *pData,
   {
     // Decode bytes in pData
     DataPoll incomingDataPoll(pData);
+
+    // Swaps out timestamp w/ timestamp on the ESP
+    incomingDataPoll.data.timestamp = millis();
+
     Serial.println();
     Serial.printf(">timestamp: %d|t\n", incomingDataPoll.data.timestamp);
     Serial.printf(">accelX: %d\n", incomingDataPoll.data.accelX);
