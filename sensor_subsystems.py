@@ -75,7 +75,7 @@ class Sensor_Subsystem:
             self.last_receive_time = time.time_ns()
         except:
             print(f"Something went wrong polling {self.subsystem_url}.")
-            
+
             # if something goes wrong, then `is_connected` should be `False`
             self.is_connected = False
             # and return `False`
@@ -160,6 +160,7 @@ class Sensor_Subsystem:
         Updates raw data buffer with the contents of the received poll
         dataframe.
         """
+
         # updates the dataframe with the incoming data
         # uses lock to prevent race condition
         with self.raw_data_polls_lock:
@@ -267,8 +268,14 @@ class Microphone_Array(Sensor_Subsystem):
 
     def get_subsystem_type(self):
         """Returns the subsystem type"""
+
         return "mic"
 
+    def get_recording_status(self):
+        """Returns if the subsystem is recording or not"""
+
+        #TODO: Replace placeholder data w/ real data
+        return False
 
 class Force_Sensitive_Resistor(Sensor_Subsystem):
     """Handles retrieving data from force sensitive resistor subsystems
@@ -286,6 +293,7 @@ class Force_Sensitive_Resistor(Sensor_Subsystem):
 
     def get_subsystem_type(self):
         """Returns the subsystem type"""
+
         return "fsr"
 
 
@@ -309,4 +317,19 @@ class Inertial_Measurement_Unit(Sensor_Subsystem):
 
     def get_subsystem_type(self):
         """Returns the subsystem type"""
+
         return "imu"
+
+    def get_peripheral_data(self):
+        """Returns a dict containing data about the associated peripheral"""
+
+        # TODO: Replace placeholder data with real data
+        peripheral_data = {
+            # maybe consider "batteryVoltage" instead
+            # and calculate percent on hub
+            "batteryPercent": 56,
+            "lastConnectTimeMs": 11382,
+            "signalStrengthDbm": -79
+        }
+
+        return peripheral_data

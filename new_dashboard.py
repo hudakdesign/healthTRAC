@@ -56,18 +56,9 @@ def get_data():
         # subsystem type specific steps
         match subsystem_data["type"]:
             case "imu":
-                # peripheral_data = subsystem.get_peripheral_data()
-                
-                peripheral_data = {}
-
-                # TODO: Replace placeholders w/ real data
-                peripheral_data["timeSinceOnlineMs"] = 1e15
-                peripheral_data["batteryPercent"] = 56
-                peripheral_data["isCharging"] = False
-
-                subsystem_data["peripheral"] = peripheral_data
+                subsystem_data["peripheral"] = subsystem.get_peripheral_data()
             case "mic":
-                subsystem_data["isRecording"] = False
+                subsystem_data["isRecording"] = subsystem.get_recording_status()
 
         subsystems_data[subsystem_name] = subsystem_data
 
