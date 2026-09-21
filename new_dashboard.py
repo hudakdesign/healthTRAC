@@ -109,7 +109,7 @@ if __name__ == "__main__":
                     subsystem_name, subsystem_address, subsystem_notes
                 )
             case _:
-                raise "Missing subsystem type"
+                print(f"ERROR: {subsystem_name} isn't a valid type.")
 
     # Start the subsystems
     for subsystem_name in subsystems.keys():
