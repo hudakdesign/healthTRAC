@@ -74,6 +74,8 @@ class Sensor_Subsystem:
             )
             self.last_receive_time = time.time_ns()
         except:
+            print(f"Something went wrong polling {self.subsystem_url}.")
+            
             # if something goes wrong, then `is_connected` should be `False`
             self.is_connected = False
             # and return `False`

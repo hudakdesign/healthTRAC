@@ -53,7 +53,24 @@ def get_data():
         subsystem_aggregate_data = subsystem.get_aggregate_data_short()
         subsystem_data["data"] = subsystem_aggregate_data
 
+        # subsystem type specific steps
+        match subsystem_data["type"]:
+            case "imu":
+                # peripheral_data = subsystem.get_peripheral_data()
+                
+                peripheral_data = {}
+
+                # TODO: Replace placeholders w/ real data
+                peripheral_data["timeSinceOnlineMs"] = 1e15
+                peripheral_data["batteryPercent"] = 56
+                peripheral_data["isCharging"] = False
+
+                subsystem_data["peripheral"] = peripheral_data
+            case "mic":
+                subsystem_data["isRecording"] = False
+
         subsystems_data[subsystem_name] = subsystem_data
+
     dashboard_data["subsystems"] = subsystems_data
 
     return json.dumps(dashboard_data)
