@@ -231,7 +231,7 @@ class Sensor_Subsystem:
 
         with self.aggregate_data_polls_short_lock:
             if self.aggregate_data_polls_short is not None:
-                return self.aggregate_data_polls_short.to_json()
+                return self.aggregate_data_polls_short.to_dict()
             return None
 
     def start_updating(self):

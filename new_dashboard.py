@@ -36,7 +36,7 @@ def get_data():
     dashboard_data = {}
 
     dashboard_data["systemId"] = SYSTEM_ID
-    dashboard_data["uptimeMs"] = (time.time_ns() - start_time) // 1e6
+    dashboard_data["uptimeMs"] = int((time.time_ns() - start_time) // 1e6)
     dashboard_data["notes"] = NOTES
 
     subsystems_data = {}
