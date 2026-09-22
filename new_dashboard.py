@@ -2,7 +2,7 @@ import time
 import json
 
 from flask import Flask, render_template
-import sensor_subsystems
+import sensor_subsystem
 
 # Constants
 CONFIG_FILE_PATH = "temp/config_test.json"
@@ -95,17 +95,17 @@ if __name__ == "__main__":
         # use the correct object for each type
         match subsystem_type:
             case "fsr":
-                subsystems[subsystem_name] = sensor_subsystems.Force_Sensitive_Resistor(
+                subsystems[subsystem_name] = sensor_subsystem.Force_Sensitive_Resistor(
                     subsystem_name, subsystem_address, subsystem_notes
                 )
             case "imu":
                 subsystems[subsystem_name] = (
-                    sensor_subsystems.Inertial_Measurement_Unit(
+                    sensor_subsystem.Inertial_Measurement_Unit(
                         subsystem_name, subsystem_address, subsystem_notes
                     )
                 )
             case "mic":
-                subsystems[subsystem_name] = sensor_subsystems.Microphone_Array(
+                subsystems[subsystem_name] = sensor_subsystem.Microphone_Array(
                     subsystem_name, subsystem_address, subsystem_notes
                 )
             case _:
