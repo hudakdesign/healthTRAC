@@ -270,6 +270,15 @@ void setup()
   Serial.println(SSID);
   WiFi.setHostname(HOSTNAME);
   WiFi.begin(SSID, PASSWORD);
+
+  // configure static ip
+  IPAddress ipAddress, gatewayAddress, subnetMask;
+  ipAddress.fromString(IP_ADDRESS);
+  gatewayAddress.fromString(GATEWAY_ADDRESS);
+  subnetMask.fromString(SUBNET_MASK);
+  WiFi.config(ipAddress, gatewayAddress, subnetMask);
+
+  // wait for wifi to connect
   while (WiFi.status() != WL_CONNECTED)
   {
     // blinky and print .
@@ -290,7 +299,22 @@ void loop()
   /** Loop here until we find a device we want to connect to */
   static DataPoll currDataPoll(0, 0, 0, 0, 0);
 
-  // delay(10);
+  // check if wifi is down
+  // if it is then reconnect
+  if (WiFi.status() != WL_CONNECTED)
+  {
+    Serial.print("WIFI DISCONNECTED: RECONNECTING");
+    WiFi.disconnect();
+    WiFi.reconnect();
+    // wait until wifi is reconnected
+    while (WiFi.status() != WL_CONNECTED)
+    {
+      vTaskDelay(500);
+      Serial.print(".");
+    }
+    Serial.println();
+    Serial.println("WiFi reconnected");
+  }
 
   // Manage bluetooth:
   if (doConnect)
