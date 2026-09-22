@@ -189,6 +189,21 @@ void loop()
 {
   static struct dataPoll newData;
 
+  // check if wifi is down
+  // if it is then reconnect
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.print("WIFI DISCONNECTED: RECONNECTING");
+    WiFi.disconnect();
+    WiFi.reconnect();
+    // wait until wifi is reconnected
+    while (WiFi.status() != WL_CONNECTED) {
+      vTaskDelay(500);
+      Serial.print(".");
+    }
+    Serial.println();
+    Serial.println("WiFi reconnected");
+  }
+
   // wait for incoming connection
   WiFiClient client = server.available();
 
