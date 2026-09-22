@@ -5,6 +5,6 @@
 __pycache__/
 data/
 recordings/
-temp/
+sandbox/
 network_credentials.h
 config_test.json
