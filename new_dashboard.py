@@ -5,7 +5,7 @@ from flask import Flask, render_template
 import sensor_subsystems
 
 # Constants
-CONFIG_FILE_PATH = "config_test.json"
+CONFIG_FILE_PATH = "temp/config_test.json"
 SYSTEM_ID = "hub-alpha"
 NOTES = "In the CBI"
 

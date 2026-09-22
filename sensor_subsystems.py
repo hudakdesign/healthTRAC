@@ -1,7 +1,6 @@
 """Module containing classes for interfacing with all sensor subsystems in healthTRAC"""
 
 # Imports:
-import collections
 import sqlite3
 import subprocess
 import threading

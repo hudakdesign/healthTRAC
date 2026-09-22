@@ -3,10 +3,8 @@
 .idea/
 .vscode/
 __pycache__/
-audio-subsystem/hub/recordings/*
 data/
-logs*
-testing/
 recordings/
-*test.*
+temp/
 network_credentials.h
+config_test.json
