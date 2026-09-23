@@ -64,4 +64,4 @@ def test_imu_get_peripheral_data():
     subsystem_peripheral_data = subsystem.get_peripheral_data()
     assert subsystem_peripheral_data["batteryPercent"] == (0 + 25 + 50 + 75) / 4
     assert subsystem_peripheral_data["lastConnectTimeMs"] == 12345
-    assert subsystem_peripheral_data["signalStrengthDbm"]
+    assert subsystem_peripheral_data["signalStrengthDbm"] == -82

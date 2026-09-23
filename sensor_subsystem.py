@@ -78,7 +78,7 @@ class Sensor_Subsystem:
             # if something goes wrong, then `is_connected` should be `False`
             self.is_connected = False
             # and return early
-            return
+            return None
         # if the response came though then
         self.is_connected = True
         return response.json()
@@ -354,13 +354,11 @@ class Inertial_Measurement_Unit(Sensor_Subsystem):
         """Returns a dict containing data about the associated peripheral"""
 
         aggregate_data = super().get_aggregate_data_short()
-
         if aggregate_data is None:
             return None
 
         mean_battery_percent = aggregate_data["batteryPercent"].mean()
-        # TODO: Replace placeholder data with real data
-        
+
         with self.peripheral_data_lock:
             peripheral_data = {
                 # maybe consider "batteryVoltage" instead
