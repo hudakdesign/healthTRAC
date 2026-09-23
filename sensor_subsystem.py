@@ -146,6 +146,10 @@ class Sensor_Subsystem:
 
             # remove old data to make it the correct size
             num_polls_to_drop = len(new_aggregate_data) - AGGREGATE_SHORT_LENGTH
+            # only drop polls if there is more data than the limit
+            if num_polls_to_drop < 0:
+                num_polls_to_drop = 0
+            
             new_aggregate_data = new_aggregate_data.iloc[num_polls_to_drop:]
             new_aggregate_data = new_aggregate_data.reset_index()
             new_aggregate_data = new_aggregate_data.drop(columns=["index"])
