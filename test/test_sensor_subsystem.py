@@ -24,10 +24,12 @@ def test_update_aggregate_drops_right_amount():
         "sensor2": [i / 2 for i in range(initial_last_index, next_last_index)],
     }
 
+    # add the first set of data polls and check right amount aggregated
     subsystem.raw_data_polls = pd.DataFrame(initial_raw_data)
     subsystem._update_aggregate_data()
     assert len(subsystem.aggregate_data_polls_short) == initial_last_index // 25
 
+    # add another set and check that the right amount were kept / dropped
     subsystem._update_raw_data(pd.DataFrame(next_raw_data))
     subsystem._update_aggregate_data()
     assert len(subsystem.aggregate_data_polls_short) == 120
@@ -49,6 +51,7 @@ def test_imu_get_peripheral_data():
         "batteryPercent": [i for i in raw_data_range],
     }
 
+    # set up an imu subsystem with some data
     subsystem.raw_data_polls = pd.DataFrame(initial_raw_data)
     subsystem.peripheral_last_connect_time_ms = 12345
     subsystem.peripheral_signal_strength_dbm = -82
@@ -57,6 +60,7 @@ def test_imu_get_peripheral_data():
     # make sure that battery percent was dropped from the normal aggregate data
     assert "batteryPercent" not in subsystem.get_aggregate_data_short()
 
+    # check that the correct peripheral data is returned
     subsystem_peripheral_data = subsystem.get_peripheral_data()
     assert subsystem_peripheral_data["batteryPercent"] == (0 + 25 + 50 + 75) / 4
     assert subsystem_peripheral_data["lastConnectTimeMs"] == 12345
