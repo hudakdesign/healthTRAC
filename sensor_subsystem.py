@@ -83,7 +83,7 @@ class Sensor_Subsystem:
         self.is_connected = True
         return response.json()
 
-    def _load_response_to_df(self, response) -> pd.DataFrame:
+    def _process_response(self, response) -> pd.DataFrame:
         """Loads response into a dataframe and returns it"""
 
         poll_df = pd.DataFrame(response["dataPolls"])
@@ -149,7 +149,7 @@ class Sensor_Subsystem:
             # only drop polls if there is more data than the limit
             if num_polls_to_drop < 0:
                 num_polls_to_drop = 0
-            
+
             new_aggregate_data = new_aggregate_data.iloc[num_polls_to_drop:]
             new_aggregate_data = new_aggregate_data.reset_index()
             new_aggregate_data = new_aggregate_data.drop(columns=["index"])
@@ -190,7 +190,7 @@ class Sensor_Subsystem:
         if not response:
             return
 
-        poll_df = self._load_response_to_df(response)
+        poll_df = self._process_response(response)
 
         self._save_data_to_database(poll_df)
 
@@ -234,7 +234,7 @@ class Sensor_Subsystem:
 
         with self.aggregate_data_polls_short_lock:
             if self.aggregate_data_polls_short is not None:
-                return self.aggregate_data_polls_short.to_dict()
+                return self.aggregate_data_polls_short
             return None
 
     def start_updating(self) -> None:
@@ -276,8 +276,9 @@ class Microphone_Array(Sensor_Subsystem):
     def get_recording_status(self) -> bool:
         """Returns if the subsystem is recording or not"""
 
-        #TODO: Replace placeholder data w/ real data
+        # TODO: Replace placeholder data w/ real data
         return False
+
 
 class Force_Sensitive_Resistor(Sensor_Subsystem):
     """Handles retrieving data from force sensitive resistor subsystems
@@ -317,6 +318,33 @@ class Inertial_Measurement_Unit(Sensor_Subsystem):
             left on the toothbrush out of 100
     """
 
+    def __init__(self, database_name, subsystem_url, notes) -> None:
+        super().__init__(database_name, subsystem_url, notes)
+
+        self.peripheral_data_lock = threading.Lock()
+        self.peripheral_last_connect_time_ms = None
+        self.peripheral_signal_strength_dbm = None
+
+    def _process_response(self, response) -> pd.DataFrame | None:
+        incoming_datapolls = super()._process_response(response)
+        if incoming_datapolls is None:
+            return None
+
+        # take out the last connect time and signal strength as well
+        with self.peripheral_data_lock:
+            self.peripheral_last_connect_time_ms = response["lastConnectTimeMs"]
+            self.peripheral_signal_strength_dbm = response["signalStrengthDbm"]
+
+        return incoming_datapolls
+
+    def get_aggregate_data_short(self) -> pd.DataFrame | None:
+        aggregate_data = super().get_aggregate_data_short()
+
+        if aggregate_data is None:
+            return None
+
+        return aggregate_data.drop(columns=["batteryPercent"])
+
     def get_subsystem_type(self) -> str:
         """Returns the subsystem type"""
 
@@ -325,13 +353,20 @@ class Inertial_Measurement_Unit(Sensor_Subsystem):
     def get_peripheral_data(self) -> dict:
         """Returns a dict containing data about the associated peripheral"""
 
-        # TODO: Replace placeholder data with real data
-        peripheral_data = {
-            # maybe consider "batteryVoltage" instead
-            # and calculate percent on hub
-            "batteryPercent": 56,
-            "lastConnectTimeMs": 11382,
-            "signalStrengthDbm": -79
-        }
+        aggregate_data = super().get_aggregate_data_short()
 
+        if aggregate_data is None:
+            return None
+
+        mean_battery_percent = aggregate_data["batteryPercent"].mean()
+        # TODO: Replace placeholder data with real data
+        
+        with self.peripheral_data_lock:
+            peripheral_data = {
+                # maybe consider "batteryVoltage" instead
+                # and calculate percent on hub
+                "batteryPercent": mean_battery_percent,
+                "lastConnectTimeMs": self.peripheral_last_connect_time_ms,
+                "signalStrengthDbm": self.peripheral_signal_strength_dbm,
+            }
         return peripheral_data
