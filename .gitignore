@@ -2,7 +2,7 @@
 .venv/
 .idea/
 .vscode/
-__pycache__/
+*py*cache*
 data/
 recordings/
 sandbox/

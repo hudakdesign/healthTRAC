@@ -39,7 +39,7 @@ class Sensor_Subsystem:
             this is set if the request succeeds or not.
     """
 
-    def __init__(self, database_name, subsystem_url, notes):
+    def __init__(self, database_name, subsystem_url, notes) -> None:
         # Check that the data directory exists
         subprocess.run(["mkdir", "-p", "data"])
 
@@ -57,7 +57,7 @@ class Sensor_Subsystem:
         self.last_receive_time = 0
         self.notes = notes
 
-    def _poll_subsystem(self):
+    def _poll_subsystem(self) -> dict | None:
         """Request data from `subsystem_url` and return it as a dict
 
         Attempts to request data from `subsystem_url` and parses the json into
@@ -77,19 +77,19 @@ class Sensor_Subsystem:
 
             # if something goes wrong, then `is_connected` should be `False`
             self.is_connected = False
-            # and return `False`
-            return False
+            # and return early
+            return
         # if the response came though then
         self.is_connected = True
         return response.json()
 
-    def _load_response_to_df(self, response):
+    def _load_response_to_df(self, response) -> pd.DataFrame:
         """Loads response into a dataframe and returns it"""
 
         poll_df = pd.DataFrame(response["dataPolls"])
         return poll_df
 
-    def _save_data_to_database(self, poll_df):
+    def _save_data_to_database(self, poll_df) -> None:
         """Inserts the incoming poll dataframe into the database"""
 
         if self.con is None:
@@ -99,7 +99,7 @@ class Sensor_Subsystem:
         df_to_save.insert(0, "receiveTime", self.last_receive_time // 1e6)  # rx time ms
         df_to_save.to_sql(name="data_polls", con=self.con, if_exists="append")
 
-    def _update_aggregate_data(self):
+    def _update_aggregate_data(self) -> None:
         """Updates aggregate data buffers using data from `raw_data_polls`
 
         Takes every set number of data polls and puts them into
@@ -153,7 +153,7 @@ class Sensor_Subsystem:
             # set aggregate data polls to the new dataframe
             self.aggregate_data_polls_short = new_aggregate_data
 
-    def _update_raw_data(self, poll_df):
+    def _update_raw_data(self, poll_df) -> None:
         """Updates `raw_data_polls` with poll data
 
         Updates raw data buffer with the contents of the received poll
@@ -171,7 +171,7 @@ class Sensor_Subsystem:
                     [self.raw_data_polls, poll_df], ignore_index=True
                 )
 
-    def _update_data(self):
+    def _update_data(self) -> None:
         """Handles polling, storing, and aggregating data
 
         1. Polls the subsystem, checks if it was successful.
@@ -183,9 +183,8 @@ class Sensor_Subsystem:
 
         response = self._poll_subsystem()
 
-        # return False if the poll failed
         if not response:
-            return False
+            return
 
         poll_df = self._load_response_to_df(response)
 
@@ -195,14 +194,14 @@ class Sensor_Subsystem:
 
         self._update_aggregate_data()
 
-    def _data_updater(self):
+    def _data_updater(self) -> None:
         """Updater thread which polls subsystem every fixed amount of time"""
 
         while self.is_updating:
             self._update_data()
             time.sleep(SUBSYSTEM_POLL_FREQUENCY_SECONDS)
 
-    def get_raw_data(self):
+    def get_raw_data(self) -> pd.DataFrame | None:
         """Handles getting raw data in a thread-safe manner"""
 
         with self.raw_data_polls_lock:
@@ -213,7 +212,7 @@ class Sensor_Subsystem:
 
         return self.notes
 
-    def get_time_since_online_ms(self):
+    def get_time_since_online_ms(self) -> int:
         """Returns how long since the subsystem was online"""
 
         time_since_online = time.time_ns() - self.last_receive_time
@@ -226,7 +225,7 @@ class Sensor_Subsystem:
 
         return time_since_online_ms
 
-    def get_aggregate_data_short(self):
+    def get_aggregate_data_short(self) -> dict | None:
         """Safely gets aggregate data from the short term dataframe"""
 
         with self.aggregate_data_polls_short_lock:
@@ -234,7 +233,7 @@ class Sensor_Subsystem:
                 return self.aggregate_data_polls_short.to_dict()
             return None
 
-    def start_updating(self):
+    def start_updating(self) -> None:
         """Starts the updater thread for polling the subsystem"""
 
         if self.updater_thread is not None and self.is_updating:
@@ -244,7 +243,7 @@ class Sensor_Subsystem:
             self.updater_thread = threading.Thread(target=self._data_updater)
             self.updater_thread.start()
 
-    def stop_updating(self):
+    def stop_updating(self) -> None:
         """Signals the updater thread to stop"""
 
         self.is_updating = False
@@ -265,12 +264,12 @@ class Microphone_Array(Sensor_Subsystem):
         is_muted: A boolean value for if the mic is currently muted.
     """
 
-    def get_subsystem_type(self):
+    def get_subsystem_type(self) -> str:
         """Returns the subsystem type"""
 
         return "mic"
 
-    def get_recording_status(self):
+    def get_recording_status(self) -> bool:
         """Returns if the subsystem is recording or not"""
 
         #TODO: Replace placeholder data w/ real data
@@ -290,7 +289,7 @@ class Force_Sensitive_Resistor(Sensor_Subsystem):
             this is set if the request succeeds or not.
     """
 
-    def get_subsystem_type(self):
+    def get_subsystem_type(self) -> str:
         """Returns the subsystem type"""
 
         return "fsr"
@@ -314,12 +313,12 @@ class Inertial_Measurement_Unit(Sensor_Subsystem):
             left on the toothbrush out of 100
     """
 
-    def get_subsystem_type(self):
+    def get_subsystem_type(self) -> str:
         """Returns the subsystem type"""
 
         return "imu"
 
-    def get_peripheral_data(self):
+    def get_peripheral_data(self) -> dict:
         """Returns a dict containing data about the associated peripheral"""
 
         # TODO: Replace placeholder data with real data
