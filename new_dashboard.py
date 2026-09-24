@@ -50,7 +50,7 @@ def get_data():
         subsystem_data["timeSinceOnlineMs"] = subsystem.get_time_since_online_ms()
 
         # get the aggregate data for the subsystem and add it to the dict
-        subsystem_aggregate_data = subsystem.get_aggregate_data_short()
+        subsystem_aggregate_data = subsystem.get_aggregate_data_short().to_dict()
         subsystem_data["data"] = subsystem_aggregate_data
 
         # subsystem type specific steps

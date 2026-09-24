@@ -72,8 +72,8 @@ class Sensor_Subsystem:
                 f"http://{self.subsystem_url}/", timeout=REQUEST_TIMEOUT_SECONDS
             )
             self.last_receive_time = time.time_ns()
-        except:
-            print(f"Something went wrong polling {self.subsystem_url}.")
+        except requests.exceptions.ConnectTimeout:
+            print(f"Request to {self.subsystem_url} timed out")
 
             # if something goes wrong, then `is_connected` should be `False`
             self.is_connected = False
