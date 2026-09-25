@@ -22,6 +22,11 @@ const int POLL_QUEUE_LEN = 1000;
 const int SERVER_PORT = 80;
 const int BUFFER_STREAM_SIZE = 1024;
 
+// ntp
+const char *NTP_SERVER = GATEWAY_ADDRESS;
+const long GMT_OFFSET_SEC = 0;
+const int DAYLIGHT_OFFSET_SEC = 3600;
+
 // Globals
 static const NimBLEAdvertisedDevice *advDevice;
 static bool doConnect = false;
@@ -33,8 +38,23 @@ static QueueHandle_t pollQueue;
 // used for managing webserver
 WiFiServer server(SERVER_PORT);
 
-/**  None of these are required as they will be handled by the library with defaults. **
- **                       Remove as you see fit for your needs                        */
+// gets the number of milliseconds since epoch
+// returns -1 if something goes wrong
+long long getNtpTimestampMs()
+{
+  long long ntpTimestampMs;
+
+  struct timeval tv;
+  if (gettimeofday(&tv, NULL) != 0)
+  {
+    Serial.println("FAILED to obtain time");
+    return -1;
+  }
+
+  ntpTimestampMs = tv.tv_sec * 1e3;   // make room for ms
+  ntpTimestampMs += tv.tv_usec / 1e3; // add ms / cut the microsecond part
+  return ntpTimestampMs;
+}
 
 /** Define a class to handle the callbacks when scan events are received */
 class ScanCallbacks : public NimBLEScanCallbacks
@@ -78,13 +98,13 @@ void notifyCB(NimBLERemoteCharacteristic *pRemoteCharacteristic, uint8_t *pData,
 
   // if the right amount of bytes were sent then decode the message
   // otherwise print an error message
-  if (length == 12)
+  if (length == 16)
   {
     // Decode bytes in pData
     DataPoll incomingDataPoll(pData);
 
     // Swaps out timestamp w/ timestamp on the ESP
-    incomingDataPoll.data.timestamp = millis();
+    incomingDataPoll.data.timestamp = getNtpTimestampMs();
 
     Serial.println();
     Serial.printf(">timestamp: %d|t\n", incomingDataPoll.data.timestamp);
@@ -228,6 +248,22 @@ bool connectToServer()
   return true;
 }
 
+// configures to use time from ntp server
+void setupTime()
+{
+  // turn on led while setup isnt yet done correctly
+  // if it doesnt turn off then something is wrong
+  digitalWrite(LED_RED, LOW);
+  configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
+
+  // test that time is configured
+  struct tm tinfo;
+  if (getLocalTime(&tinfo))
+  {
+    digitalWrite(LED_RED, HIGH);
+  }
+}
+
 void setup()
 {
   Serial.begin(115200);
@@ -289,6 +325,17 @@ void setup()
 
     Serial.print(".");
   }
+
+  // print connection details
+  Serial.println("");
+  Serial.println("WiFi connected.");
+  Serial.print("IP Address: ");
+  Serial.println(WiFi.localIP());
+  Serial.print("Hostname: ");
+  Serial.println(WiFi.getHostname());
+
+  // configure ntp
+  setupTime();
 
   // start up the webserver
   server.begin();
@@ -366,7 +413,7 @@ void loop()
     JsonArray batteryPercent = dataPolls["batteryPercent"].to<JsonArray>();
 
     // lastly add the timestamp for when this is being sent
-    doc["timeSent"] = millis();
+    doc["timeSent"] = getNtpTimestampMs();
 
     // read in values from the queue
     // append them to their corresponding json arrays

@@ -11,13 +11,13 @@ public:
   // Stores poll data for the DataPoll object
   struct
   {
-    uint32_t timestamp;
+    int64_t timestamp;
     int16_t accelX, accelY, accelZ;
     uint16_t batteryPercent;
   } data;
 
   // Creates DataPoll object with provided parameters
-  DataPoll(uint32_t timestamp, int16_t accelX, int16_t accelY, int16_t accelZ, uint16_t batteryPercent)
+  DataPoll(int64_t timestamp, int16_t accelX, int16_t accelY, int16_t accelZ, uint16_t batteryPercent)
   {
     data.timestamp = timestamp;
     data.accelX = accelX;

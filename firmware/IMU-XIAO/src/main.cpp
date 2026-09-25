@@ -160,7 +160,7 @@ void pollSensorTimerCallback(TimerHandle_t xTimer)
 {
   // Collect sensor data, put it into DataPoll, and send to queue
   // collect new poll data
-  uint32_t timestamp = millis();
+  int64_t timestamp = millis();
   int16_t accelX = myImu.readRawAccelX();
   int16_t accelY = myImu.readRawAccelY();
   int16_t accelZ = myImu.readRawAccelZ();
