@@ -30,6 +30,11 @@ static const int MONITOR_SPEED = 115200;
 static const int START_DELAY = 2000;
 static const int BLINK_RATE = 250;
 
+// ntp
+static const char *NTP_SERVER = GATEWAY_ADDRESS;
+static const long GMT_OFFSET_SEC = 0;
+static const int DAYLIGHT_OFFSET_SEC = 3600;
+
 // network hostname
 const char *HOSTNAME = "fsr-alpha";
 
@@ -59,6 +64,8 @@ int getSyntheticSensorValue(int, int);
 void setMuxChannel(int);
 int getMuxOutput(int, int);
 int getKBit(int, int);
+long long getNtpTimestampMs();
+void setupTime();
 
 // Tasks:
 // Task: every 10 ms, get data from each sensor
@@ -76,7 +83,7 @@ void collectSensorData(void *parameters)
     collectionWasDelayed = xTaskDelayUntil(&collectionLastWakeTime, POLL_FREQUENCY_TICKS);
 
     // get timestamp for when this poll is being taken
-    data.timestamp = millis();
+    data.timestamp = getNtpTimestampMs();
 
     // loop through each sensor checking their values
     for (int i = 0; i < NUM_FSRS; i++)
@@ -172,7 +179,10 @@ void setup()
   Serial.print("Hostname: ");
   Serial.println(WiFi.getHostname());
 
-  server.begin(); // starts up the webserver
+  // configure ntp
+  setupTime();
+
+  server.begin(); // start webserver
 
   // start data collection task
   xTaskCreatePinnedToCore(collectSensorData,
@@ -246,7 +256,7 @@ void loop()
   JsonArray fsr7 = dataPolls["fsr7"].to<JsonArray>();
 
   // lastly add the timestamp for when this is being sent
-  doc["timeSent"] = millis();
+  doc["timeSent"] = getNtpTimestampMs();;
 
   // // read in values from the queue
   // // append them to their corresponding json arrays
@@ -331,4 +341,38 @@ int getKBit(int n, int k)
   int mask = 1 << k;
   int masked_n = n & mask;
   return masked_n >> k;
+}
+
+// gets the number of milliseconds since epoch
+// returns -1 if something goes wrong
+long long getNtpTimestampMs()
+{
+  long long ntpTimestampMs;
+
+  struct timeval tv;
+  if (gettimeofday(&tv, NULL) != 0)
+  {
+    Serial.println("FAILED to obtain time");
+    return -1;
+  }
+
+  ntpTimestampMs = tv.tv_sec * 1e3;   // make room for ms
+  ntpTimestampMs += tv.tv_usec / 1e3; // add ms / cut the microsecond part
+  return ntpTimestampMs;
+}
+
+// configures to use time from ntp server
+void setupTime()
+{
+  // turn on led while setup isnt yet done correctly
+  // if it doesnt turn off then something is wrong
+  digitalWrite(LED_RED, LOW);
+  configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
+
+  // test that time is configured
+  struct tm tinfo;
+  if (getLocalTime(&tinfo))
+  {
+    digitalWrite(LED_RED, HIGH);
+  }
 }
