@@ -2,6 +2,7 @@ import time
 import json
 
 from flask import Flask, render_template
+import gpiozero
 import sensor_subsystem
 
 # Constants
@@ -68,10 +69,10 @@ def get_data():
 
 
 @app.route("/recording")
-def recording_status():
+def mute_status():
     """Route for checking if microphones should be recording or not"""
 
-    return "Not yet implemented"
+    return recording_indicator.is_active
 
 
 if __name__ == "__main__":
@@ -79,6 +80,22 @@ if __name__ == "__main__":
 
     # Load config file
     hub_config = load_configuration(CONFIG_FILE_PATH)
+
+    # Set up the mute button
+    recording_button = gpiozero.Button(hub_config["recordingButtonPin"])
+    # recording indicator is also read to determine if should be recording or not
+    recording_indicator = gpiozero.LED(hub_config["recordingIndicatorPin"])
+    if hub_config["softwareControlledRecording"]:
+        # if its supposed to be software controlled then use the button to
+        # toggle the recording state
+        recording_button.when_activated = recording_indicator.toggle
+        recording_button.when_deactivated = recording_indicator.toggle
+
+        # also start up a timer to use for unmuting at determined time
+    else:
+        # otherwise then just check the toggle button state when asked
+        recording_button.when_activated = recording_indicator.on
+        recording_button.when_deactivated = recording_indicator.off
 
     # Initialize subsystems
     subsystems = {}
@@ -99,10 +116,8 @@ if __name__ == "__main__":
                     subsystem_name, subsystem_address, subsystem_notes
                 )
             case "imu":
-                subsystems[subsystem_name] = (
-                    sensor_subsystem.Inertial_Measurement_Unit(
-                        subsystem_name, subsystem_address, subsystem_notes
-                    )
+                subsystems[subsystem_name] = sensor_subsystem.Inertial_Measurement_Unit(
+                    subsystem_name, subsystem_address, subsystem_notes
                 )
             case "mic":
                 subsystems[subsystem_name] = sensor_subsystem.Microphone_Array(
