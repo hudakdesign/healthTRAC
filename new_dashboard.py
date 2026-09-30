@@ -72,7 +72,7 @@ def get_data():
 def mute_status():
     """Route for checking if microphones should be recording or not"""
 
-    return recording_indicator.is_active
+    return str(recording_indicator.is_active)
 
 
 if __name__ == "__main__":
@@ -96,6 +96,9 @@ if __name__ == "__main__":
         # otherwise then just check the toggle button state when asked
         recording_button.when_activated = recording_indicator.on
         recording_button.when_deactivated = recording_indicator.off
+
+        if recording_button.is_active:
+            recording_indicator.on()
 
     # Initialize subsystems
     subsystems = {}
