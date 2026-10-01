@@ -1,5 +1,7 @@
-import time
+import datetime as dt
 import json
+import threading
+import time
 
 from flask import Flask, render_template
 import gpiozero
@@ -15,11 +17,37 @@ app = Flask(__name__)
 
 
 # Helpers
-def load_configuration(config_file_path):
+def load_configuration(config_file_path: str):
     """Returns hub configuration from file at provided path"""
 
     with open(config_file_path, "r") as f:
         return json.load(f)
+
+
+# Tasks
+def recording_reactivator(reactivation_time: dt.time):
+    def reactivate_recording():
+        recording_indicator.on()
+        print(f"[{dt.datetime.now()}]: reactivated recording")
+
+    while True:
+        # schedule the reactivation to occur at the provided time in the morning
+        # on the following day
+        reactivation_date = dt.date.today() + dt.timedelta(days=1)
+        reactivation_time = reactivation_time
+        reactivation_datetime = dt.datetime.combine(
+            reactivation_date, reactivation_time
+        )
+
+        # create and start timer to reactivate recording after timer
+        reactivation_timer = threading.Timer(
+            (reactivation_datetime - dt.datetime.now()).total_seconds(),
+            reactivate_recording,
+        )
+        reactivation_timer.start()
+
+        # wait until timer finishes before looping and restarting the timer
+        reactivation_timer.join()
 
 
 # Routes
@@ -128,6 +156,12 @@ if __name__ == "__main__":
                 )
             case _:
                 print(f"ERROR: {subsystem_name} isn't a valid type.")
+
+    # Start the recording reactivator thread if software recording button
+    # is enabled
+    if hub_config["softwareControlledRecording"]:
+        recording_reactivator_thread = threading.Thread(target=recording_reactivator, args=[dt.time(13,30)])
+        recording_reactivator_thread.start()
 
     # Start the subsystems
     for subsystem_name in subsystems.keys():
