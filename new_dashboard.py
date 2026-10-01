@@ -27,6 +27,8 @@ def load_configuration(config_file_path: str):
 
 # Tasks
 def recording_reactivator(reactivation_time: dt.time):
+    """Manages timer for reactivating recording at a set time"""
+
     def reactivate_recording():
         recording_indicator.on()
         print(f"[{dt.datetime.now()}]: reactivated recording")
@@ -50,7 +52,9 @@ def recording_reactivator(reactivation_time: dt.time):
         # wait until timer finishes before looping and restarting the timer
         while running and reactivation_timer.is_alive():
             time.sleep(1)
-        
+
+        # if the program is trying to end and the timer is still going
+        # then cancel it
         if reactivation_timer.is_alive():
             reactivation_timer.cancel()
 
