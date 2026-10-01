@@ -50,6 +50,9 @@ def recording_reactivator(reactivation_time: dt.time):
         # wait until timer finishes before looping and restarting the timer
         while running and reactivation_timer.is_alive():
             time.sleep(1)
+        
+        if reactivation_timer.is_alive():
+            reactivation_timer.cancel()
 
 
 # Routes
