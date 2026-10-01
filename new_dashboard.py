@@ -160,7 +160,14 @@ if __name__ == "__main__":
     # Start the recording reactivator thread if software recording button
     # is enabled
     if hub_config["softwareControlledRecording"]:
-        recording_reactivator_thread = threading.Thread(target=recording_reactivator, args=[dt.time(13,30)])
+        # reactivate at time declared in the config
+        reactivate_time_hour = int(hub_config["recordingReactivateTime"]["hour"])
+        reactivate_time_minute = int(hub_config["recordingReactivateTime"]["minute"])
+
+        recording_reactivator_thread = threading.Thread(
+            target=recording_reactivator,
+            args=[dt.time(reactivate_time_hour, reactivate_time_minute)],
+        )
         recording_reactivator_thread.start()
 
     # Start the subsystems
