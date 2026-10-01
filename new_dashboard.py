@@ -14,6 +14,7 @@ NOTES = "In the CBI"
 
 # Globals
 app = Flask(__name__)
+running = True
 
 
 # Helpers
@@ -30,7 +31,7 @@ def recording_reactivator(reactivation_time: dt.time):
         recording_indicator.on()
         print(f"[{dt.datetime.now()}]: reactivated recording")
 
-    while True:
+    while running:
         # schedule the reactivation to occur at the provided time in the morning
         # on the following day
         reactivation_date = dt.date.today() + dt.timedelta(days=1)
@@ -47,7 +48,8 @@ def recording_reactivator(reactivation_time: dt.time):
         reactivation_timer.start()
 
         # wait until timer finishes before looping and restarting the timer
-        reactivation_timer.join()
+        while running and reactivation_timer.is_alive():
+            time.sleep(1)
 
 
 # Routes
@@ -180,3 +182,6 @@ if __name__ == "__main__":
     # Stop the subsystems
     for subsystem_name in subsystems.keys():
         subsystems[subsystem_name].stop_updating()
+
+    # Stop the recording reactivator
+    running = False
