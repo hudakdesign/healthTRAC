@@ -9,6 +9,7 @@ import sensor_subsystem
 
 # Constants
 CONFIG_FILE_PATH = "config_test.json"
+EVENT_MARKER_LOG_PATH = "event_marker.log"
 SYSTEM_ID = "hub-alpha"
 NOTES = "In the CBI"
 
@@ -23,6 +24,14 @@ def load_configuration(config_file_path: str):
 
     with open(config_file_path, "r") as f:
         return json.load(f)
+
+
+# Callbacks
+def event_marker_callback():
+    """Logs when the event marker was pressed when it was pressed"""
+    
+    with open(EVENT_MARKER_LOG_PATH, "a") as f:
+        f.write(f"[{dt.datetime.now()}]: EVENT") 
 
 
 # Tasks
