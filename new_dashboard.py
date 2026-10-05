@@ -98,8 +98,13 @@ def get_data():
         subsystem_data["timeSinceOnlineMs"] = subsystem.get_time_since_online_ms()
 
         # get the aggregate data for the subsystem
-        # it will either be a dict, or None
-        subsystem_data["data"] = subsystem.get_aggregate_data_short()
+        # check if its a dataframe
+        # if it is then convert it to a dict and add it to the dict
+        subsystem_aggregate_data = subsystem.get_aggregate_data_short()
+        if subsystem_aggregate_data is pd.DataFrame:
+            subsystem_data["data"] = subsystem_aggregate_data.to_dict()
+        else:
+            subsystem_data["data"] = None
 
         # subsystem type specific steps
         match subsystem_data["type"]:
