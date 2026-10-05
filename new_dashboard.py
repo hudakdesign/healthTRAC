@@ -4,6 +4,7 @@ import threading
 import time
 
 from flask import Flask, render_template
+import pandas as pd
 import gpiozero
 import sensor_subsystem
 
@@ -29,9 +30,9 @@ def load_configuration(config_file_path: str):
 # Callbacks
 def event_marker_callback():
     """Logs when the event marker was pressed when it was pressed"""
-    
+
     with open(EVENT_MARKER_LOG_PATH, "a") as f:
-        f.write(f"[{dt.datetime.now()}]: EVENT") 
+        f.write(f"[{dt.datetime.now()}]: EVENT")
 
 
 # Tasks
@@ -96,9 +97,14 @@ def get_data():
         subsystem_data["notes"] = subsystem.get_notes()
         subsystem_data["timeSinceOnlineMs"] = subsystem.get_time_since_online_ms()
 
-        # get the aggregate data for the subsystem and add it to the dict
-        subsystem_aggregate_data = subsystem.get_aggregate_data_short().to_dict()
-        subsystem_data["data"] = subsystem_aggregate_data
+        # get the aggregate data for the subsystem
+        # check if its a dataframe
+        # if it is then convert it to a dict and add it to the dict
+        subsystem_aggregate_data = subsystem.get_aggregate_data_short()
+        if subsystem_aggregate_data is not pd.DataFrame:
+            subsystem_data["data"] = None
+        else:
+            subsystem_data["data"] = subsystem_aggregate_data.to_dict()
 
         # subsystem type specific steps
         match subsystem_data["type"]:
