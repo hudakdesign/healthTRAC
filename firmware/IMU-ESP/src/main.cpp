@@ -27,12 +27,16 @@ const char *NTP_SERVER = GATEWAY_ADDRESS;
 const long GMT_OFFSET_SEC = 0;
 const int DAYLIGHT_OFFSET_SEC = 3600;
 
+// syncronization
+const int MUTEX_TIMEOUT = 5000; // ms
+
 // Globals
 static const NimBLEAdvertisedDevice *advDevice;
 static bool doConnect = false;
 static uint32_t scanTimeMs = 5000; /** scan time in milliseconds, 0 = scan forever */
 
-// TODO: Protect this with a mutex
+// mutex and value for tracking peripheral connect time
+static SemaphoreHandle_t lastConnectTimeMsMutex;
 static int64_t lastConnectTimeMs = 0; // the last time that the peripheral was connected
 
 // queue for storing DataPolls
@@ -108,7 +112,11 @@ void notifyCB(NimBLERemoteCharacteristic *pRemoteCharacteristic, uint8_t *pData,
 
     // Swaps out timestamp w/ timestamp on the ESP
     incomingDataPoll.data.timestamp = getNtpTimestampMs();
+
+    // Updates the last connect time
+    xSemaphoreTake(lastConnectTimeMsMutex, MUTEX_TIMEOUT);
     lastConnectTimeMs = incomingDataPoll.data.timestamp;
+    xSemaphoreGive(lastConnectTimeMsMutex);
 
     Serial.println();
     Serial.printf(">timestamp: %d|t\n", incomingDataPoll.data.timestamp);
@@ -278,7 +286,9 @@ void setup()
 
   Serial.printf("Starting NimBLE Client\n");
 
+  // Create queues and mutexes
   pollQueue = xQueueCreate(POLL_QUEUE_LEN, sizeof(DataPoll));
+  lastConnectTimeMsMutex = xSemaphoreCreateMutex();
 
   /** Initialize NimBLE and set the device name */
   NimBLEDevice::init("NimBLE-Client");
@@ -417,7 +427,10 @@ void loop()
     JsonArray batteryPercent = dataPolls["batteryPercent"].to<JsonArray>();
 
     // add peripheral information
+    xSemaphoreTake(lastConnectTimeMsMutex, MUTEX_TIMEOUT);
     doc["lastConnectTimeMs"] = lastConnectTimeMs;
+    xSemaphoreGive(lastConnectTimeMsMutex);
+
     doc["signalStrengthDbm"] = 0; // TODO: replace this placeholder with a real value
 
     // lastly add the timestamp for when this is being sent
