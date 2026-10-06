@@ -32,6 +32,9 @@ static const NimBLEAdvertisedDevice *advDevice;
 static bool doConnect = false;
 static uint32_t scanTimeMs = 5000; /** scan time in milliseconds, 0 = scan forever */
 
+// TODO: Protect this with a mutex
+static int64_t lastConnectTimeMs = 0; // the last time that the peripheral was connected
+
 // queue for storing DataPolls
 static QueueHandle_t pollQueue;
 
@@ -105,6 +108,7 @@ void notifyCB(NimBLERemoteCharacteristic *pRemoteCharacteristic, uint8_t *pData,
 
     // Swaps out timestamp w/ timestamp on the ESP
     incomingDataPoll.data.timestamp = getNtpTimestampMs();
+    lastConnectTimeMs = incomingDataPoll.data.timestamp;
 
     Serial.println();
     Serial.printf(">timestamp: %d|t\n", incomingDataPoll.data.timestamp);
@@ -411,6 +415,10 @@ void loop()
     JsonArray accelY = dataPolls["accelY"].to<JsonArray>();
     JsonArray accelZ = dataPolls["accelZ"].to<JsonArray>();
     JsonArray batteryPercent = dataPolls["batteryPercent"].to<JsonArray>();
+
+    // add peripheral information
+    doc["lastConnectTimeMs"] = lastConnectTimeMs;
+    doc["signalStrengthDbm"] = 0; // TODO: replace this placeholder with a real value
 
     // lastly add the timestamp for when this is being sent
     doc["timeSent"] = getNtpTimestampMs();
