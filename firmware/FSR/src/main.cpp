@@ -48,7 +48,7 @@ WiFiServer server(SERVER_PORT);
 // Struct declaration
 struct dataPoll
 {
-  int timestamp;         // timestamp when polls were taken
+  long long timestamp;         // timestamp when polls were taken
   int sensorReadings[8]; // values from each fsr
 };
 
