@@ -139,7 +139,7 @@ void notifyCB(NimBLERemoteCharacteristic *pRemoteCharacteristic, uint8_t *pData,
   }
   else
   {
-    Serial.printf("ERROR: Incorrect number of bytes in notification (expected: 12; actual: %d)", length);
+    Serial.printf("ERROR: Incorrect number of bytes in notification (expected: 16; actual: %d)", length);
   }
   // DataPoll incomingDataPoll(pData);
 }
