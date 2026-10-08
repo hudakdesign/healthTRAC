@@ -17,6 +17,7 @@ sudo apt upgrade -y
 # install apt reqs
 echo "Installing required APT packages"
 sudo apt install -y btop git neovim tmux
+sudo apt install -y portaudio19-dev
 
 # clone the project
 echo "Cloning project repository"
@@ -33,7 +34,7 @@ source .venv/bin/activate
 
 # install pip reqs
 echo "Installing required PIP packages"
-pip install -r requirements.txt
+pip install flask soundfile sounddevice requests
 
 # # set up static ip
 # echo "Configuring static IP"
