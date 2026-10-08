@@ -24,7 +24,7 @@ NUM_CHANNELS = sd.query_devices(DEVICE_ID)["max_input_channels"]
 MICROPHONE_FREQUENCY = sd.query_devices(DEVICE_ID)["default_samplerate"]
 
 FILENAME = "test_recording.wav"
-HUB_API_URL = "http://127.0.0.1:8050/"
+HUB_API_URL = "http://10.42.0.1:8080/recording"
 DIAGNOSTIC_API_PORT = 8051
 SLEEP_TIME = 1
 TIMEOUT_TIME_SECONDS = (
@@ -145,7 +145,7 @@ def recording_flag_checker():
         try:  # try to request the hub api
             response = requests.get(HUB_API_URL, timeout=TIMEOUT_TIME_SECONDS)
 
-            if response.json() == "True":
+            if response.text == "True":
                 set_recording_state(True)
             else:
                 set_recording_state(False)

@@ -9,10 +9,6 @@ cd ~/
 
 echo "HealthTRAC Satellite Setup"
 
-# set up static ip
-echo "Configuring static IP"
-sudo nmcli con mod $NETWORK_NAME ipv4.method manual ipv4.addr "$STATIC_IP_ADDRESS"
-
 # run updates
 echo "Updating APT packages"
 sudo apt update
@@ -38,5 +34,9 @@ source .venv/bin/activate
 # install pip reqs
 echo "Installing required PIP packages"
 pip install -r requirements.txt
+
+# # set up static ip
+# echo "Configuring static IP"
+# sudo nmcli con mod $NETWORK_NAME ipv4.method manual ipv4.addr "$STATIC_IP_ADDRESS"
 
 echo "DONE!"
