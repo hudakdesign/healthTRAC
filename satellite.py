@@ -19,7 +19,7 @@ assert numpy
 
 
 # Constants
-DEVICE_ID = 1
+DEVICE_ID = 0
 NUM_CHANNELS = sd.query_devices(DEVICE_ID)["max_input_channels"]
 MICROPHONE_FREQUENCY = sd.query_devices(DEVICE_ID)["default_samplerate"]
 
@@ -63,7 +63,7 @@ recording_lock = threading.Lock()
 def audio_data_recorder():
     # callback function used to process every block of audio data
     # this is from a separate thread
-    # DONE: queue heavily downsampled data from each block
+    # queue heavily downsampled data from each block
     def callback(indata, frames, t_, status):
         if status:
             print(status, file=sys.stderr)
@@ -82,7 +82,7 @@ def audio_data_recorder():
         # print(f"Callback called again after {(curr_time - get_last_poll_time()) / 1e6} milliseconds")
         # print(f"Number of frames {frames}")
 
-        # DONE: collect diagnostic data at 64hz
+        # collect diagnostic data at 64hz
         # loop through indata with a step of `DIAGNOSTIC_SAMPLE_RATE`
         # print("Frames in block")
         for i in range(0, len(indata), DIAGNOSTIC_SAMPLE_RATE):
@@ -96,20 +96,20 @@ def audio_data_recorder():
         #     print(f"Index {i}: {new_diagnostic_frame}")
         # print("-" * 80)
 
-    # DONE: query device for sample rate and channel count
+    # query device for sample rate and channel count
     device_info = sd.query_devices(DEVICE_ID)
     sample_rate = int(device_info["default_samplerate"])
     channels = device_info["max_input_channels"]
 
-    # DONE: record data to wav file
-    # DONE: update to change filename for each chunk
+    # record data to wav file
+    # update to change filename for each chunk
     while get_running_state():
         if get_recording_state():
             # each time recording is restarted update the filename
             file_path = f"{RECORDING_DIRECTORY}recording_{time.time_ns()}.wav"
             next_chunk_time = time.time_ns() + CHUNK_TIME_NS
 
-            # TODO: Look into modifying logic to avoid reopening the input stream / minimize data loss
+            # Look into modifying logic to avoid reopening the input stream / minimize data loss
             with sf.SoundFile(
                 file_path, mode="x", samplerate=sample_rate, channels=channels
             ) as file:
@@ -126,21 +126,21 @@ def audio_data_recorder():
                         and get_running_state()
                         and (time.time_ns() < next_chunk_time)
                     ):
-                        # DONE: restart the recording after a set amount of time passes to help avoid corruption
+                        # restart the recording after a set amount of time passes to help avoid corruption
                         file.write(audio_block_queue.get())
         else:
             time.sleep(SLEEP_TIME)
 
-    # DONE: stop and resume recording based on global recording flag
+    # stop and resume recording based on global recording flag
     print("audio_data_recorder(): Shutting down")
 
 
 # check recording flag
 def recording_flag_checker():
     global recording
-    # DONE: poll hub to check if recording should be happening
-    # DONE: use a request timeout to pause recording if hub is down
-    # DONE (implemented mutex to be safe): determine if lock is necessary for running and recording
+    # poll hub to check if recording should be happening
+    # use a request timeout to pause recording if hub is down
+    # (implemented mutex to be safe): determine if lock is necessary for running and recording
     while get_running_state():
         try:  # try to request the hub api
             response = requests.get(HUB_API_URL, timeout=TIMEOUT_TIME_SECONDS)
@@ -159,30 +159,52 @@ def recording_flag_checker():
 
 # diagnostics api (main)
 def diagnostics_api_server():
-    # DONE: host flask app making diagnostics data accessible at route
+    # host flask app making diagnostics data accessible at route
     # consume items from the queue
     @app.route("/")
     def diagnostics_api():
-        # DONE: fill dictionary with diagnostics data from queue until queue is empty
-        # DONE: once the dictionary is ready, call json.dumps() and return it
+        # fill dictionary with diagnostics data from queue until queue is empty
+        # once the dictionary is ready, call json.dumps() and return it
+
+        # TODO: Update json response format
+        # response_dict = {
+        #     "timestamps": [],
+        #     "sensors": [[] for _ in range(NUM_CHANNELS)],
+        # }  # temporarily stores response while it is being built
+
+        # TESTING ONLY
+        print(NUM_CHANNELS)
+
+        # new response format
         response_dict = {
-            "timestamps": [],
-            "sensors": [[] for _ in range(NUM_CHANNELS)],
-        }  # temporarily stores response while it is being built
+            "subsytemType": "MIC",
+            "dataPolls": {
+                "timestamps": [],
+                "channel0": [],
+                "channel1": [],
+                "channel2": [],
+                "channel3": [],
+                "channel4": [],
+                "channel5": [],
+            },
+            "timeSent": 0,
+        }
 
         # while the queue isnt empty,
         # get frames from it and add them to the response json
         while not diagnostic_frame_queue.empty():
             diagnostic_frame = diagnostic_frame_queue.get()
-            response_dict["timestamps"].append(diagnostic_frame["timestamp"])
+            response_dict["dataPolls"]["timestamps"].append(diagnostic_frame["timestamp"])
 
             # populate the sensors part of things
             for channel_index in range(NUM_CHANNELS):
-                response_dict["sensors"][channel_index].append(
+                response_dict["dataPolls"][f"channel{channel_index}"].append(
                     float(diagnostic_frame["sensors"][channel_index])
                 )
 
         # once the queue is emptied,
+        # add the time that it is getting sent,
+        response_dict["timeSent"] = int(time.time_ns() // 1e6)
         # turn it into json string and send it off
         return json.dumps(response_dict)
 
@@ -229,7 +251,7 @@ def set_running_state(running_state: bool):
 
 
 if __name__ == "__main__":
-    # DONE: make sure that the recording directory is set up
+    # make sure that the recording directory is set up
     subprocess.call(["mkdir", "-p", RECORDING_DIRECTORY])
 
     recording_flag_checker_thread = threading.Thread(target=recording_flag_checker)
