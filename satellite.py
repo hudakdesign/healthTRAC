@@ -180,15 +180,13 @@ def diagnostics_api_server():
             "subsytemType": "MIC",
             "dataPolls": {
                 "timestamps": [],
-                "channel0": [],
-                "channel1": [],
-                "channel2": [],
-                "channel3": [],
-                "channel4": [],
-                "channel5": [],
             },
             "timeSent": 0,
         }
+        
+        # add an array for each channel
+        for channel_index in range(NUM_CHANNELS):
+            response_dict["dataPolls"][f"channel{channel_index}"] = []
 
         # while the queue isnt empty,
         # get frames from it and add them to the response json
