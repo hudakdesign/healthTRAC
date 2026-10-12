@@ -3,6 +3,7 @@
 import csv
 import glob
 import struct
+import time
 
 import serial
 
@@ -11,9 +12,9 @@ class ForceGauge:
     """Class for encapsulating the force gauge"""
 
     def __init__(self, device_port):
-        device = serial.Serial(device_port)
+        self.device = serial.Serial(device_port)
 
-    def _get_reading_from_rx_bytes(rx_bytes: bytes) -> float:
+    def _get_reading_from_rx_bytes(self, rx_bytes: bytes) -> float:
         """Takes the force reading out of the received bytes"""
 
         READING_BYTES_START = 3  # idx 3 in response
@@ -24,9 +25,9 @@ class ForceGauge:
         reading_bytes = rx_bytes[READING_BYTES_START:READING_BYTES_END]
 
         # decode the bytes into a float
-        return struct.unpack(">f", reading_bytes)
+        return struct.unpack(">f", reading_bytes)[0]
 
-    def _get_unit_from_rx_bytes(rx_bytes: bytes) -> str:
+    def _get_unit_from_rx_bytes(self, rx_bytes: bytes) -> str:
         """Takes the force unit out of the received bytes"""
 
         # bytes associated with each unit
@@ -61,6 +62,7 @@ class ForceGauge:
 
         # ask the device for a reading
         self.device.write(POLL_MESSAGE)
+        time.sleep(0.05)
 
         # read the reading that it sent back
         rx_bytes = self.device.read_all()
@@ -73,7 +75,7 @@ class ForceGauge:
 
 
 if __name__ == "__main__":
-    available_devices = glob.glob("/dev/ttyACM*")
+    available_devices = glob.glob("/dev/ttyUSB*")
 
     # ask which port the force gauge is using
     print("Available Devices:")
@@ -81,5 +83,6 @@ if __name__ == "__main__":
         print(f"[{i}]: {available_device}")
 
     print("Selecting device [0]")
+    force_gauge = ForceGauge(available_devices[0])
 
-    gauge = ForceGauge(available_devices[0])
+    print(force_gauge.get_reading())
