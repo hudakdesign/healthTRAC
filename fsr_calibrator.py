@@ -26,7 +26,8 @@ class ForceGauge:
         reading_bytes = rx_bytes[READING_BYTES_START:READING_BYTES_END]
 
         # decode the bytes into a float
-        return struct.unpack(">f", reading_bytes)[0]
+        # * -1 because pushing down is read as negative
+        return struct.unpack(">f", reading_bytes)[0] * -1
 
     def _get_unit_from_rx_bytes(self, rx_bytes: bytes) -> str:
         """Takes the force unit out of the received bytes"""
@@ -84,16 +85,22 @@ class ForceSensitiveResistor:
     def get_readings(self) -> list[int]:
         """Gets and returns a list of readings from the FSR over serial"""
 
+        # first throw out all of the past bytes to avoid issues
+        # then wait throw out up to the next newline to avoid corruption
+        self.device.read_all()
+        self.device.readline()
+        
+        # then reads the next incoming line
         rx_reading_json = self.device.readline()
         reading = json.loads(rx_reading_json)
         return reading["data"]
 
 
 if __name__ == "__main__":
+    # Setup
     available_devices = glob.glob("/dev/ttyUSB*")
     if len(available_devices) == 0:
-        print("Please Connect Force Gauge")
-        exit()
+        raise Exception("Please Connect Force Gauge")
 
     # ask which port the force gauge is using
     print("Available Devices:")
@@ -106,8 +113,7 @@ if __name__ == "__main__":
 
     available_devices = glob.glob("/dev/ttyACM*")
     if len(available_devices) == 0:
-        print("Please Connect FSR")
-        exit()
+        raise Exception("Please Connect FSR")
     
     print("Available Devices:")
     for i, available_device in enumerate(available_devices):
@@ -116,3 +122,33 @@ if __name__ == "__main__":
     print("Selecting device [0]")
     fsr = ForceSensitiveResistor(available_devices[0])
     print(fsr.get_readings())
+
+    # Calibration
+    # TODO: allow doing per-fsr calibration
+    # for now only uses fsr0
+    print("Prepare to calibrate in 5 seconds!")
+    time.sleep(5)
+    print("Calibration Started")
+    num_calibration_polls = 1000
+    sleep_time = 60 / num_calibration_polls
+    
+    with open("calibration_data.csv", "w") as f:
+        data_writer = csv.writer(f)
+        data_writer.writerow(["adc", "newtons"])
+        for _ in range(num_calibration_polls):
+            # get force gauge reading and check that units are right
+            force_gauge_reading = force_gauge.get_reading()
+            if force_gauge_reading[1] != "N":
+                raise Exception("Please set gauge to `N`")
+            newtons = force_gauge_reading[0]
+
+            # get the adc reading from the fsr
+            # select fsr0
+            adc = fsr.get_readings()[0]
+            print(adc)
+
+            # log the readings to csv
+            data_writer.writerow([adc, newtons])
+
+            # wait for a moment
+            time.sleep(sleep_time)
