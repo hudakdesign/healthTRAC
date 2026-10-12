@@ -129,8 +129,8 @@ if __name__ == "__main__":
     print("Prepare to calibrate in 5 seconds!")
     time.sleep(5)
     print("Calibration Started")
-    num_calibration_polls = 1000
-    sleep_time = 60 / num_calibration_polls
+    num_calibration_polls = 100 
+    sleep_time = 10 / num_calibration_polls
     
     with open("calibration_data.csv", "w") as f:
         data_writer = csv.writer(f)
