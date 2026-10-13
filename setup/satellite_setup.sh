@@ -40,4 +40,11 @@ pip install flask soundfile sounddevice requests
 # echo "Configuring static IP"
 # sudo nmcli con mod $NETWORK_NAME ipv4.method manual ipv4.addr "$STATIC_IP_ADDRESS"
 
+echo "Setting up systemd service"
+sudo cp /home/healthtrac/healthTRAC/setup/healthtrac_satellite.service /lib/systemd/system/healthtrac_satellite.service
+sudo chmod 644 /lib/systemd/system/healthtrac_satellite.service
+sudo systemctl daemon-reload
+sudo systemctl enable healthtrac_satellite.service
+sudo systemctl start healthtrac_satellite.service
+
 echo "DONE!"

@@ -11,7 +11,7 @@ sudo apt upgrade -y
 
 echo "Installing required APT packages"
 sudo apt install -y btop git neovim tmux
-sudo apt install -y liblgpio-dev python3-dev swig
+sudo apt install -y chrony liblgpio-dev python3-dev swig
 
 echo "Cloning project repository"
 git clone "https://github.com/hudakdesign/healthTRAC"
