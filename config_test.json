@@ -1,0 +1,40 @@
+{
+  "systemId": "hub-alpha",
+  "notes": "In the CBI",
+  "softwareControlledRecording": true,
+  "recordingReactivateTime": {
+    "hour": 2,
+    "minute": 0
+  },
+  "recordingButtonPin": 17,
+  "recordingIndicatorPin": 27,
+  "subsystems": {
+    "fsr-alpha": {
+      "type": "fsr",
+      "numSensors": 8,
+      "notes": "Left arm rest",
+      "address": "10.42.0.100"
+    },
+    "fsr-beta": {
+      "type": "fsr",
+      "numSensors": 8,
+      "notes": "Right arm rest",
+      "address": "10.42.0.101"
+    },
+    "imu-alpha": {
+      "type": "imu",
+      "notes": "",
+      "address": "10.42.0.102"
+    },
+    "mic-alpha": {
+      "type": "mic",
+      "notes": "Kitchen table",
+      "address": "10.42.0.103"
+    },
+    "mic-beta": {
+      "type": "mic",
+      "notes": "TV Room",
+      "address": "10.42.0.104"
+    }
+  }
+}

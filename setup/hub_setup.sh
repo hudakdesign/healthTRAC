@@ -27,4 +27,11 @@ source .venv/bin/activate
 echo "Installing required PIP packages"
 pip install -r requirements.txt
 
+echo "Setting up systemd service"
+sudo cp /home/healthtrac/healthTRAC/setup/healthtrac_hub.service /lib/systemd/system/healthtrac_hub.service
+sudo chmod 644 /lib/systemd/system/healthtrac_hub.service
+sudo systemctl daemon-reload
+sudo systemctl enable healthtrac_hub.service
+sudo systemctl start healthtrac_hub.service
+
 echo "DONE!"
