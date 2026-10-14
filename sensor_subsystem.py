@@ -35,8 +35,12 @@ class SensorSubsystem:
             polls.
         updater_thread: A thread which is used for continuously updating the
             data at a given frequency.
+        is_updating: A boolean value for if the subsystem is currently updating
+            values.
         is_connected: A boolean value for if the subsystem is connected.
             this is set if the request succeeds or not.
+        last_receive_time = The last time in ms that a response was received
+            from the subsystem
     """
 
     def __init__(self, database_name, subsystem_url, notes) -> None:

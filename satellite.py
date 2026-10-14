@@ -1,5 +1,3 @@
-# TODO: Integrate with the rest of the system
-
 # Imports
 import json
 import threading
@@ -165,15 +163,6 @@ def diagnostics_api_server():
     def diagnostics_api():
         # fill dictionary with diagnostics data from queue until queue is empty
         # once the dictionary is ready, call json.dumps() and return it
-
-        # TODO: Update json response format
-        # response_dict = {
-        #     "timestamps": [],
-        #     "sensors": [[] for _ in range(NUM_CHANNELS)],
-        # }  # temporarily stores response while it is being built
-
-        # TESTING ONLY
-        print(NUM_CHANNELS)
 
         # new response format
         response_dict = {
