@@ -2,231 +2,56 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <title>HealthTRAC Dashboard</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!--Chart generation library-->
+  <meta charset="UTF-8">
+  <title>HealthTRAC Dashboard</title>
+  <!-- <link rel="stylesheet" href="{{ url_for('static', filename'css/style.css') }}"> -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 <body>
-    <div class="header">
-        <h1>HealthTRAC Hub</h1>
-    </div>
+  <h1>New HealthTRAC Dashboard Placeholder</h1>
 
-    <!-- IMU Diagnostic Graph -->
-    <div class="container">
-        <div class="card">
-            <h2>IMU Activity</h2>
-            <canvas id="imuDiagnostics" class="diagnostic-chart"></canvas>
-        </div>
-    </div>
+  <div class="card">
+    <h2>fsr-alpha</h2>
+    <canvas id="fsrDiagnostics" class="diagnostic-chart"></canvas>
+  </div>
 
-    <!-- FSR Diagnostic Graph -->
-    <div class="container">
-        <div class="card">
-            <h2>FSR Activity</h2>
-            <canvas id="fsrDiagnostics" class="diagnostic-chart"></canvas>
-        </div>
-    </div>
+  <div class="card">
+    <h2>fsr-alpha</h2>
+    <canvas id="fsrDiagnostics" class="diagnostic-chart"></canvas>
+  </div>
 
-    <!-- Audio Diagnostic Graph -->
-    <div class="container">
-        <div class="card">
-            <h2>Audio Activity</h2>
-            <canvas id="audioDiagnostics" class="diagnostic-chart"></canvas>
-        </div>
-    </div>
-
-    <!-- JS for graph generation and refresh -->
-    <script>
-
-        // sample imu graph
-        let imuGraphFormat = {
-            type: "line",
-            data: {
-                labels: [0, 1, 2, 3, 4],
-                datasets: [
-                    {
-                        fill: false, lineTension: 0, backgroundColor: "rgba(0,0,255,1.0)", borderColor: "rgba(0,0,255,0.1)", data: [
-                        { x: 0, y: 0 },
-                        { x: 1, y: 1 },
-                        { x: 2, y: 2 },
-                        { x: 3, y: 3 },
-                        { x: 4, y: 4 }]
-                    },
-                    {
-                        fill: false, lineTension: 0, backgroundColor: "rgba(255,0,0,1.0)", borderColor: "rgba(255,0,0,0.1)", data: [
-                        { x: 0, y: 4 },
-                        { x: 1, y: 3 },
-                        { x: 2, y: 2 },
-                        { x: 3, y: 1 },
-                        { x: 4, y: 0 }]
-                    },
-                    {
-                        fill: false, lineTension: 0, backgroundColor: "rgba(0,255,0,1.0)", borderColor: "rgba(0,255,0,0.1)", data: [
-                        { x: 0, y: 0 },
-                        { x: 1, y: 2 },
-                        { x: 2, y: 4 },
-                        { x: 3, y: 2 },
-                        { x: 4, y: 0 }]
-                    },
-                ]
-            },
-            options: {
-                plugins: {
-                    legend: { display: false },
-                    title: { display: false }
-                }
-            }
-        };
-
-        // sample fsr graph
-        let fsrGraphFormat = {
-            type: "line",
-            data: {
-                labels: [0, 1, 2, 3, 4],
-                datasets: [
-                    {
-                        fill: false, lineTension: 0, borderColor: "red", data: [
-                        { x: 0, y: 0 },
-                        { x: 1, y: 1 },
-                        { x: 2, y: 2 },
-                        { x: 3, y: 3 },
-                        { x: 4, y: 4 }]
-                    },
-                    {
-                        fill: false, lineTension: 0, borderColor: "orange", data: [
-                        { x: 4, y: 4 },
-                        { x: 3, y: 3 },
-                        { x: 2, y: 2 },
-                        { x: 1, y: 1 },
-                        { x: 0, y: 0 }]
-                    },
-                    {
-                        fill: false, lineTension: 0, borderColor: "yellow", data: [
-                        { x: 0, y: 0 },
-                        { x: 1, y: 2 },
-                        { x: 2, y: 4 },
-                        { x: 3, y: 2 },
-                        { x: 4, y: 0 }]
-                    },
-                    {
-                        fill: false, lineTension: 0, borderColor: "green", data: [
-                        { x: 0, y: 4 },
-                        { x: 1, y: 3 },
-                        { x: 2, y: 2 },
-                        { x: 3, y: 1 },
-                        { x: 4, y: 0 }]
-                    },
-                    {
-                        fill: false, lineTension: 0, borderColor: "blue", data: [
-                        { x: 0, y: 0 },
-                        { x: 1, y: 1 },
-                        { x: 2, y: 2 },
-                        { x: 3, y: 3 },
-                        { x: 4, y: 4 }]
-                    },
-                    {
-                        fill: false, lineTension: 0, borderColor: "purple", data: [
-                        { x: 4, y: 4 },
-                        { x: 3, y: 3 },
-                        { x: 2, y: 2 },
-                        { x: 1, y: 1 },
-                        { x: 0, y: 0 }]
-                    },
-                    {
-                        fill: false, lineTension: 0, borderColor: "pink)", data: [
-                        { x: 0, y: 0 },
-                        { x: 1, y: 2 },
-                        { x: 2, y: 4 },
-                        { x: 3, y: 2 },
-                        { x: 4, y: 0 }]
-                    },
-                    {
-                        fill: false, lineTension: 0, borderColor: "magenta", data: [
-                        { x: 0, y: 4 },
-                        { x: 1, y: 3 },
-                        { x: 2, y: 2 },
-                        { x: 3, y: 1 },
-                        { x: 4, y: 0 }]
-                    },
-                ]
-            },
-            options: {
-                plugins: {
-                    legend: { display: false },
-                    title: { display: false }
-                }
-            }
-        };
-
-        // sample audio graph
-        let audioGraphFormat = {
-            type: "line",
-            data: {
-                labels: [0, 1, 2, 3, 4],
-                datasets: [
-                    {
-                        fill: false, lineTension: 0, borderColor: "red", data: [
-                        { x: 0, y: 0 },
-                        { x: 1, y: 1 },
-                        { x: 2, y: 2 },
-                        { x: 3, y: 3 },
-                        { x: 4, y: 4 }]
-                    }
-                ]
-            },
-            options: {
-                plugins: {
-                    legend: { display: false },
-                    title: { display: false }
-                }
-            }
-        };
-
-        const updateInterval = 1000;
-
-        // Populates imu canvas
-        const imuElement = document.getElementById("imuDiagnostics");
-        let imuDiagnostics = new Chart(imuElement, imuGraphFormat);
-
-        // Populates fsr canvas
-        const fsrElement = document.getElementById("fsrDiagnostics");
-        let fsrDiagnostics = new Chart(fsrElement, fsrGraphFormat);
-
-        // Populated audio canvas
-        const audioElement = document.getElementById("audioDiagnostics");
-        let audioDiagnostics = new Chart(audioElement, audioGraphFormat);
-
-
-        // Routes for accessing the api
-        const apiAddress = "http://127.0.0.1:8080/";
-
-        const imuApiAddress = apiAddress + "imu_data";
-        const fsrApiAddress = apiAddress + "fsr_data";
-        const audioApiAddress = apiAddress + "audio_data";
-
-        // updates the provided graph using data from provided url
-        async function updateGraph(targetGraph, url) {
-            let graphData = await fetch(url);
-            graphData = await graphData.json();
-
-            for (let i = 0; i < graphData.sensors.length; i++) {
-                targetGraph.data.datasets[i].data = graphData.sensors[i];
-            }
-            targetGraph.data.labels = graphData.timestamps;
-
-            // non argument disables animation
-            targetGraph.update('none');
+  <script>
+    let hubConfig = {
+      "subsytems": {
+        "fsr-alpha": {
+          "type": "FSR",
+          "data": {
+            "timestamps": [0, 1, 2],
+            "fsr0": [0, 100, 200],
+            "fsr1": [200, 100, 0],
+            "fsr2": [50, 150, 50]
+          },
+          "timeSinceSeen": 0
+        },
+        "imu-alpha": {
+          "type": "IMU",
+          "data": {
+            "timestamps": [0, 1, 2],
+            "accelX": [0, 200, 400],
+            "accelY": [100, 200, 300],
+            "accelZ": [200, 300, 200]
+          },
+          "peripheral": {
+            "batteryPercent": 95,
+            "isCharging": false,
+            "timeSinceSeen": 0
+          },
+          "timeSinceSeen": 0
         }
-
-        // updates the graphs every interval ms
-        setInterval(function () {
-            updateGraph(imuDiagnostics, imuApiAddress);
-            updateGraph(fsrDiagnostics, fsrApiAddress);
-            updateGraph(audioDiagnostics, audioApiAddress);
-        }, updateInterval);
-    </script>
+      }
+    }
+  </script>
 </body>
 
 </html>

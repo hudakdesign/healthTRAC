@@ -7,7 +7,7 @@ Type=idle
 
 User=healthtrac
 WorkingDirectory=/home/healthtrac/healthTRAC/
-ExecStart=/home/healthtrac/healthTRAC/.venv/bin/python3 /home/healthtrac/healthTRAC/new_dashboard.py
+ExecStart=/home/healthtrac/healthTRAC/.venv/bin/python3 /home/healthtrac/healthTRAC/hub.py
 
 Restart=always
 RestartSec=10

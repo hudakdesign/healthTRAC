@@ -7,7 +7,7 @@ import pandas as pd
 
 
 def test_update_aggregate_drops_right_amount():
-    subsystem = sensor_subsystem.Sensor_Subsystem("test_db", "test_url", "test_notes")
+    subsystem = sensor_subsystem.SensorSubsystem("test_db", "test_url", "test_notes")
 
     initial_last_index = 100 * 24
     next_last_index = 200 * 24
@@ -36,7 +36,7 @@ def test_update_aggregate_drops_right_amount():
 
 
 def test_imu_get_peripheral_data():
-    subsystem = sensor_subsystem.Inertial_Measurement_Unit(
+    subsystem = sensor_subsystem.InertialMeasurementUnit(
         "test.db", "test_url", "test_notes"
     )
 

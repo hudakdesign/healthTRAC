@@ -18,7 +18,7 @@ ONLINE_THRESHOLD_MS = 2000  # num of ms until a subsystem is considered offline
 
 
 # Classes:
-class Sensor_Subsystem:
+class SensorSubsystem:
     """Generic parent class for retrieving data from sensor subsystems
 
     Attributes:
@@ -253,7 +253,7 @@ class Sensor_Subsystem:
         self.is_updating = False
 
 
-class Microphone_Array(Sensor_Subsystem):
+class MicrophoneArray(SensorSubsystem):
     """Handles retrieving data from microphone array subsystems
 
     Attributes:
@@ -280,7 +280,7 @@ class Microphone_Array(Sensor_Subsystem):
         return False
 
 
-class Force_Sensitive_Resistor(Sensor_Subsystem):
+class ForceSensitiveResistor(SensorSubsystem):
     """Handles retrieving data from force sensitive resistor subsystems
 
     Attributes:
@@ -300,7 +300,7 @@ class Force_Sensitive_Resistor(Sensor_Subsystem):
         return "fsr"
 
 
-class Inertial_Measurement_Unit(Sensor_Subsystem):
+class InertialMeasurementUnit(SensorSubsystem):
     """Handles retrieving data from microphone array subsystems
 
     Attributes:

@@ -74,7 +74,7 @@ def recording_reactivator(reactivation_time: dt.time):
 def index():
     """Route for getting the webpage for the dashboard"""
 
-    return render_template("new_dashboard.html")
+    return render_template("dashboard.html")
 
 
 @app.route("/data")
@@ -167,15 +167,15 @@ if __name__ == "__main__":
         # use the correct object for each type
         match subsystem_type:
             case "fsr":
-                subsystems[subsystem_name] = sensor_subsystem.Force_Sensitive_Resistor(
+                subsystems[subsystem_name] = sensor_subsystem.ForceSensitiveResistor(
                     subsystem_name, subsystem_address, subsystem_notes
                 )
             case "imu":
-                subsystems[subsystem_name] = sensor_subsystem.Inertial_Measurement_Unit(
+                subsystems[subsystem_name] = sensor_subsystem.InertialMeasurementUnit(
                     subsystem_name, subsystem_address, subsystem_notes
                 )
             case "mic":
-                subsystems[subsystem_name] = sensor_subsystem.Microphone_Array(
+                subsystems[subsystem_name] = sensor_subsystem.MicrophoneArray(
                     subsystem_name, subsystem_address, subsystem_notes
                 )
             case _:
