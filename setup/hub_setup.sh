@@ -38,6 +38,10 @@ sudo systemctl enable healthtrac_hub.service
 sudo systemctl start healthtrac_hub.service
 
 echo "Setting up hotspot"
-sudo nmcli device wifi hotspot ifname wlan1 con-name HealthTRAC-Hub ssid HealthTRAC-Hub password $HOTSPOT_PASSWORD
+INTERFACE_NAME="wlan1"
+SSID="HealthTRAC-Hub"
+CON_NAME=$SSID
+sudo nmcli device wifi hotspot ifname $INTERFACE_NAME con-name $CON_NAME ssid $SSID password $HOTSPOT_PASSWORD
+sudo nmcli con mod $CON_NAME autoconnect yes
 
 echo "DONE!"
