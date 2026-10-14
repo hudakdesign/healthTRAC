@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Constants
+HOTSPOT_PASSWORD="REPLACE_ME"
+
 # set the directory
 cd ~/
 
@@ -33,5 +36,8 @@ sudo chmod 644 /lib/systemd/system/healthtrac_hub.service
 sudo systemctl daemon-reload
 sudo systemctl enable healthtrac_hub.service
 sudo systemctl start healthtrac_hub.service
+
+echo "Setting up hotspot"
+sudo nmcli device wifi hotspot ifname wlan1 con-name HealthTRAC-Hub ssid HealthTRAC-Hub password $HOTSPOT_PASSWORD
 
 echo "DONE!"
