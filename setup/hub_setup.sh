@@ -34,21 +34,22 @@ source .venv/bin/activate
 echo "Installing required PIP packages"
 pip install -r requirements.txt
 
-echo "Setting up hotspot"
-INTERFACE_NAME="wlan0"
-SSID="HealthTRAC-Hub"
-CON_NAME=$SSID
-sudo nmcli device wifi hotspot ifname $INTERFACE_NAME con-name $CON_NAME ssid $SSID password $HOTSPOT_PASSWORD
-sudo nmcli con mod $CON_NAME 802-11-wireless-security.proto wpa
-sudo nmcli con mod $CON_NAME autoconnect yes
-sudo nmcli con down $CON_NAME
-sudo nmcli con up $CON_NAME
-
 echo "Setting up systemd service"
 sudo cp /home/healthtrac/healthTRAC/setup/healthtrac_hub.service /lib/systemd/system/healthtrac_hub.service
 sudo chmod 644 /lib/systemd/system/healthtrac_hub.service
 sudo systemctl daemon-reload
 sudo systemctl enable healthtrac_hub.service
 sudo systemctl start healthtrac_hub.service
+
+echo "Setting up hotspot"
+INTERFACE_NAME="wlan0"
+SSID="HealthTRAC-Hub"
+CON_NAME=$SSID
+sudo nmcli device wifi hotspot ifname $INTERFACE_NAME con-name $CON_NAME ssid $SSID password $HOTSPOT_PASSWORD
+sudo nmcli con mod $CON_NAME 802-11-wireless-security.proto wpa
+sudo nmcli con mod $CON_NAME 802-11-wireless-security.pmf disable
+sudo nmcli con mod $CON_NAME autoconnect yes
+sudo nmcli con down $CON_NAME
+sudo nmcli con up $CON_NAME
 
 echo "DONE!"
