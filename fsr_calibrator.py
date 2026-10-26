@@ -3,10 +3,18 @@
 import csv
 import glob
 import json
+import os
 import struct
+import subprocess
 import time
 
+
 import serial
+
+# Constants
+NUM_SEPARATOR_DASHES = 40
+NUM_FSR_CHANNELS = 8
+CALIBRATION_TIME = 30
 
 
 class ForceGauge:
@@ -105,9 +113,14 @@ class ForceSensitiveResistor:
 
 
 if __name__ == "__main__":
-    num_dashes = 40
-
     print("FSR Calibration Utility")
+
+    # set working directory to where the script currently is
+    file_directory = os.path.dirname(__file__)
+    os.chdir(file_directory)
+
+    # create the needed directory for calibration data
+    subprocess.call(["mkdir", "-p", "data/calibration/"])
 
     # set up the first matching device as a force gauge
     device_port = glob.glob("/dev/ttyUSB*")[0]
@@ -119,23 +132,33 @@ if __name__ == "__main__":
 
     # print out readings from each device to validate they are connected
     gauge_reading, gauge_units, gauge_response_time_ms = gauge.get_reading()
-    print("-" * num_dashes)
+    print("-" * NUM_SEPARATOR_DASHES)
     print("Force Gauge")
     print(f"Reading      : {gauge_reading} {gauge_units}")
     print(f"Response time: {gauge_response_time_ms:.3f} ms")
-    print("-" * num_dashes)
+    print("-" * NUM_SEPARATOR_DASHES)
 
     fsr_readings, fsr_response_time_ms = fsr.get_readings()
-    print("-" * num_dashes)
+    print("-" * NUM_SEPARATOR_DASHES)
     print("Force Sensitive Resistors")
     print(f"Readings     : {fsr_readings}")
     print(f"Response time: {fsr_response_time_ms:.3f} ms")
-    print("-" * num_dashes)
+    print("-" * NUM_SEPARATOR_DASHES)
 
     # TODO: Prompt user for which fsr to calibrate and how long
     # for now just select fsr0
-    fsr_selection = 0
-    calibration_time = 10  # seconds
+    valid_selection = False
+    while not valid_selection:
+        fsr_selection = input("Enter the FSR to calibrate: ")
+        try:
+            fsr_selection = int(fsr_selection)
+        except ValueError:
+            continue
+
+        if fsr_selection in range(NUM_FSR_CHANNELS):
+            valid_selection = True
+        else:
+            print("Please enter the integer on the FSR to calibrate")
 
     input("Set gauge to newtons and press enter to start calibration:")
     if gauge.get_reading()[1] != "N":
@@ -146,7 +169,7 @@ if __name__ == "__main__":
     time.sleep(5)
 
     # write force gauge and fsr readings to csv to allow calculation of curve
-    with open(f"calibration_data_{time.time_ns()}.csv", "w") as f:
+    with open(f"data/calibration/fsr{fsr_selection}_{time.time_ns()}.csv", "w") as f:
         # take the start time so we can limit how long calibration runs
         start_time = time.time()
 
@@ -154,75 +177,22 @@ if __name__ == "__main__":
         writer = csv.writer(f)
         writer.writerow(["adc", "newtons"])
 
-        while time.time() - start_time < calibration_time:
+        while time.time() - start_time < CALIBRATION_TIME:
             # get the force gauge reading and fsr value
-            newtons = gauge.get_reading()[0]
+            gauge_reading = gauge.get_reading()
+            # raise an exception if the user changes the units while measuring
+            if gauge_reading[1] != "N":
+                raise Exception("Gauge not set to `N`")
+            newtons = gauge_reading[0]
             adc = fsr.get_readings()[0][fsr_selection]
 
             # print them out
-            print("-" * num_dashes)
+            print("-" * NUM_SEPARATOR_DASHES)
             print("Sensor Readings")
             print(f"Gauge: {newtons:.3f}")
             print(f"FSR  : {adc}")
-            
 
             # write it to the csv file
             writer.writerow([adc, newtons])
 
     print("Calibration complete!")
-
-    # # Setup
-    # available_devices = glob.glob("/dev/ttyUSB*")
-    # if len(available_devices) == 0:
-    #     raise Exception("Please Connect Force Gauge")
-
-    # # ask which port the force gauge is using
-    # print("Available Devices:")
-    # for i, available_device in enumerate(available_devices):
-    #     print(f"[{i}]: {available_device}")
-
-    # print("Selecting device [0]")
-    # force_gauge = ForceGauge(available_devices[0])
-    # print(force_gauge.get_reading())
-
-    # available_devices = glob.glob("/dev/ttyACM*")
-    # if len(available_devices) == 0:
-    #     raise Exception("Please Connect FSR")
-
-    # print("Available Devices:")
-    # for i, available_device in enumerate(available_devices):
-    #     print(f"[{i}]: {available_device}")
-
-    # print("Selecting device [0]")
-    # fsr = ForceSensitiveResistor(available_devices[0])
-    # print(fsr.get_readings())
-
-    # # Calibration
-    # # TODO: allow doing per-fsr calibration
-    # # for now only uses fsr0
-    # print("Prepare to calibrate in 5 seconds!")
-    # time.sleep(5)
-    # print("Calibration Started")
-    # num_calibration_polls = 100
-    # sleep_time = 10 / num_calibration_polls
-
-    # with open("calibration_data.csv", "w") as f:
-    #     data_writer = csv.writer(f)
-    #     data_writer.writerow(["adc", "newtons"])
-    #     for _ in range(num_calibration_polls):
-    #         # get force gauge reading and check that units are right
-    #         force_gauge_reading = force_gauge.get_reading()
-    #         if force_gauge_reading[1] != "N":
-    #             raise Exception("Please set gauge to `N`")
-    #         newtons = force_gauge_reading[0]
-
-    #         # get the adc reading from the fsr
-    #         # select fsr0
-    #         adc = fsr.get_readings()[0]
-    #         print(adc)
-
-    #         # log the readings to csv
-    #         data_writer.writerow([adc, newtons])
-
-    #         # wait for a moment
-    #         time.sleep(sleep_time)
