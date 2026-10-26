@@ -14,7 +14,7 @@ import serial
 # Constants
 NUM_SEPARATOR_DASHES = 40
 NUM_FSR_CHANNELS = 8
-CALIBRATION_TIME = 30
+CALIBRATION_TIME = 10
 
 
 class ForceGauge:
@@ -153,14 +153,17 @@ if __name__ == "__main__":
         try:
             fsr_selection = int(fsr_selection)
         except ValueError:
+            print("Please enter an integer")
             continue
 
         if fsr_selection in range(NUM_FSR_CHANNELS):
             valid_selection = True
         else:
-            print("Please enter the integer on the FSR to calibrate")
+            print("Please enter the number on the FSR to calibrate")
 
-    input("Set gauge to newtons and press enter to start calibration:")
+    input(
+        "Make sure the gauge is set to newtons\nand press enter to start calibration:"
+    )
     if gauge.get_reading()[1] != "N":
         raise Exception("Gauge not set to `N`")
 
@@ -169,7 +172,8 @@ if __name__ == "__main__":
     time.sleep(5)
 
     # write force gauge and fsr readings to csv to allow calculation of curve
-    with open(f"data/calibration/fsr{fsr_selection}_{time.time_ns()}.csv", "w") as f:
+    calibration_file_path = f"data/calibration/fsr{fsr_selection}_{time.time_ns()}.csv"
+    with open(calibration_file_path, "w") as f:
         # take the start time so we can limit how long calibration runs
         start_time = time.time()
 
@@ -186,13 +190,18 @@ if __name__ == "__main__":
             newtons = gauge_reading[0]
             adc = fsr.get_readings()[0][fsr_selection]
 
+            # clear the terminal
+            subprocess.call(["clear"])
+
             # print them out
             print("-" * NUM_SEPARATOR_DASHES)
             print("Sensor Readings")
-            print(f"Gauge: {newtons:.3f}")
-            print(f"FSR  : {adc}")
+            print(f"Gauge   : {newtons:.3f}")
+            print(f"FSR     : {adc}")
+            print(f"Progress: {(time.time() - start_time):.0f}/{CALIBRATION_TIME}s")
+            print("-" * NUM_SEPARATOR_DASHES)
 
             # write it to the csv file
             writer.writerow([adc, newtons])
-
+    print(f"Calibration data written to `{calibration_file_path}`")
     print("Calibration complete!")
