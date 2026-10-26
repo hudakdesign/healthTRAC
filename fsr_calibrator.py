@@ -6,6 +6,7 @@ import json
 import os
 import struct
 import subprocess
+import sys
 import time
 
 
@@ -115,6 +116,15 @@ class ForceSensitiveResistor:
 if __name__ == "__main__":
     print("FSR Calibration Utility")
 
+    # check operating system
+    match sys.platform:
+        case "darwin":
+            pass
+        case "linux" | "linux2":
+            pass
+        case _:
+            raise Exception("Unsupported Operating System")
+
     # set working directory to where the script currently is
     file_directory = os.path.dirname(__file__)
     os.chdir(file_directory)
@@ -123,11 +133,17 @@ if __name__ == "__main__":
     subprocess.call(["mkdir", "-p", "data/calibration/"])
 
     # set up the first matching device as a force gauge
-    device_port = glob.glob("/dev/ttyUSB*")[0]
+    if sys.platform == "darwin":
+        device_port = glob.glob("/dev/tty.usbserial*")[0]
+    else:
+        device_port = glob.glob("/dev/ttyUSB*")[0]
     gauge = ForceGauge(device_port)
 
     # set up the first matching device as an fsr
-    device_port = glob.glob("/dev/ttyACM*")[0]
+    if sys.platform == "darwin":
+        device_port = glob.glob("/dev/tty.usbmodem*")[0]
+    else:
+        device_port = glob.glob("/dev/ttyACM*")[0]
     fsr = ForceSensitiveResistor(device_port)
 
     # print out readings from each device to validate they are connected
