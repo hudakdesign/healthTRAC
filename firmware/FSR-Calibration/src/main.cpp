@@ -90,7 +90,7 @@ void setup()
   Serial.begin(115200);
 
   // configure selection pins
-  for (int i; i < (sizeof(SELECTION_PINS) / sizeof(int)); i++)
+  for (int i = 0; i < (sizeof(SELECTION_PINS) / sizeof(int)); i++)
   {
     pinMode(SELECTION_PINS[i], OUTPUT);
   }
