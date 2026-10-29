@@ -21,11 +21,11 @@ static const int NUM_CHANNELS = 16;
 static const int NUM_FSRS = 8;
 static const int POLL_RATE_HZ = 100;                                               // 100 hz
 static const TickType_t POLL_FREQUENCY_TICKS = pdMS_TO_TICKS(1000 / POLL_RATE_HZ); // ticks between polls
-static const int POLL_SECONDS_STORED = 20;                                         // store up to 10 seconds of polls
+static const int POLL_SECONDS_STORED = 10;                                         // store up to 10 seconds of polls
 static const int POLL_QUEUE_LEN = POLL_RATE_HZ * POLL_SECONDS_STORED;              // stores 10 seconds of polls at 100 hz
 
 static const int PRODUCER_THREAD_STACK_SIZE = 2048;
-static const int BUFFER_STREAM_SIZE = 1024;
+static const int BUFFER_STREAM_SIZE = 512;
 static const int MONITOR_SPEED = 115200;
 static const int START_DELAY = 2000;
 static const int BLINK_RATE = 250;
@@ -48,7 +48,7 @@ WiFiServer server(SERVER_PORT);
 // Struct declaration
 struct dataPoll
 {
-  long long timestamp;         // timestamp when polls were taken
+  long long timestamp;   // timestamp when polls were taken
   int sensorReadings[8]; // values from each fsr
 };
 
@@ -131,7 +131,7 @@ void setup()
   pinMode(LED_GREEN, OUTPUT);
 
   // configure selection pins
-  for (int i; i < (sizeof(SELECTION_PINS) / sizeof(int)); i++)
+  for (int i = 0; i < (sizeof(SELECTION_PINS) / sizeof(int)); i++)
   {
     pinMode(SELECTION_PINS[i], OUTPUT);
   }
@@ -201,12 +201,14 @@ void loop()
 
   // check if wifi is down
   // if it is then reconnect
-  if (WiFi.status() != WL_CONNECTED) {
+  if (WiFi.status() != WL_CONNECTED)
+  {
     Serial.print("WIFI DISCONNECTED: RECONNECTING");
     WiFi.disconnect();
     WiFi.reconnect();
     // wait until wifi is reconnected
-    while (WiFi.status() != WL_CONNECTED) {
+    while (WiFi.status() != WL_CONNECTED)
+    {
       vTaskDelay(500);
       Serial.print(".");
     }
@@ -215,7 +217,7 @@ void loop()
   }
 
   // wait for incoming connection
-  WiFiClient client = server.available();
+  WiFiClient client = server.accept();
 
   if (!client)
   {
@@ -256,7 +258,8 @@ void loop()
   JsonArray fsr7 = dataPolls["fsr7"].to<JsonArray>();
 
   // lastly add the timestamp for when this is being sent
-  doc["timeSent"] = getNtpTimestampMs();;
+  doc["timeSent"] = getNtpTimestampMs();
+  ;
 
   // // read in values from the queue
   // // append them to their corresponding json arrays
