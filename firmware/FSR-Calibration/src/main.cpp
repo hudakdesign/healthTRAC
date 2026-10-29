@@ -5,6 +5,7 @@
 // Constants
 static const int SELECTION_PINS[] = {8, 9, 10, 11};
 static const int MUX_OUTPUT_PIN = A0;
+static const int DEBUG_SWITCH = 3;
 static const int NUM_CHANNELS = 8;
 static const int RING_BUF_SIZE = 50;
 
@@ -97,6 +98,9 @@ void setup()
 
   // configure mux output pin (funnily set to input)
   pinMode(MUX_OUTPUT_PIN, INPUT);
+
+  // configure debug switch (labeled calibration)
+  pinMode(3, INPUT);
 }
 
 void loop()
@@ -110,6 +114,20 @@ void loop()
 
   // push it to the buffer
   fsrReadingsBuffer.pushOverwrite(currentFsrReadings);
+
+  // if the debug switch is on (reading low)
+  // then output debug data for teleplot
+  // and skip the rest of the loop
+  if (!digitalRead(DEBUG_SWITCH))
+  {
+    for (int i = 0; i < NUM_CHANNELS; i++)
+    {
+      Serial.print(">fsr");
+      Serial.print(i);
+      Serial.print(":");
+      Serial.println(currentFsrReadings.data[i]);
+    }
+  }
 
   // check if a poll has been requested
   if (Serial.available())

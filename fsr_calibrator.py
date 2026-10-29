@@ -15,7 +15,7 @@ import serial
 # Constants
 NUM_SEPARATOR_DASHES = 40
 NUM_FSR_CHANNELS = 8
-CALIBRATION_TIME = 10
+CALIBRATION_TIME = 30
 
 
 class ForceGauge:
