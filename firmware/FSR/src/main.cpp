@@ -25,7 +25,7 @@ static const int POLL_SECONDS_STORED = 10;                                      
 static const int POLL_QUEUE_LEN = POLL_RATE_HZ * POLL_SECONDS_STORED;              // stores 10 seconds of polls at 100 hz
 
 static const int PRODUCER_THREAD_STACK_SIZE = 2048;
-static const int BUFFER_STREAM_SIZE = 512;
+static const int BUFFER_STREAM_SIZE = 1024;
 static const int MONITOR_SPEED = 115200;
 static const int START_DELAY = 2000;
 static const int BLINK_RATE = 250;
