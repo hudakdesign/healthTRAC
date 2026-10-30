@@ -4,9 +4,6 @@
 #include <StreamUtils.h>
 #include "network_credentials.h"
 
-// Configure to use synthetic data or not
-#define USE_SYNTHETIC_DATA false
-
 // Configure cores:
 static const BaseType_t PRO_CPU = 0;
 static const BaseType_t APP_CPU = 1;
@@ -23,6 +20,7 @@ static const int POLL_RATE_HZ = 100;                                            
 static const TickType_t POLL_FREQUENCY_TICKS = pdMS_TO_TICKS(1000 / POLL_RATE_HZ); // ticks between polls
 static const int POLL_SECONDS_STORED = 10;                                         // store up to 10 seconds of polls
 static const int POLL_QUEUE_LEN = POLL_RATE_HZ * POLL_SECONDS_STORED;              // stores 10 seconds of polls at 100 hz
+static const int NUM_DENOISING_POLLS = 10;
 
 static const int PRODUCER_THREAD_STACK_SIZE = 2048;
 static const int BUFFER_STREAM_SIZE = 1024;
@@ -66,6 +64,7 @@ int getMuxOutput(int, int);
 int getKBit(int, int);
 long long getNtpTimestampMs();
 void setupTime();
+dataPoll getDenoisedDataPoll();
 
 // Tasks:
 // Task: every 10 ms, get data from each sensor
@@ -82,25 +81,8 @@ void collectSensorData(void *parameters)
   {
     collectionWasDelayed = xTaskDelayUntil(&collectionLastWakeTime, POLL_FREQUENCY_TICKS);
 
-    // get timestamp for when this poll is being taken
-    data.timestamp = getNtpTimestampMs();
-
-    // loop through each sensor checking their values
-    for (int i = 0; i < NUM_FSRS; i++)
-    {
-// get the value
-
-// store it in the data struct
-#if USE_SYNTHETIC_DATA
-      data.sensorReadings[i] = getSyntheticSensorValue(data.timestamp, i); // code for when no fsr attached
-#else
-      data.sensorReadings[i] = getMuxOutput(i, MUX_OUTPUT_PIN);
-#endif
-
-      // Serial.print(data.sensor_readings[i]);
-      // Serial.print(" ");
-    }
-    // Serial.println();
+    // collect a denoised data poll
+    data = getDenoisedDataPoll();
 
     // copy it to the queue because it is now ready
     if (xQueueSend(pollQueue, (void *)&data, 0) != pdTRUE)
@@ -301,12 +283,6 @@ void loop()
 }
 
 // Utility Functions:
-// Return synthetic data output
-int getSyntheticSensorValue(int timestamp, int idx)
-{
-  return (int)((sin((timestamp * (idx + 1) * 0.0001) + 1)) * 4096 / 2); // returns int value simulating fsr output
-}
-
 // sets selection pins to tell mux which channel to provide
 void setMuxChannel(int channel)
 {
@@ -378,4 +354,36 @@ void setupTime()
   {
     digitalWrite(LED_RED, HIGH);
   }
+}
+
+dataPoll getDenoisedDataPoll()
+{
+  dataPoll denoisedDataPoll;
+
+  // initialize the first set of values
+  for (int channel = 0; channel < NUM_FSRS; channel++)
+  {
+    denoisedDataPoll.sensorReadings[channel] = getMuxOutput(channel, MUX_OUTPUT_PIN);
+  }
+
+  // add additional values to allow for getting a very short interval average
+  for (int i = 1; i < NUM_DENOISING_POLLS; i++)
+  {
+    for (int channel = 0; channel < NUM_FSRS; channel++)
+    {
+      denoisedDataPoll.sensorReadings[channel] += getMuxOutput(channel, MUX_OUTPUT_PIN);
+    }
+  }
+
+  // divide by the amount of polls to get the average
+  for (int channel = 0; channel < NUM_FSRS; channel++)
+  {
+    denoisedDataPoll.sensorReadings[channel] = denoisedDataPoll.sensorReadings[channel] / NUM_DENOISING_POLLS;
+  }
+
+  // set timestamp
+  denoisedDataPoll.timestamp = getNtpTimestampMs();
+
+  // output the denoised datapoll
+  return denoisedDataPoll;
 }

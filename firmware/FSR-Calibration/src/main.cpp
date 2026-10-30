@@ -100,7 +100,19 @@ void setup()
   pinMode(MUX_OUTPUT_PIN, INPUT);
 
   // configure debug switch (labeled calibration)
-  pinMode(3, INPUT);
+  pinMode(DEBUG_SWITCH, INPUT);
+
+  while (!Serial) {
+    continue;
+  }
+  delay(500);
+
+  long smoothStartTime = micros();
+  for (int i = 0; i < 10; i++) {
+    getMuxOutput(0, MUX_OUTPUT_PIN);
+  }
+  Serial.print("Time to smooth: ");
+  Serial.println(micros() - smoothStartTime);
 }
 
 void loop()
