@@ -9,7 +9,6 @@ import subprocess
 import sys
 import time
 
-
 import serial
 
 # Constants
@@ -195,7 +194,10 @@ if __name__ == "__main__":
 
         # write the header for the csv file
         writer = csv.writer(f)
-        writer.writerow(["adc", "newtons"])
+        writer.writerow(["seconds", "adc", "newtons"])
+
+        # initialized and used to keep track of if the gauge has updated
+        prev_gauge_value = 0
 
         while time.time() - start_time < CALIBRATION_TIME:
             # get the force gauge reading and fsr value
@@ -206,6 +208,8 @@ if __name__ == "__main__":
             newtons = gauge_reading[0]
             adc = fsr.get_readings()[0][fsr_selection]
 
+            seconds = time.time() - start_time
+
             # clear the terminal
             subprocess.call(["clear"])
 
@@ -214,10 +218,15 @@ if __name__ == "__main__":
             print("Sensor Readings")
             print(f"Gauge   : {newtons:.3f}")
             print(f"FSR     : {adc}")
-            print(f"Progress: {(time.time() - start_time):.0f}/{CALIBRATION_TIME}s")
+            print(f"Progress: {seconds:.0f}/{CALIBRATION_TIME}s")
             print("-" * NUM_SEPARATOR_DASHES)
 
             # write it to the csv file
-            writer.writerow([adc, newtons])
+            # only if the gauge reading has updated
+            if gauge_reading[0] != prev_gauge_value:
+                writer.writerow([seconds, adc, newtons])
+
+            # set previous to the current value
+            prev_gauge_value = gauge_reading[0]
     print(f"Calibration data written to `{calibration_file_path}`")
     print("Calibration complete!")
