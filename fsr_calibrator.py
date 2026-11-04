@@ -1,3 +1,11 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.15"
+# dependencies = [
+#     "pyserial>=3.5",
+# ]
+# ///
+
 """Script for simultaneously collecting data from FSR and force gauge"""
 
 import csv
@@ -132,17 +140,25 @@ if __name__ == "__main__":
     subprocess.call(["mkdir", "-p", "data/calibration/"])
 
     # set up the first matching device as a force gauge
-    if sys.platform == "darwin":
-        device_port = glob.glob("/dev/tty.usbserial*")[0]
-    else:
-        device_port = glob.glob("/dev/ttyUSB*")[0]
+    try:
+        if sys.platform == "darwin":
+            device_port = glob.glob("/dev/tty.usbserial*")[0]
+        else:
+            device_port = glob.glob("/dev/ttyUSB*")[0]
+    except IndexError:
+        print("Force gauge not detected.")
+        sys.exit()
     gauge = ForceGauge(device_port)
 
     # set up the first matching device as an fsr
-    if sys.platform == "darwin":
-        device_port = glob.glob("/dev/tty.usbmodem*")[0]
-    else:
-        device_port = glob.glob("/dev/ttyACM*")[0]
+    try:
+        if sys.platform == "darwin":
+            device_port = glob.glob("/dev/tty.usbmodem*")[0]
+        else:
+            device_port = glob.glob("/dev/ttyACM*")[0]
+    except IndexError:
+        print("FSR not detected.")
+        sys.exit()
     fsr = ForceSensitiveResistor(device_port)
 
     # print out readings from each device to validate they are connected
