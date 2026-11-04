@@ -7,7 +7,7 @@ Type=idle
 
 User=healthtrac
 WorkingDirectory=/home/healthtrac/healthTRAC/
-ExecStart=/usr/bin/env -S uv run /home/healthtrac/healthTRAC/hub.py
+ExecStart=/home/healthtrac/.local/bin/uv run /home/healthtrac/healthTRAC/hub.py
 
 Restart=always
 RestartSec=10
