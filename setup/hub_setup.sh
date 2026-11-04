@@ -20,6 +20,9 @@ echo "Installing required APT packages"
 sudo apt install -y btop git neovim tmux
 sudo apt install -y chrony liblgpio-dev python3-dev swig
 
+echo "Installing uv"
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
 echo "Setting up NTP server"
 echo "allow 10.42.0" | sudo tee -a /etc/chrony/chrony.conf
 sudo systemctl restart chronyd.service
@@ -31,12 +34,12 @@ cd healthTRAC
 git fetch origin development
 git checkout development
 
-echo "Creating python environment"
-python -m venv .venv
-source .venv/bin/activate
+# echo "Creating python environment"
+# python -m venv .venv
+# source .venv/bin/activate
 
-echo "Installing required PIP packages"
-pip install -r requirements.txt
+# echo "Installing required PIP packages"
+# pip install -r requirements.txt
 
 echo "Setting up systemd service"
 sudo cp /home/healthtrac/healthTRAC/setup/healthtrac_hub.service /lib/systemd/system/healthtrac_hub.service

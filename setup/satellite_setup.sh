@@ -19,6 +19,9 @@ echo "Installing required APT packages"
 sudo apt install -y btop git neovim tmux
 sudo apt install -y portaudio19-dev
 
+echo "Installing uv"
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
 # clone the project
 echo "Cloning project repository"
 git clone "https://github.com/hudakdesign/healthTRAC"
@@ -27,14 +30,14 @@ cd healthTRAC
 git fetch origin development
 git checkout development
 
-# create python env
-echo "Creating python environment"
-python -m venv .venv
-source .venv/bin/activate
+# # create python env
+# echo "Creating python environment"
+# python -m venv .venv
+# source .venv/bin/activate
 
-# install pip reqs
-echo "Installing required PIP packages"
-pip install flask soundfile sounddevice requests
+# # install pip reqs
+# echo "Installing required PIP packages"
+# pip install flask soundfile sounddevice requests
 
 # # set up static ip
 # echo "Configuring static IP"
