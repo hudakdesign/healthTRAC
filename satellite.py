@@ -1,17 +1,16 @@
 # Imports
 import json
+import queue
+import subprocess
+import sys
 import threading
 import time
-import queue
-import sys
-import subprocess
 
-
-from flask import Flask
-import sounddevice as sd
-import soundfile as sf
 import numpy
 import requests
+import sounddevice as sd
+import soundfile as sf
+from flask import Flask
 
 assert numpy
 

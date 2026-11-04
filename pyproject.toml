@@ -1,0 +1,15 @@
+[project]
+name = "healthtrac"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "flask>=3.1.3",
+    "gpiozero>=2.0.1.post3",
+    "lgpio>=0.2.2.0",
+    "pandas>=3.1.1",
+    "requests>=2.34.2",
+    "sounddevice>=0.5.6",
+    "soundfile>=0.14.0",
+]

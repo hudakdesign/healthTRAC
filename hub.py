@@ -3,9 +3,10 @@ import json
 import threading
 import time
 
-from flask import Flask, render_template
-import pandas as pd
 import gpiozero
+import pandas as pd
+from flask import Flask, render_template
+
 import sensor_subsystem
 
 # Constants

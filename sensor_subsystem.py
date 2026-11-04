@@ -6,8 +6,8 @@ import subprocess
 import threading
 import time
 
-import requests
 import pandas as pd
+import requests
 
 # Constants:
 REQUEST_TIMEOUT_SECONDS = 1

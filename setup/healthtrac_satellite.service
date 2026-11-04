@@ -7,7 +7,7 @@ Type=idle
 
 User=healthtrac
 WorkingDirectory=/home/healthtrac/healthTRAC/
-ExecStart=/home/healthtrac/healthTRAC/.venv/bin/python3 /home/healthtrac/healthTRAC/satellite.py
+ExecStart=/usr/bin/env -S uv run /home/healthtrac/healthTRAC/satellite.py
 
 Restart=always
 RestartSec=10
