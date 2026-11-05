@@ -20,7 +20,7 @@ DEVICE_ID = 0
 NUM_CHANNELS = sd.query_devices(DEVICE_ID)["max_input_channels"]
 MICROPHONE_FREQUENCY = sd.query_devices(DEVICE_ID)["default_samplerate"]
 
-FILENAME = "test_recording.wav"
+FILE_EXTENSION = "flac"
 HUB_API_URL = "http://10.42.0.1:8080/recording"
 DIAGNOSTIC_API_PORT = 8051
 SLEEP_TIME = 1
@@ -66,8 +66,6 @@ def audio_data_recorder():
             print(status, file=sys.stderr)
         audio_block_queue.put(indata.copy())
 
-        curr_time = time.time_ns()
-
         # if a block is 1500 frames, and the sample rate is 16000hz,
         # then when we get a block the start time is roughly (1500 / 16000) seconds before the current time
         # this isnt perfectly accurate, but it should be good enough for diagnostics
@@ -98,12 +96,14 @@ def audio_data_recorder():
     sample_rate = int(device_info["default_samplerate"])
     channels = device_info["max_input_channels"]
 
-    # record data to wav file
+    # record data to file
     # update to change filename for each chunk
     while get_running_state():
         if get_recording_state():
             # each time recording is restarted update the filename
-            file_path = f"{RECORDING_DIRECTORY}recording_{time.time_ns()}.wav"
+            file_path = (
+                f"{RECORDING_DIRECTORY}recording_{time.time_ns()}.{FILE_EXTENSION}"
+            )
             next_chunk_time = time.time_ns() + CHUNK_TIME_NS
 
             # Look into modifying logic to avoid reopening the input stream / minimize data loss
