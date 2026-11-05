@@ -107,24 +107,26 @@ def audio_data_recorder():
             next_chunk_time = time.time_ns() + CHUNK_TIME_NS
 
             # Look into modifying logic to avoid reopening the input stream / minimize data loss
-            with sf.SoundFile(
-                file_path, mode="x", samplerate=sample_rate, channels=channels
-            ) as file:
-                with sd.InputStream(
+            with (
+                sf.SoundFile(
+                    file_path, mode="x", samplerate=sample_rate, channels=channels
+                ) as file,
+                sd.InputStream(
                     samplerate=sample_rate,
                     device=DEVICE_ID,
                     channels=channels,
                     callback=callback,
-                ):
-                    print("New recording started")
+                ),
+            ):
+                print("New recording started")
 
-                    while (
-                        get_recording_state()
-                        and get_running_state()
-                        and (time.time_ns() < next_chunk_time)
-                    ):
-                        # restart the recording after a set amount of time passes to help avoid corruption
-                        file.write(audio_block_queue.get())
+                while (
+                    get_recording_state()
+                    and get_running_state()
+                    and (time.time_ns() < next_chunk_time)
+                ):
+                    # restart the recording after a set amount of time passes to help avoid corruption
+                    file.write(audio_block_queue.get())
         else:
             time.sleep(SLEEP_TIME)
 
@@ -171,7 +173,7 @@ def diagnostics_api_server():
             },
             "timeSent": 0,
         }
-        
+
         # add an array for each channel
         for channel_index in range(NUM_CHANNELS):
             response_dict["dataPolls"][f"channel{channel_index}"] = []
@@ -180,7 +182,9 @@ def diagnostics_api_server():
         # get frames from it and add them to the response json
         while not diagnostic_frame_queue.empty():
             diagnostic_frame = diagnostic_frame_queue.get()
-            response_dict["dataPolls"]["timestamps"].append(diagnostic_frame["timestamp"])
+            response_dict["dataPolls"]["timestamps"].append(
+                diagnostic_frame["timestamp"]
+            )
 
             # populate the sensors part of things
             for channel_index in range(NUM_CHANNELS):
