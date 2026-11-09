@@ -86,6 +86,7 @@ class SensorSubsystem:
 
         except requests.exceptions.ConnectionError as inst:
             print(inst)
+            return None
         
         # if the response came though then
         self.is_connected = True
