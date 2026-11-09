@@ -84,7 +84,7 @@ class SensorSubsystem:
             # and return early
             return None
 
-        except requests.exceptions.ConnectionError as inst:
+        except requests.exceptions as inst:
             print(inst)
             return None
         
