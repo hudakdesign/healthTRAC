@@ -196,15 +196,15 @@ if __name__ == "__main__":
         recording_reactivator_thread.start()
 
     # Start the subsystems
-    for subsystem_name in subsystems.keys():
-        subsystems[subsystem_name].start_updating()
+    for subsystem in subsystems.values():
+        subsystem.start_updating()
 
     # Run flask server
     app.run(host="0.0.0.0", port=8080)
 
     # Stop the subsystems
-    for subsystem_name in subsystems.keys():
-        subsystems[subsystem_name].stop_updating()
+    for subsystem in subsystems.values():
+        subsystem.stop_updating()
 
     # Stop the recording reactivator
     running = False
