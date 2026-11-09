@@ -53,7 +53,7 @@ INTERFACE_NAME="wlan0"
 SSID="HealthTRAC-Hub"
 CON_NAME=$SSID
 sudo nmcli device wifi hotspot ifname $INTERFACE_NAME con-name $CON_NAME ssid $SSID password $hotspot_password
-sudo nmcli con mod $CON_NAME 802-11-wireless-security.proto wpa
+sudo nmcli con mod $CON_NAME 802-11-wireless-security.proto rsn
 sudo nmcli con mod $CON_NAME 802-11-wireless-security.pmf disable
 sudo nmcli con mod $CON_NAME autoconnect yes
 sudo nmcli con down $CON_NAME
