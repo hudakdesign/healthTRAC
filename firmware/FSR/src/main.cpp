@@ -191,8 +191,10 @@ void loop()
     // wait until wifi is reconnected
     while (WiFi.status() != WL_CONNECTED)
     {
-      vTaskDelay(500);
-      Serial.print(".");
+      digitalWrite(LED_GREEN, LOW);
+      vTaskDelay(BLINK_RATE / portTICK_PERIOD_MS);
+      digitalWrite(LED_GREEN, HIGH);
+      vTaskDelay(BLINK_RATE / portTICK_PERIOD_MS);
     }
     Serial.println();
     Serial.println("WiFi reconnected");
