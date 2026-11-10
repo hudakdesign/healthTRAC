@@ -148,9 +148,9 @@ def recording_flag_checker():
                 set_recording_state(True)
             else:
                 set_recording_state(False)
-        except:
+        except Exception as inst:
             set_recording_state(False)
-            print("recording_flag_checker(): Exception when requesting hub")
+            print(f"recording_flag_checker(): {inst}")
 
         time.sleep(SLEEP_TIME)
     print("recording_flag_checker(): Shutting down")
