@@ -111,6 +111,7 @@ void setup()
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(LED_RED, OUTPUT);
   pinMode(LED_GREEN, OUTPUT);
+  pinMode(LED_BLUE, OUTPUT);
 
   // configure selection pins
   for (int i = 0; i < (sizeof(SELECTION_PINS) / sizeof(int)); i++)
@@ -347,14 +348,14 @@ void setupTime()
 {
   // turn on led while setup isnt yet done correctly
   // if it doesnt turn off then something is wrong
-  digitalWrite(LED_RED, LOW);
+  digitalWrite(LED_BLUE, LOW);
   configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER);
 
   // test that time is configured
   struct tm tinfo;
   if (getLocalTime(&tinfo))
   {
-    digitalWrite(LED_RED, HIGH);
+    digitalWrite(LED_BLUE, HIGH);
   }
 }
 
