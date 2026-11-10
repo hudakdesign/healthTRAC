@@ -45,7 +45,7 @@ class SensorSubsystem:
 
     def __init__(self, database_name, subsystem_url, notes) -> None:
         # Check that the data directory exists
-        subprocess.run(["mkdir", "-p", "data"])
+        subprocess.run(["mkdir", "-p", "data"], check=False)
 
         self.database_name = database_name
         self.con = None  # this should get set on first save to db
@@ -156,8 +156,7 @@ class SensorSubsystem:
             # remove old data to make it the correct size
             num_polls_to_drop = len(new_aggregate_data) - AGGREGATE_SHORT_LENGTH
             # only drop polls if there is more data than the limit
-            if num_polls_to_drop < 0:
-                num_polls_to_drop = 0
+            num_polls_to_drop = max(num_polls_to_drop, 0)
 
             new_aggregate_data = new_aggregate_data.iloc[num_polls_to_drop:]
             new_aggregate_data = new_aggregate_data.reset_index()
