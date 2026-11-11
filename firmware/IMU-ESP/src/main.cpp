@@ -336,7 +336,6 @@ void setup()
     vTaskDelay(pdMS_TO_TICKS(BLINK_RATE));
     digitalWrite(LED_GREEN, HIGH);
     vTaskDelay(pdMS_TO_TICKS(BLINK_RATE));
-
     Serial.print(".");
   }
 
@@ -370,7 +369,11 @@ void loop()
     // wait until wifi is reconnected
     while (WiFi.status() != WL_CONNECTED)
     {
-      vTaskDelay(500);
+      // blinky and print .
+      digitalWrite(LED_GREEN, LOW);
+      vTaskDelay(pdMS_TO_TICKS(BLINK_RATE));
+      digitalWrite(LED_GREEN, HIGH);
+      vTaskDelay(pdMS_TO_TICKS(BLINK_RATE));
       Serial.print(".");
     }
     Serial.println();

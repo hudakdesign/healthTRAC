@@ -84,7 +84,7 @@ class SensorSubsystem:
             # and return early
             return None
 
-        except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout) as inst:
+        except (requests.exceptions.RequestException) as inst:
             print(inst)
             return None
         
