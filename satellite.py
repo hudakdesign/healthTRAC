@@ -22,7 +22,7 @@ MICROPHONE_FREQUENCY = sd.query_devices(DEVICE_ID)["default_samplerate"]
 
 FILE_EXTENSION = "flac"
 HUB_API_URL = "http://10.42.0.1:8080/recording"
-DIAGNOSTIC_API_PORT = 80
+DIAGNOSTIC_API_PORT = 8080
 SLEEP_TIME = 1
 TIMEOUT_TIME_SECONDS = (
     4  # including sleep time, this means theres at most a 5 second delay before pausing

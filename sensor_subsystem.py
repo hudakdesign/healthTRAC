@@ -61,7 +61,7 @@ class SensorSubsystem:
         self.last_receive_time = 0
         self.notes = notes
 
-    def _poll_subsystem(self) -> dict | None:
+    def _poll_subsystem(self, port=80) -> dict | None:
         """Request data from `subsystem_url` and return it as a dict
 
         Attempts to request data from `subsystem_url` and parses the json into
@@ -73,7 +73,7 @@ class SensorSubsystem:
         try:
             # tries to get the data from the `subsystem_url`
             response = requests.get(
-                f"http://{self.subsystem_url}/", timeout=REQUEST_TIMEOUT_SECONDS
+                f"http://{self.subsystem_url}:{port}/", timeout=REQUEST_TIMEOUT_SECONDS
             )
             self.last_receive_time = time.time_ns()
         except requests.exceptions.ConnectTimeout:
@@ -275,6 +275,9 @@ class MicrophoneArray(SensorSubsystem):
             this is set if the request succeeds or not.
         is_muted: A boolean value for if the mic is currently muted.
     """
+
+    def _poll_subsystem(self, port=8080):
+        return super()._poll_subsystem(port)
 
     def get_subsystem_type(self) -> str:
         """Returns the subsystem type"""
