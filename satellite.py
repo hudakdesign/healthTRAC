@@ -35,16 +35,18 @@ CHUNK_TIME_NS = (
 # frequency is 16000hz, 1500 frames per chunk. taking a sample every 250 frames will yield a 64hz polling rate
 DIAGNOSTIC_SAMPLE_RATE = 250  # takes a sample every 250 frames
 FRAME_TIME_NS = int((1.0 / MICROPHONE_FREQUENCY) * 1e9)
+AUDIO_BLOCK_QUEUE_LENGTH = 10
+DIAGNOSTIC_QUEUE_LENGTH = 2000
 
 
 # Globals
 app = Flask(__name__)
 
 audio_block_queue = (
-    queue.Queue()
+    queue.Queue(maxsize=AUDIO_BLOCK_QUEUE_LENGTH)
 )  # used to queue up audio chunks from callback for writing
 diagnostic_frame_queue = (
-    queue.Queue()
+    queue.Queue(maxsize=DIAGNOSTIC_QUEUE_LENGTH)
 )  # used to queue up audio diagnostics data to share with the hub
 
 last_poll_time = 0  # used for poll timing
@@ -90,6 +92,8 @@ def audio_data_recorder() -> None:
 
         #     print(f"Index {i}: {new_diagnostic_frame}")
         # print("-" * 80)
+        print(f"audio_block_queue length: {audio_block_queue.qsize()}")
+        print(f"diagnostic_frame_queue length: {diagnostic_frame_queue.qsize()}")
 
     # query device for sample rate and channel count
     device_info = sd.query_devices(DEVICE_ID)

@@ -6,8 +6,8 @@
 # ///
 
 import argparse
-import json
 import threading
+import time
 
 from flask import Flask
 
@@ -28,6 +28,7 @@ def recording_flag() -> str:
 def recording_toggler() -> None:
     global recording
 
+    time.sleep(0.5)
     while running:
         input(f"Recording: `{recording}`; Press [Enter] to toggle")
         recording = not recording
