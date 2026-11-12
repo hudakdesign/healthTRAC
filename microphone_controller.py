@@ -17,15 +17,15 @@ running = True
 recording = True
 
 
-@app.route("/")
-def recording_flag():
+@app.route("/recording")
+def recording_flag() -> str:
     if recording:
-        return json.dumps("True")
+        return "True"
     else:
-        return json.dumps("False")
+        return "False"
 
 
-def recording_toggler():
+def recording_toggler() -> None:
     global recording
 
     while running:

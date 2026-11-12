@@ -48,7 +48,6 @@ def recording_reactivator(reactivation_time: dt.time):
         # schedule the reactivation to occur at the provided time in the morning
         # on the following day
         reactivation_date = dt.date.today() + dt.timedelta(days=1)
-        reactivation_time = reactivation_time
         reactivation_datetime = dt.datetime.combine(
             reactivation_date, reactivation_time
         )
