@@ -57,11 +57,11 @@ recording_lock = threading.Lock()
 
 # Tasks:
 # record audio data
-def audio_data_recorder():
+def audio_data_recorder() -> None:
     # callback function used to process every block of audio data
     # this is from a separate thread
     # queue heavily downsampled data from each block
-    def callback(indata, frames, t_, status):
+    def callback(indata, frames, t_, status) -> None:
         if status:
             print(status, file=sys.stderr)
         audio_block_queue.put(indata.copy())
@@ -135,8 +135,7 @@ def audio_data_recorder():
 
 
 # check recording flag
-def recording_flag_checker():
-    global recording
+def recording_flag_checker() -> None:
     # poll hub to check if recording should be happening
     # use a request timeout to pause recording if hub is down
     # (implemented mutex to be safe): determine if lock is necessary for running and recording
@@ -157,11 +156,11 @@ def recording_flag_checker():
 
 
 # diagnostics api (main)
-def diagnostics_api_server():
+def diagnostics_api_server() -> None:
     # host flask app making diagnostics data accessible at route
     # consume items from the queue
     @app.route("/")
-    def diagnostics_api():
+    def diagnostics_api() -> str:
         # fill dictionary with diagnostics data from queue until queue is empty
         # once the dictionary is ready, call json.dumps() and return it
 
@@ -203,7 +202,7 @@ def diagnostics_api_server():
     print("diagnostics_api_server(): Shutting down")
 
 
-def queue_tester():
+def queue_tester() -> None:
     while running:
         diagnostic_frame = diagnostic_frame_queue.get(timeout=1)
         print(f"queue_tester(): {diagnostic_frame}")
@@ -213,13 +212,13 @@ def queue_tester():
 
 # Utility functions:
 # gets recording in a thread-safe manner
-def get_recording_state():
+def get_recording_state() -> bool:
     with recording_lock:
         return recording
 
 
 # sets recording in a thread-safe manner
-def set_recording_state(recording_state: bool):
+def set_recording_state(recording_state: bool) -> None:
     global recording
 
     with recording_lock:
@@ -227,13 +226,13 @@ def set_recording_state(recording_state: bool):
 
 
 # gets running in a thread-safe manner
-def get_running_state():
+def get_running_state() -> bool:
     with running_lock:
         return running
 
 
 # sets running in a thread-safe manner
-def set_running_state(running_state: bool):
+def set_running_state(running_state: bool) -> None:
     global running
 
     with running_lock:
