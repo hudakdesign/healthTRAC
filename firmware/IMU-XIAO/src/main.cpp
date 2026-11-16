@@ -161,10 +161,10 @@ void pollSensorTimerCallback(TimerHandle_t xTimer)
   int16_t accelY = myImu.readRawAccelY();
   int16_t accelZ = myImu.readRawAccelZ();
 
-  int16_t batteryPercent = analogRead(PIN_VBAT);
+  int16_t batteryAdc = analogRead(PIN_VBAT);
 
   // encode new poll data
-  DataPoll dataPoll(timestamp, accelX, accelY, accelZ, batteryPercent);
+  DataPoll dataPoll(timestamp, accelX, accelY, accelZ, batteryAdc);
 
   // send to queue
   if (xQueueSend(pollQueue, (void *)&dataPoll, 0) != pdTRUE)

@@ -13,17 +13,17 @@ public:
   {
     int64_t timestamp;
     int16_t accelX, accelY, accelZ;
-    uint16_t batteryPercent;
+    uint16_t batteryAdc;
   } data;
 
   // Creates DataPoll object with provided parameters
-  DataPoll(int64_t timestamp, int16_t accelX, int16_t accelY, int16_t accelZ, uint16_t batteryPercent)
+  DataPoll(int64_t timestamp, int16_t accelX, int16_t accelY, int16_t accelZ, uint16_t batteryAdc)
   {
     data.timestamp = timestamp;
     data.accelX = accelX;
     data.accelY = accelY;
     data.accelZ = accelZ;
-    data.batteryPercent = batteryPercent;
+    data.batteryAdc = batteryAdc;
   }
 
   // Decodes array of encoded data poll bytes into DataPoll object
