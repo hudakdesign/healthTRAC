@@ -42,11 +42,11 @@ DIAGNOSTIC_QUEUE_LENGTH = 2000
 # Globals
 app = Flask(__name__)
 
-audio_block_queue = (
-    queue.Queue(maxsize=AUDIO_BLOCK_QUEUE_LENGTH)
+audio_block_queue = queue.Queue(
+    maxsize=AUDIO_BLOCK_QUEUE_LENGTH
 )  # used to queue up audio chunks from callback for writing
-diagnostic_frame_queue = (
-    queue.Queue(maxsize=DIAGNOSTIC_QUEUE_LENGTH)
+diagnostic_frame_queue = queue.Queue(
+    maxsize=DIAGNOSTIC_QUEUE_LENGTH
 )  # used to queue up audio diagnostics data to share with the hub
 
 last_poll_time = 0  # used for poll timing
@@ -175,6 +175,7 @@ def diagnostics_api_server() -> None:
                 "timestamps": [],
             },
             "timeSent": 0,
+            "isRecording": False
         }
 
         # add an array for each channel
@@ -196,6 +197,10 @@ def diagnostics_api_server() -> None:
                 )
 
         # once the queue is emptied,
+        # add if the subsystem is recording or not
+        with recording_lock:
+            response_dict["isRecording"] = recording
+
         # add the time that it is getting sent,
         response_dict["timeSent"] = int(time.time_ns() // 1e6)
         # turn it into json string and send it off

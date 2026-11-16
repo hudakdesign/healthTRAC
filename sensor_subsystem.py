@@ -39,8 +39,9 @@ class SensorSubsystem:
             values.
         is_connected: A boolean value for if the subsystem is connected.
             this is set if the request succeeds or not.
-        last_receive_time = The last time in ms that a response was received
-            from the subsystem
+        last_receive_time: The last time in ms that a response was received
+            from the subsystem.
+        notes: Anything notable about the subsystem e.g. abnormal placement.
     """
 
     def __init__(self, database_name, subsystem_url, notes) -> None:
@@ -276,8 +277,18 @@ class MicrophoneArray(SensorSubsystem):
         is_muted: A boolean value for if the mic is currently muted.
     """
 
+    def __init__(self, database_name, subsystem_url, notes):
+        super().__init__(database_name, subsystem_url, notes)
+        self.recording = False
+        self.recording_lock = threading.Lock()
+
     def _poll_subsystem(self, port=8080):
         return super()._poll_subsystem(port)
+
+    def _process_response(self, response):
+        with self.recording_lock:
+            self.recording = response["isRecording"]
+        return super()._process_response(response)
 
     def get_subsystem_type(self) -> str:
         """Returns the subsystem type"""
@@ -287,8 +298,8 @@ class MicrophoneArray(SensorSubsystem):
     def get_recording_status(self) -> bool:
         """Returns if the subsystem is recording or not"""
 
-        # TODO: Replace placeholder data w/ real data
-        return False
+        with self.recording_lock:
+            return self.recording
 
 
 class ForceSensitiveResistor(SensorSubsystem):
