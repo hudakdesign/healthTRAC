@@ -6,7 +6,6 @@
 
 // sleep related includes
 #include <Adafruit_SPIFlash.h>
-#include <LSM6DS3.h>
 #include <nrf52840.h>
 #include <Wire.h>
 
@@ -91,37 +90,37 @@ bool checkForInactivity(DataPoll newDataPoll)
   return false;
 }
 
-int voltageToPercent(int voltage)
-{
-  // parameters for the voltage curve
-  float a, b, c;
-  a = 7.165958999213756;
-  b = -0.002256493538236537;
-  c = -5589.17943906102;
+// int voltageToPercent(int voltage)
+// {
+//   // parameters for the voltage curve
+//   float a, b, c;
+//   a = 7.165958999213756;
+//   b = -0.002256493538236537;
+//   c = -5589.17943906102;
 
-  // calculates the percent along the curve
-  float chargePercent = a * voltage + b * (voltage * voltage) + c;
+//   // calculates the percent along the curve
+//   float chargePercent = a * voltage + b * (voltage * voltage) + c;
 
-  // if percent reads over 100 then say its 100 (full)
-  if (chargePercent > 100)
-  {
-    return 100;
-  }
-  // if percent reads below 0 then say that its 0 (dead)
-  else if (chargePercent < 0)
-  {
-    return 0;
-  }
-  else
-  {
-    return (int)chargePercent;
-  }
-}
+//   // if percent reads over 100 then say its 100 (full)
+//   if (chargePercent > 100)
+//   {
+//     return 100;
+//   }
+//   // if percent reads below 0 then say that its 0 (dead)
+//   else if (chargePercent < 0)
+//   {
+//     return 0;
+//   }
+//   else
+//   {
+//     return (int)chargePercent;
+//   }
+// }
 
-uint16_t getBatteryPercent() {
-  int batteryVoltage = analogRead(PIN_VBAT);
-  return (uint16_t)voltageToPercent(batteryVoltage);
-}
+// uint16_t getBatteryPercent() {
+//   int batteryVoltage = analogRead(PIN_VBAT);
+//   return (uint16_t)voltageToPercent(batteryVoltage);
+// }
 
 void QSPIF_sleep(void)
 {
@@ -162,7 +161,7 @@ void pollSensorTimerCallback(TimerHandle_t xTimer)
   int16_t accelY = myImu.readRawAccelY();
   int16_t accelZ = myImu.readRawAccelZ();
 
-  int16_t batteryPercent = getBatteryPercent();
+  int16_t batteryPercent = analogRead(PIN_VBAT);
 
   // encode new poll data
   DataPoll dataPoll(timestamp, accelX, accelY, accelZ, batteryPercent);
