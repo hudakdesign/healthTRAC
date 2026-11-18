@@ -398,7 +398,7 @@ void loop()
   }
 
   // Manage webserver
-  WiFiClient wifiClient = server.available();
+  WiFiClient wifiClient = server.accept();
 
   // if a client connects then prepare and send a response
   if (wifiClient)
