@@ -1,0 +1,32 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "subsystemType": {"type": "string"},
+        "timeSent": {"type": "integer", "exclusiveMinimum": 0},
+        "dataPolls": {
+            "type": "object",
+            "properties": {
+                "timestamps": {"type": "string", "exclusiveMinimum": 0},
+                "fsr0": {"type": "integer", "minimum": 0},
+                "fsr1": {"type": "integer", "minimum": 0},
+                "fsr2": {"type": "integer", "minimum": 0},
+                "fsr3": {"type": "integer", "minimum": 0},
+                "fsr4": {"type": "integer", "minimum": 0},
+                "fsr5": {"type": "integer", "minimum": 0},
+                "fsr6": {"type": "integer", "minimum": 0},
+                "fsr7": {"type": "integer", "minimum": 0},
+                "fsr8": {"type": "integer", "minimum": 0},
+                "fsr9": {"type": "integer", "minimum": 0},
+                "fsr10": {"type": "integer", "minimum": 0},
+                "fsr11": {"type": "integer", "minimum": 0},
+                "fsr12": {"type": "integer", "minimum": 0},
+                "fsr13": {"type": "integer", "minimum": 0},
+                "fsr14": {"type": "integer", "minimum": 0},
+                "fsr15": {"type": "integer", "minimum": 0}
+            },
+            "required": ["timestamps", "fsr0"]
+        }
+    },
+    "required": ["subsystemType", "timeSent", "dataPolls"]
+}

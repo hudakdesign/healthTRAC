@@ -1,0 +1,59 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "subsystemType": {
+            "type": "string"
+        },
+        "lastConnectTimeMs": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+        },
+        "signalStrengthDbm": {
+            "type": "integer"
+        },
+        "timeSent": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+        },
+        "dataPolls": {
+            "type": "object",
+            "properties": {
+                "timestamps": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                },
+                "accelX": {
+                    "type": "integer",
+                    "description": "Raw value for the acceleration, requires conversion to make sense"
+                },
+                "accelY": {
+                    "type": "integer",
+                    "description": "Raw value for the acceleration, requires conversion to make sense"
+                },
+                "accelZ": {
+                    "type": "integer",
+                    "description": "Raw value for the acceleration, requires conversion to make sense"
+                },
+                "batteryAdc": {
+                    "type": "integer",
+                    "minimum": 0
+                }
+            },
+            "required": [
+                "timestamps",
+                "accelX",
+                "accelY",
+                "accelZ",
+                "batteryAdc"
+            ]
+        }
+    },
+    "required": [
+        "subsystemType",
+        "lastConnectTimeMs",
+        "signalStrengthDbm",
+        "timeSent",
+        "dataPolls"
+    ]
+}
