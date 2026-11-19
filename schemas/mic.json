@@ -1,0 +1,61 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+        "subsystemType": {
+            "type": "string"
+        },
+        "timeSent": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+        },
+        "dataPolls": {
+            "type": "object",
+            "properties": {
+                "timestamps": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer",
+                        "minimum": 0
+                    }
+                },
+                "channel0": {
+                    "type":"array",
+                    "items": {
+                        "type":"number"
+                    }
+                },
+                "channel1": {
+                    "type":"array",
+                    "items": {
+                        "type":"number"
+                    }
+                },
+                "channel2": {
+                    "type":"array",
+                    "items": {
+                        "type":"number"
+                    }
+                },
+                "channel3": {
+                    "type":"array",
+                    "items": {
+                        "type":"number"
+                    }
+                },"channel4": {
+                    "type":"array",
+                    "items": {
+                        "type":"number"
+                    }
+                },"channel5": {
+                    "type":"array",
+                    "items": {
+                        "type":"number"
+                    }
+                }
+            },
+            "required": ["timestamps", "channel0", "channel1", "channel2", "channel3", "channel4", "channel5"]
+        }
+    },
+    "required": ["subsystemType", "timeSent", "dataPolls"]
+}

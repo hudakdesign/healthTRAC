@@ -20,24 +20,39 @@
             "type": "object",
             "properties": {
                 "timestamps": {
-                    "type": "integer",
-                    "exclusiveMinimum": 0
+                    "type": "array",
+                    "items": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0
+                    }
                 },
                 "accelX": {
-                    "type": "integer",
-                    "description": "Raw value for the acceleration, requires conversion to make sense"
+                    "description": "Raw values for the acceleration, requires conversion to make sense",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 },
                 "accelY": {
-                    "type": "integer",
-                    "description": "Raw value for the acceleration, requires conversion to make sense"
+                    "description": "Raw values for the acceleration, requires conversion to make sense",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 },
                 "accelZ": {
-                    "type": "integer",
-                    "description": "Raw value for the acceleration, requires conversion to make sense"
+                    "description": "Raw values for the acceleration, requires conversion to make sense",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
                 },
                 "batteryAdc": {
-                    "type": "integer",
-                    "minimum": 0
+                    "type": "array",
+                    "items": {
+                        "type": "integer",
+                        "minimum": 0
+                    }
                 }
             },
             "required": [
